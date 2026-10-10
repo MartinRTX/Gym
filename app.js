@@ -1,4 +1,4 @@
-/* Gym v5 – app instalable (sirve para varias personas: cada quien con su clave y su propia hoja).
+/* Gym v5.2 – app instalable (sirve para varias personas: cada quien con su clave y su propia hoja).
  * Lee y escribe la hoja de Google a través del script de Apps Script (la "API").
  * Todo lo que guardas se queda primero en el celular y se sube en cuanto hay señal.
  */
@@ -65,7 +65,9 @@ const FOODS = [
   { k: 'Scoop', t: 'Scoop con agua', g: 22 },
   { k: 'Tupper carne', t: 'Tupper con carne o pollo', g: 28 },
   { k: 'Tupper pasta', t: 'Tupper de pasta o papa', g: 12 },
-  { k: 'Quesadillas', t: '2 quesadillas', g: 16 },
+  { k: 'Cena huevos', t: 'Cena: 3 de maíz con queso y frijol + 2 huevos', g: 30 },
+  { k: 'Cena pollo', t: 'Cena: quesadillas de harina + pollo', g: 40 },
+  { k: 'Quesadillas', t: '2 quesadillas solas', g: 16 },
   { k: 'Huevos', t: '2 huevos', g: 12 },
   { k: 'Atún', t: 'Lata de atún', g: 20 },
   { k: 'Carne', t: 'Carne o pollo (tu palma)', g: 25 },
@@ -81,6 +83,9 @@ const ajuste = (k, d) => LS.get('gym_cfg_' + k, d);
 const setAjuste = (k, v) => LS.set('gym_cfg_' + k, v);
 const diaReg = () => FECHA || hoy();
 const tsReg = () => FECHA ? new Date(FECHA + 'T07:00:00').getTime() : Date.now();
+// Nombres para avisar qué dato rechazó la hoja
+const NOMBRE_OP = { saveExercise: 'Ejercicio', savePeso: 'Peso', saveProteina: 'Proteína', saveCintura: 'Cintura', saveTrote: 'Trote',
+                    saveFoto: 'Foto', saveConfig: 'Ajuste', undoById: 'Borrado', undoTrote: 'Borrado de trote', borrarFoto: 'Borrado de foto' };
 
 /* ===================== API ===================== */
 async function apiGet(action) {
@@ -116,6 +121,7 @@ async function enviar() {
   const q = cola();
   if (flushing || !q.length || !API) return;
   flushing = true; pintarSync();
+  const errores = [];
   try {
     // Cada cambio se manda con la clave con la que se hizo (por si alguien cambió de cuenta en este celular)
     const claves = [...new Set(q.map(op => op.k || KEY))];
@@ -123,13 +129,25 @@ async function enviar() {
     for (const c of claves) {
       const ops = q.filter(op => (op.k || KEY) === c).map(op => ({ id: op.id, action: op.action, args: op.args }));
       const res = await apiPost('batch', [ops], c);
-      res.forEach(r => { listos.add(r.id); if (!r.ok) toast('No se guardó: ' + r.error); });
+      res.forEach(r => {
+        listos.add(r.id);
+        if (!r.ok) {
+          const op = q.find(o => o.id === r.id);
+          errores.push({ que: NOMBRE_OP[op && op.action] || 'Dato', msg: String(r.error || 'Error'), cuando: hoy() });
+        }
+      });
     }
     guardarCola(cola().filter(op => !listos.has(op.id)));
   } catch (e) {
     if (/Clave/.test(e.message)) toast('La clave no coincide; revisa la configuración');
     clearTimeout(flushTimer); flushTimer = setTimeout(enviar, 20000);
   } finally { flushing = false; pintarSync(); }
+  if (errores.length) {
+    // El aviso se queda arriba en Entrenar hasta que tocas "Entendido"
+    LS.set('gym_errores', LS.get('gym_errores', []).concat(errores).slice(-10));
+    toast('La hoja no aceptó ' + (errores.length === 1 ? 'un dato' : errores.length + ' datos') + '; revisa el aviso');
+    if (DATA && TAB === 'Entrenar') pintarEntrenar();
+  }
 }
 function pintarSync() {
   const n = cola().length, el = $('sync');
@@ -137,6 +155,15 @@ function pintarSync() {
   if (flushing) { el.className = 'sync'; el.textContent = 'Subiendo…'; }
   else if (n) { el.className = 'sync pend'; el.textContent = n + ' sin subir' + (navigator.onLine ? '' : ' · sin señal'); }
   else { el.className = 'sync ok'; el.textContent = '✓ Al día'; }
+}
+function avisoErrores() {
+  const e = LS.get('gym_errores', []);
+  if (!e.length) return '';
+  return '<div class="card" style="background:var(--acc-weak);border-color:transparent">' +
+    '<div class="t1" style="color:var(--acc)">La hoja no aceptó ' + (e.length === 1 ? 'un dato' : e.length + ' datos') + '</div>' +
+    '<div class="muted" style="margin:4px 0 10px">' + e.slice(-3).map(x => esc(x.que + ' (' + ddmm(x.cuando) + '): ' + x.msg)).join('<br>') +
+    '<br>Quedó en tu celular, pero no en la hoja. Si no sabes por qué, mándale captura a tu coach.</div>' +
+    '<button class="btn ghost sm" onclick="LS.del(\'gym_errores\');pintarEntrenar()">Entendido</button></div>';
 }
 
 /* ===================== Arranque ===================== */
@@ -146,7 +173,7 @@ function arrancar() {
     const nuevaClave = p.get('k').trim();
     if (KEY && nuevaClave !== KEY) {
       // Otra persona en este celular: borra lo guardado de la cuenta anterior (los pendientes se suben con su clave)
-      Object.keys(localStorage).filter(k => /^gym_(data|ses_|wip_|prot_|peso_|cint_|super_|fotos|tipcount)/.test(k)).forEach(k => LS.del(k));
+      Object.keys(localStorage).filter(k => /^gym_(data|ses_|wip_|prot_|peso_|cint_|super_|fotos|tipcount|errores)/.test(k)).forEach(k => LS.del(k));
     }
     API = p.get('api').trim(); KEY = nuevaClave;
     LS.set('gym_api', API); LS.set('gym_key', KEY);
@@ -303,6 +330,7 @@ function pintarEntrenar() {
       '<button class="btn" onclick="terminarSesion()">Terminar</button></div>';
   }
   if (FECHA) h += '<div class="otro">' + ICO.cal + '<span>Registrando para el ' + diaCorto(FECHA) + '</span><button class="btn" onclick="cambiarFecha(null)">Volver a hoy</button></div>';
+  h += avisoErrores();
   const diasSin = DATA.ultimoGrupoFecha ? difDias(DATA.ultimoGrupoFecha, hoy()) - 1 : 0;
   if (!FECHA && !activa && diasSin >= 3 && !sesion().log.length)
     h += '<div class="aviso">' + ICO.flame + '<span>Llevas ' + diasSin + ' días sin ir. Hoy toca ' + esc(DATA.sugGrupo) + ': aunque sean 30 minutos, cuenta.</span></div>';
@@ -310,8 +338,8 @@ function pintarEntrenar() {
   else if (!FECHA && new Date().getDay() === 0 && !activa) h += tarjetaCintura();
   h += '<input class="buscar" id="buscar" type="search" placeholder="Buscar ejercicio…" value="' + esc(BUSCA) + '" oninput="buscar(this.value)">';
   if (BUSCA) {
-    const q = BUSCA.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-    const res = DATA.exercises.filter(ex => (ex.ejercicio + ' ' + ex.musculo).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(q));
+    const q = BUSCA.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const res = DATA.exercises.filter(ex => (ex.ejercicio + ' ' + ex.musculo).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
     h += '<h2>' + res.length + ' resultado' + (res.length === 1 ? '' : 's') + '</h2>' + res.map(tarjetaEjercicio).join('');
     $('vEntrenar').innerHTML = h;
     return;
@@ -962,7 +990,8 @@ function borrarTrote(id) {
 /* ===================== COMIDA ===================== */
 function protTotal() { return prot.reduce((s, k) => s + (FOODS.find(f => f.k === k) || { g: 0 }).g, 0); }
 function diaTipicoLista() {
-  if (DATA.dueno) return ['Licuado', 'Tupper carne', 'Quesadillas'];
+  // Martin: licuado + tupper con carne + cena nueva + 2.º scoop
+  if (DATA.dueno) return ['Licuado', 'Tupper carne', 'Cena huevos', 'Scoop'];
   const cuenta = LS.get('gym_food_counts', {});
   return FOODS.slice().sort((a, b) => (cuenta[b.k] || 0) - (cuenta[a.k] || 0)).filter(f => cuenta[f.k]).slice(0, 3).map(f => f.k);
 }
@@ -978,9 +1007,10 @@ function pintarComida() {
     'stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - pct)) + '" style="transition:stroke-dashoffset .4s"/></svg>' +
     '<div><div class="v num">' + tot + ' g</div><div class="muted">de ' + meta + ' g</div></div></div>' +
     '<div class="t1" style="margin-top:4px">' + (falta > 0 ? 'Te faltan ~' + falta + ' g' : '¡Meta cumplida!') + '</div>' +
-    '<div class="muted">' + (falta > 0 ? 'Lo más barato: un scoop con agua (22 g)' : 'Bien hecho hoy') + '</div></div>';
-  if (!prot.length && tipico.length) h += '<button class="btn block" style="margin-bottom:12px" onclick="diaTipico()">Mi día típico · +' +
-    tipico.reduce((s, k) => s + FOODS.find(f => f.k === k).g, 0) + ' g</button>';
+    '<div class="muted">' + (falta > 0 ? (prot.includes('Scoop') ? 'Fácil: 2 huevos (12 g), yogurt (15 g) o atún (20 g)' : 'Lo más barato: un scoop con agua (22 g)') : 'Bien hecho hoy') + '</div></div>';
+  if (!prot.length && tipico.length) h += '<button class="btn block" style="margin-bottom:6px" onclick="diaTipico()">Mi día típico · +' +
+    tipico.reduce((s, k) => s + FOODS.find(f => f.k === k).g, 0) + ' g</button>' +
+    '<div class="muted" style="text-align:center;margin-bottom:12px">Tócalo en la noche y luego cambia lo que fue diferente</div>';
   if (top.length) h += '<h2>Lo que más comes</h2><div class="foods">' + top.map(f => botonComida(f, true)).join('') + '</div>';
   h += '<h2>Agregar</h2><div class="foods">' + FOODS.filter(f => !top.includes(f)).map(f => botonComida(f, false)).join('') + '</div>';
   if (prot.length) h += '<h2>Hoy comiste · toca para quitar</h2><div class="eaten">' +
@@ -1164,7 +1194,7 @@ function abrirAjustes() {
     '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Respaldo</div><div class="muted">Descarga lo que tiene la app en este celular</div></div>' +
     '<button class="btn ghost sm" onclick="descargarRespaldo()">Descargar</button></div>' +
     '<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none;margin-top:8px" href="' + DATA.resumen.sheetUrl + '" target="_blank" rel="noopener">Abrir mi hoja de Google</a>' +
-    '<div class="muted" style="text-align:center;margin-top:10px;font-size:12px">Gym v5.1 · ' + esc(DATA.nombre || '') + '</div>';
+    '<div class="muted" style="text-align:center;margin-top:10px;font-size:12px">Gym v5.2 · ' + esc(DATA.nombre || '') + '</div>';
   abrirModal();
 }
 async function toggleAjuste(k, d) {
