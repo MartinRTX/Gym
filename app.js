@@ -1,4 +1,4 @@
-/* Gym v5.2 – app instalable (sirve para varias personas: cada quien con su clave y su propia hoja).
+/* Gym v5.3 – app instalable (sirve para varias personas: cada quien con su clave y su propia hoja).
  * Lee y escribe la hoja de Google a través del script de Apps Script (la "API").
  * Todo lo que guardas se queda primero en el celular y se sube en cuanto hay señal.
  */
@@ -50,6 +50,38 @@ const ICO = {
 };
 const RPE = { 'Al fallo': 10, 'Casi (1–2 más)': 8.5, 'Sobraban 3+': 7 };
 const KG_A_LB = 2.2046;
+const GRUPOS3 = ['Push', 'Pull', 'Legs'];
+const DIAS_CORTOS = ['D', 'L', 'M', 'Mi', 'J', 'V', 'S'];   // 0 = domingo … 6 = sábado
+// Estilos de la v5.3 (metas, logros, bienvenida); van aquí para no tener que cambiar index.html
+const CSS_V53 = `
+  .seg.s4 { grid-template-columns: repeat(4, 1fr); }
+  .seg.s4 button { font-size: 13px; }
+  .metabar { height: 12px; background: var(--card2); border-radius: 99px; overflow: hidden; margin: 10px 0 6px; }
+  .metabar div { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--pri), var(--ok)); }
+  .pts { display: flex; align-items: baseline; gap: 6px; }
+  .pts b { font-size: 40px; font-weight: 800; letter-spacing: -.03em; line-height: 1; color: var(--pri); }
+  .desglose { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin-top: 12px; }
+  .desglose .l { font-size: 12.5px; color: var(--muted); display: flex; justify-content: space-between; }
+  .desglose .b { height: 6px; background: var(--card2); border-radius: 99px; overflow: hidden; margin-top: 3px; }
+  .desglose .b div { height: 100%; background: var(--pri); border-radius: 99px; }
+  .meds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .med { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px 6px; text-align: center; }
+  .med .i { font-size: 30px; line-height: 1.1; }
+  .med .n { font-size: 12.5px; font-weight: 700; margin-top: 4px; line-height: 1.2; }
+  .med .p { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .med.no { background: var(--card2); }
+  .med.no .i { filter: grayscale(1); opacity: .4; }
+  .med .mb { height: 4px; background: var(--line); border-radius: 99px; overflow: hidden; margin: 6px 8px 0; }
+  .med .mb div { height: 100%; background: var(--pri); }
+  .dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 8px 0 4px; }
+  .dias button { border: 1.5px solid var(--line); background: var(--card); border-radius: 10px; padding: 9px 0; font-weight: 700; font-size: 13px; color: var(--muted); }
+  .dias button.on { background: var(--pri); border-color: var(--pri); color: var(--on-pri); }
+  .bv label { display: block; font-weight: 700; margin: 14px 0 4px; }
+  .bv input[type=number] { width: 100%; padding: 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card2); color: var(--text); font-size: 18px; font-weight: 700; }
+  .pesobtn.vacio { color: var(--pri); font-size: 15px; font-weight: 700; }
+  .celebra { text-align: center; padding: 6px 0 2px; }
+  .celebra .i { font-size: 64px; line-height: 1.1; animation: pop .5s ease; }
+`;
 
 /* ===================== Configuración y datos ===================== */
 let API = LS.get('gym_api', ''), KEY = LS.get('gym_key', '');
@@ -57,6 +89,9 @@ let DATA = null, GRUPO = null, TAB = 'Entrenar', OPEN = null, BUSCA = '', PTAB =
 let FECHA = null;              // null = hoy; 'aaaa-mm-dd' = registrando otro día
 let state = {};
 let prot = [];
+let COMIDA_DIA = null;         // null = hoy; 'aaaa-mm-dd' = registrando la comida de ayer
+const diaComida = () => COMIDA_DIA || hoy();
+let BV_POSPUESTA = false;      // "Ahora no" en la bienvenida: vuelve a salir la próxima vez que abras la app
 let flushing = false, flushTimer = null;
 const PLEG = {};               // secciones abiertas a mano
 
@@ -168,12 +203,13 @@ function avisoErrores() {
 
 /* ===================== Arranque ===================== */
 function arrancar() {
+  const st = document.createElement('style'); st.textContent = CSS_V53; document.head.appendChild(st);
   const p = new URLSearchParams(location.search);
   if (p.get('api') && p.get('k')) {
     const nuevaClave = p.get('k').trim();
     if (KEY && nuevaClave !== KEY) {
       // Otra persona en este celular: borra lo guardado de la cuenta anterior (los pendientes se suben con su clave)
-      Object.keys(localStorage).filter(k => /^gym_(data|ses_|wip_|prot_|peso_|cint_|super_|fotos|tipcount|errores)/.test(k)).forEach(k => LS.del(k));
+      Object.keys(localStorage).filter(k => /^gym_(data|ses_|wip_|prot_|peso_|cint_|super_|fotos|tipcount|errores|medallas|ayer_no_|food_counts)/.test(k)).forEach(k => LS.del(k));
     }
     API = p.get('api').trim(); KEY = nuevaClave;
     LS.set('gym_api', API); LS.set('gym_key', KEY);
@@ -220,6 +256,8 @@ async function actualizar() {
     const d = await apiGet('data');
     DATA = d; LS.set('gym_data', d);
     pintarTodo();
+    if (DATA.perfil === false && !LS.get('gym_bienvenida', false)) abrirBienvenida();
+    else revisarMedallas();
   } catch (e) {
     if (!DATA) $('loading').textContent = /Clave/.test(e.message)
       ? 'La clave no coincide. Vuelve a abrir el link de configuración.'
@@ -266,15 +304,20 @@ function pintarTodo() {
   });
   if (!GRUPO) GRUPO = DATA.sugGrupo;
   if (OPEN === null) OPEN = siguiente(GRUPO, '');
-  const protLocal = LS.get('gym_prot_' + hoy(), null);
-  if (protLocal) prot = protLocal;
-  else if (fresco() && DATA.protHoy.detalle) prot = DATA.protHoy.detalle.split(', ').filter(k => FOODS.some(f => f.k === k));
-  else prot = [];
+  if (COMIDA_DIA && COMIDA_DIA !== sumarDias(hoy(), -1)) COMIDA_DIA = null;   // pasó la medianoche
+  prot = cargarProt(diaComida());
   $('brand').innerHTML = 'Gym <span>' + esc(DATA.nombre || '') + '</span>';
   document.title = 'Gym' + (DATA.nombre ? ' ' + DATA.nombre : '');
   pintarFecha();
   $('loading').classList.add('hide'); $('app').classList.remove('hide'); $('nav').classList.remove('hide');
   pintarTab(); pintarSync();
+}
+// Lo que comiste un día: primero lo guardado en el celular, luego lo que tiene la hoja
+function cargarProt(dia) {
+  const local = LS.get('gym_prot_' + dia, null);
+  if (local) return local;
+  const desdeHoja = dia === hoy() ? (fresco() ? DATA.protHoy : null) : (DATA.protAyer && DATA.protAyer.k === dia ? DATA.protAyer : null);
+  return desdeHoja && desdeHoja.detalle ? desdeHoja.detalle.split(', ').filter(k => FOODS.some(f => f.k === k)) : [];
 }
 function pesoDe(dia) {
   const local = LS.get('gym_peso_' + dia, null);
@@ -287,6 +330,7 @@ function pintarFecha() {
 }
 
 function verTab(t) {
+  if (t !== 'Comida' && COMIDA_DIA) { COMIDA_DIA = null; prot = cargarProt(hoy()); }
   TAB = t;
   ['Entrenar', 'Comida', 'Progreso'].forEach(x => {
     $('v' + x).classList.toggle('hide', x !== t);
@@ -331,6 +375,8 @@ function pintarEntrenar() {
   }
   if (FECHA) h += '<div class="otro">' + ICO.cal + '<span>Registrando para el ' + diaCorto(FECHA) + '</span><button class="btn" onclick="cambiarFecha(null)">Volver a hoy</button></div>';
   h += avisoErrores();
+  if (!FECHA && DATA.descargaCarrera) h += '<div class="aviso">' + ICO.flame + '<span>Semana de carrera: descarga. Mitad de series con el mismo peso (ya viene así). Legs a más tardar el lunes; el viernes descansas.</span></div>';
+  if (!FECHA && !activa) h += tarjetaAyer();
   const diasSin = DATA.ultimoGrupoFecha ? difDias(DATA.ultimoGrupoFecha, hoy()) - 1 : 0;
   if (!FECHA && !activa && diasSin >= 3 && !sesion().log.length)
     h += '<div class="aviso">' + ICO.flame + '<span>Llevas ' + diasSin + ' días sin ir. Hoy toca ' + esc(DATA.sugGrupo) + ': aunque sean 30 minutos, cuenta.</span></div>';
@@ -396,13 +442,14 @@ function cambiarFecha(f) {
 
 /* ----- Peso y cintura ----- */
 let PESO_TMP = null;
+// La casilla empieza vacía: así nunca se guarda por error el peso de ayer
 function tarjetaPeso() {
   const dia = diaReg();
-  if (PESO_TMP === null) PESO_TMP = DATA.ultimoPeso !== null ? DATA.ultimoPeso : '';
+  if (PESO_TMP === null) PESO_TMP = '';
   return '<div class="card"><div class="peso"><div class="lbl"><div class="t1">' + (FECHA ? 'Peso del ' + diaCorto(dia) : 'Peso de hoy') + '</div>' +
-    '<div class="muted">' + (DATA.promedio7 !== null ? 'Promedio 7 días: <b class="num">' + DATA.promedio7.toFixed(1) + '</b> kg' : 'En ayunas, después del baño') + '</div></div>' +
-    '<button class="pesobtn num" onclick="tecladoPeso()">' + (PESO_TMP === '' ? '—' : PESO_TMP) + '</button>' +
-    '<button class="okmark" onclick="guardarPeso()" aria-label="Guardar peso">' + ICO.check + '</button></div></div>';
+    '<div class="muted">' + (DATA.ultimoPeso !== null ? 'Último: <b class="num">' + DATA.ultimoPeso + '</b> kg · en ayunas' : 'En ayunas, después del baño') + '</div></div>' +
+    '<button class="pesobtn num' + (PESO_TMP === '' ? ' vacio' : '') + '" onclick="tecladoPeso()">' + (PESO_TMP === '' ? 'Pesar' : PESO_TMP) + '</button>' +
+    '<button class="okmark" onclick="' + (PESO_TMP === '' ? 'tecladoPeso()' : 'guardarPeso()') + '" aria-label="Guardar peso">' + ICO.check + '</button></div></div>';
 }
 function tarjetaCintura() {
   if (LS.get('gym_cint_' + hoy(), null) !== null) return '';
@@ -413,6 +460,8 @@ function tarjetaCintura() {
 function guardarPeso() {
   const v = Number(PESO_TMP);
   if (!v) return toast('Pon tu peso');
+  if (v < 30 || v > 250) return toast('Revisa el peso: ' + v + ' kg no parece correcto');
+  PESO_TMP = null;
   const dia = diaReg();
   LS.set('gym_peso_' + dia, v);
   encolar('savePeso', [v, dia], 'peso-' + dia);
@@ -632,7 +681,8 @@ function kpTecla(k) {
   KP.nuevo = false; vibrar(5); kpPintar();
 }
 function kpSumar(v) {
-  const cur = Number(KP.val) || 0;
+  // En el peso, los botones ± parten de tu último peso si la casilla está vacía
+  const cur = KP.val === '' && KP.peso && DATA.ultimoPeso !== null ? DATA.ultimoPeso : (Number(KP.val) || 0);
   KP.val = String(Math.max(0, Math.round((cur + v) * 100) / 100));
   KP.nuevo = false; vibrar(5); kpPintar();
 }
@@ -648,6 +698,7 @@ function cerrarTeclado() { $('kp').classList.remove('show'); }
 function tecladoPeso() {
   KP = { peso: true, val: PESO_TMP === '' ? '' : String(PESO_TMP), nuevo: true, f: 'w' };
   $('kpSheet').innerHTML = '<div class="row between"><div class="t1">Peso en ayunas (kg)</div><button class="btn ghost sm" onclick="cerrarTeclado()">✕</button></div>' +
+    (DATA.ultimoPeso !== null ? '<div class="muted" style="text-align:center;margin-top:6px">Último: ' + DATA.ultimoPeso + ' kg · los ± parten de ahí</div>' : '') +
     '<div class="disp num" id="kpDisp"></div><div class="quick" style="grid-template-columns:repeat(4,1fr)">' +
     [-0.5, -0.1, 0.1, 0.5].map(v => '<button onclick="kpSumar(' + v + ')">' + (v > 0 ? '+' : '−') + Math.abs(v) + '</button>').join('') + '</div>' + teclas() +
     '<div class="acts"><button class="btn ghost" onclick="kpPeso(false)">Listo</button><button class="btn" onclick="kpPeso(true)">Guardar peso</button></div>';
@@ -903,6 +954,13 @@ function tickRest() {
 }
 
 /* ----- Trote y plan para la carrera ----- */
+// El grupo de tu siguiente día de gym: si ya entrenaste hoy, el que sigue; si no, el que te toca
+function proximoGrupo() {
+  const hoyYa = DATA.ultimoGrupoFecha === DATA.todayKey || sesion().log.some(l => GRUPOS3.includes(l.name.split(':')[0]));
+  if (!hoyYa) return DATA.sugGrupo;
+  const ult = sesion().log.map(l => l.name.split(':')[0]).filter(g => GRUPOS3.includes(g)).pop() || DATA.ultimoGrupo;
+  return GRUPOS3[(GRUPOS3.indexOf(ult) + 1) % 3];
+}
 let TROTE = { km: '', min: '', tipo: null };
 function trotesPendientes() { return cola().filter(op => op.action === 'saveTrote').map(op => op.args[0]); }
 // Sesiones del plan de esta semana, marcando también lo que hiciste y aún no se sube
@@ -944,6 +1002,8 @@ function vistaTrote() {
     '<div style="flex:1"><div class="muted">Minutos</div><button class="val num' + (TROTE.min === '' ? ' vacio' : '') + '" style="margin-top:4px" onclick="tecladoTrote(\'min\')">' + (TROTE.min === '' ? 'min' : TROTE.min) + '</button></div></div>' +
     '<div class="muted" style="margin:10px 0 4px">Ritmo: <b class="num" style="color:var(--text)">' + ritmo + '</b></div>' +
     '<div class="pills">' + TIPOS_TROTE.map(t => '<button class="' + (TROTE.tipo === t ? 'on' : '') + '" onclick="TROTE.tipo=\'' + t + '\';pintarEntrenar()">' + t + '</button>').join('') + '</div>' +
+    ((TROTE.tipo === 'Larga' || TROTE.tipo === 'Calidad') && proximoGrupo() === 'Legs' && !FECHA
+      ? '<div class="tip acc" style="margin:4px 0 8px">⚠️ Tu siguiente día de gym es Legs. Si es mañana, hoy mejor una salida fácil: la larga o la de calidad te dejan las piernas cansadas para Legs.</div>' : '') +
     '<input class="buscar" id="troteNotas" placeholder="Notas (opcional)" style="margin:4px 0 10px">' +
     '<button class="btn block" onclick="guardarTrote()">Guardar trote</button></div>';
   // Récords de trote (incluye lo que no se ha subido)
@@ -988,7 +1048,35 @@ function borrarTrote(id) {
 }
 
 /* ===================== COMIDA ===================== */
-function protTotal() { return prot.reduce((s, k) => s + (FOODS.find(f => f.k === k) || { g: 0 }).g, 0); }
+function protTotal(lista) { return (lista || prot).reduce((s, k) => s + (FOODS.find(f => f.k === k) || { g: 0 }).g, 0); }
+
+// "¿Ayer comiste tu día típico?": si ayer quedó sin proteína, se registra con un toque
+function ayerPendiente() {
+  const ayer = sumarDias(hoy(), -1);
+  return fresco() && DATA.protAyer && DATA.protAyer.k === ayer && !(DATA.protAyer.g > 0) &&
+    LS.get('gym_prot_' + ayer, null) === null && !LS.get('gym_ayer_no_' + ayer, false) ? ayer : null;
+}
+function tarjetaAyer() {
+  const ayer = ayerPendiente();
+  if (!ayer) return '';
+  const tipico = diaTipicoLista(), g = protTotal(tipico);
+  return '<div class="card"><div class="row between"><div class="t1">¿Qué comiste ayer?</div>' +
+    '<button class="btn ghost sm" onclick="LS.set(\'gym_ayer_no_' + ayer + '\', true);pintarTab()" aria-label="No registrar">✕</button></div>' +
+    '<div class="muted" style="margin:2px 0 10px">Se quedó sin registrar la proteína del ' + diaCorto(ayer) + '.</div><div class="acts" style="margin-top:0">' +
+    (tipico.length ? '<button class="btn" onclick="ayerTipico()">Mi día típico · ' + g + ' g</button>' : '') +
+    '<button class="btn ghost" onclick="comidaDe(\'' + ayer + '\')">' + (tipico.length ? 'Fue diferente' : 'Registrar ayer') + '</button></div></div>';
+}
+function ayerTipico() {
+  const ayer = sumarDias(hoy(), -1), lista = diaTipicoLista();
+  LS.set('gym_prot_' + ayer, lista);
+  encolar('saveProteina', [protTotal(lista), lista.join(', '), ayer], 'prot-' + ayer);
+  vibrar(15); toast('Ayer: ' + protTotal(lista) + ' g ✓'); pintarTab();
+}
+function comidaDe(dia) {
+  COMIDA_DIA = dia && dia !== hoy() ? dia : null;
+  prot = cargarProt(diaComida());
+  verTab('Comida');
+}
 function diaTipicoLista() {
   // Martin: licuado + tupper con carne + cena nueva + 2.º scoop
   if (DATA.dueno) return ['Licuado', 'Tupper carne', 'Cena huevos', 'Scoop'];
@@ -1001,7 +1089,10 @@ function pintarComida() {
   const cuenta = LS.get('gym_food_counts', {});
   const top = FOODS.slice().sort((a, b) => (cuenta[b.k] || 0) - (cuenta[a.k] || 0)).slice(0, 3).filter(f => cuenta[f.k]);
   const tipico = diaTipicoLista();
-  let h = '<div class="card" style="text-align:center"><div class="ring"><svg viewBox="0 0 170 170">' +
+  let h = '';
+  if (COMIDA_DIA) h += '<div class="otro">' + ICO.cal + '<span>Comida del ' + diaCorto(COMIDA_DIA) + '</span><button class="btn" onclick="comidaDe(null)">Volver a hoy</button></div>';
+  else h += tarjetaAyer();
+  h += '<div class="card" style="text-align:center"><div class="ring"><svg viewBox="0 0 170 170">' +
     '<circle cx="85" cy="85" r="' + R + '" fill="none" stroke="var(--card2)" stroke-width="14"/>' +
     '<circle cx="85" cy="85" r="' + R + '" fill="none" stroke="' + (tot >= meta ? 'var(--ok)' : 'var(--pri)') + '" stroke-width="14" stroke-linecap="round" ' +
     'stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - pct)) + '" style="transition:stroke-dashoffset .4s"/></svg>' +
@@ -1009,7 +1100,7 @@ function pintarComida() {
     '<div class="t1" style="margin-top:4px">' + (falta > 0 ? 'Te faltan ~' + falta + ' g' : '¡Meta cumplida!') + '</div>' +
     '<div class="muted">' + (falta > 0 ? (prot.includes('Scoop') ? 'Fácil: 2 huevos (12 g), yogurt (15 g) o atún (20 g)' : 'Lo más barato: un scoop con agua (22 g)') : 'Bien hecho hoy') + '</div></div>';
   if (!prot.length && tipico.length) h += '<button class="btn block" style="margin-bottom:6px" onclick="diaTipico()">Mi día típico · +' +
-    tipico.reduce((s, k) => s + FOODS.find(f => f.k === k).g, 0) + ' g</button>' +
+    protTotal(tipico) + ' g</button>' +
     '<div class="muted" style="text-align:center;margin-bottom:12px">Tócalo en la noche y luego cambia lo que fue diferente</div>';
   if (top.length) h += '<h2>Lo que más comes</h2><div class="foods">' + top.map(f => botonComida(f, true)).join('') + '</div>';
   h += '<h2>Agregar</h2><div class="foods">' + FOODS.filter(f => !top.includes(f)).map(f => botonComida(f, false)).join('') + '</div>';
@@ -1024,8 +1115,9 @@ function botonComida(f, esTop) {
     '<b>+' + f.g + ' g</b>' + esc(f.t) + '</button>';
 }
 function cambiarProt() {
-  LS.set('gym_prot_' + hoy(), prot);
-  encolar('saveProteina', [protTotal(), prot.join(', '), hoy()], 'prot-' + hoy());
+  const dia = diaComida();
+  LS.set('gym_prot_' + dia, prot);
+  encolar('saveProteina', [protTotal(), prot.join(', '), dia], 'prot-' + dia);
   pintarComida();
 }
 function addProt(k) {
@@ -1045,9 +1137,10 @@ function fmt(v, signo) {
 }
 const kpi = (v, l, d, good) => '<div class="kpi"><div class="v num">' + v + '</div><div class="l">' + l + '</div>' + (d ? '<div class="d' + (good ? ' good' : '') + '">' + d + '</div>' : '') + '</div>';
 function pintarProgreso() {
-  let h = '<div class="seg">' + ['Semana', 'Fuerza', 'Cuerpo'].map(t => '<button class="' + (PTAB === t ? 'on' : '') + '" onclick="PTAB=\'' + t + '\';pintarProgreso();window.scrollTo(0,0)">' + t + '</button>').join('') + '</div>';
+  let h = '<div class="seg s4">' + ['Semana', 'Fuerza', 'Cuerpo', 'Logros'].map(t => '<button class="' + (PTAB === t ? 'on' : '') + '" onclick="PTAB=\'' + t + '\';pintarProgreso();window.scrollTo(0,0)">' + t + '</button>').join('') + '</div>';
   if (PTAB === 'Semana') h += progresoSemana();
   else if (PTAB === 'Fuerza') h += tarjetaFuerza() + tarjetaMusculos(DATA.resumen.musculos || []);
+  else if (PTAB === 'Logros') h += progresoLogros();
   else h += progresoCuerpo();
   $('vProgreso').innerHTML = h;
   if (PTAB === 'Cuerpo' && DATA.fotos && DATA.fotos.activas) cargarFotos();
@@ -1063,7 +1156,9 @@ function progresoSemana() {
   let h = '<div class="card"><div class="row between"><div><div class="t2">' + diasSemana + ' de ' + META_DIAS + ' días</div><div class="muted">esta semana · ' + fmt(r.km7) + ' km trotados</div></div>' +
     (r.racha ? '<span class="pill acc" style="font-size:13px;padding:6px 10px">' + ICO.flame + r.racha + ' semana' + (r.racha === 1 ? '' : 's') + '</span>' : '') + '</div>' +
     '<div class="week">' + dias.map((d, i) => '<div class="' + (semana[i] ? 'y' : '') + (i === hoyIdx ? ' hoy' : '') + '"><i></i>' + d + '</div>').join('') + '</div>' +
-    '<div class="muted" style="margin-top:8px">La racha cuenta semanas seguidas con 3 o más días de gym.</div></div>';
+    '<div class="muted" style="margin-top:8px">La racha cuenta semanas seguidas con 3 o más días de gym.</div>' +
+    (DATA.logros ? '<button class="link" style="margin-top:10px" onclick="PTAB=\'Logros\';pintarProgreso();window.scrollTo(0,0)">' +
+      ICO.trophy.replace('class="icon"', 'class="icon" style="width:16px;height:16px;vertical-align:-3px"') + ' Llevas ' + DATA.logros.semana.pts + ' puntos esta semana · ver logros</button>' : '') + '</div>';
   if (r.descarga) h += '<div class="card" style="background:var(--acc-weak);border-color:transparent"><div class="t1" style="color:var(--acc)">Considera una semana de descarga</div>' +
     '<div class="muted" style="margin-top:4px">Estos ejercicios no mejoraron en sus últimas 3 sesiones: ' + esc(r.descarga.estancados.join(', ')) +
     '. Una semana con la mitad de series y el mismo peso suele destrabarlos.</div></div>';
@@ -1084,9 +1179,69 @@ function progresoCuerpo() {
   let h = '<div class="kpis">' +
     kpi(fmt(r.promedio7), 'Peso promedio 7 días (kg)', r.cambioSemana !== null ? fmt(r.cambioSemana, true) + ' vs semana anterior' : '', r.cambioSemana !== null && r.cambioSemana <= 0) +
     kpi(fmt(r.cintura), 'Cintura (cm)', r.cambioCintura !== null ? fmt(r.cambioCintura, true) + ' desde el inicio' : '', r.cambioCintura !== null && r.cambioCintura < 0) + '</div>';
+  h += tarjetaMetaCintura();
+  const serie = (DATA.cuerpo && DATA.cuerpo.serie) || [];
+  const cs = serie.filter(x => x.cint !== null).map(x => ({ d: x.d, v: x.cint }));
+  const ps = serie.filter(x => x.peso !== null).map(x => ({ d: x.d, v: x.peso }));
+  h += '<div class="card chart"><div class="t1">Cintura desde el inicio</div>' + (cs.length >= 2 ? linea(cs, false)
+    : '<div class="muted" style="margin-top:6px">La gráfica aparece con 2 domingos medidos. Tu cintura es el mejor indicador de la grasa de la panza.</div>') + '</div>';
+  h += '<div class="card chart"><div class="t1">Peso promedio por semana</div>' + (ps.length >= 2 ? linea(ps, false)
+    : '<div class="muted" style="margin-top:6px">Aparece con 2 semanas de pesajes. El promedio semanal no se mueve con el agua de un día.</div>') + '</div>';
   h += '<div class="card chart"><div class="t1">Peso, últimos 30 días</div>' + graficaPeso(r.serie30) + '</div>';
   if (DATA.fotos && DATA.fotos.activas) h += tarjetaFotos();
   return h;
+}
+function tarjetaMetaCintura() {
+  const c = DATA.cuerpo;
+  if (!c) return '';
+  if (!c.meta) return '<div class="card"><div class="t1">Tu meta de cintura</div><div class="muted" style="margin:4px 0 10px">Ponle número a la panza: con una meta ves cuánto llevas.</div>' +
+    '<button class="btn ghost sm" onclick="abrirAjustes()">Ponerla en Ajustes</button></div>';
+  if (c.actual === null) return '<div class="card"><div class="t1">Meta de cintura: ' + c.meta + ' cm</div><div class="muted" style="margin-top:4px">Mide tu cintura el domingo para empezar a ver tu avance.</div></div>';
+  const total = c.base - c.meta, lleva = c.base - c.actual;
+  const pct = total > 0 ? Math.max(0, Math.min(1, lleva / total)) : (c.actual <= c.meta ? 1 : 0);
+  const fx = v => (Math.round(v * 10) / 10).toString();
+  return '<div class="card"><div class="row between"><div class="t1">Meta de cintura</div><span class="pill ' + (pct >= 1 ? 'ok' : 'pri') + '">' + Math.round(pct * 100) + '%</span></div>' +
+    '<div class="metabar"><div style="width:' + Math.max(pct * 100, 3) + '%"></div></div>' +
+    '<div class="row between muted"><span>Inicio ' + fx(c.base) + ' cm</span><b style="color:var(--text)">Hoy ' + fx(c.actual) + ' cm</b><span>Meta ' + fx(c.meta) + ' cm</span></div>' +
+    '<div class="muted" style="margin-top:8px">' + (pct >= 1 ? '¡Meta cumplida! Pon la siguiente en Ajustes.' : lleva > 0 ? 'Llevas ' + fx(lleva) + ' de ' + fx(total) + ' cm. Te faltan ' + fx(c.actual - c.meta) + '.' : 'Aún no baja: es normal las primeras semanas. Lo que cuenta es la tendencia.') + '</div></div>';
+}
+function progresoLogros() {
+  const L = DATA.logros;
+  if (!L) return '<div class="card muted">Los logros aparecen cuando la app se conecta.</div>';
+  const s = L.semana;
+  const parte = (nom, v, max) => '<div><div class="l"><span>' + nom + '</span><b class="num">' + Math.min(v, max) + '/' + max + '</b></div><div class="b"><div style="width:' + Math.min(100, v / max * 100) + '%"></div></div></div>';
+  let h = '<div class="card"><div class="row between"><div><div class="muted">Esta semana</div><div class="pts"><b class="num">' + s.pts + '</b><span class="muted">/ 100 puntos</span></div></div>' +
+    (L.total > 1 ? '<span class="pill ' + (L.rank === 1 ? 'acc' : 'pri') + '" style="font-size:13px;padding:6px 10px">' + (L.rank === 1 ? '🥇 Tu mejor semana' : 'Lugar ' + L.rank + ' de ' + L.total) + '</span>' : '') + '</div>' +
+    '<div class="desglose">' + parte('Gym', s.gym, 4) + parte('Proteína en meta', s.prot, 7) + parte('Trote', s.trote, 3) + parte('Pesarte', s.peso, 7) + '</div>' +
+    '<div class="muted" style="margin-top:10px">' + (L.mejor === null ? 'Tu primera semana: esta es la marca a superar.' : 'Tu mejor semana: ' + L.mejor + ' puntos. Compites solo contra ti.') + '</div></div>';
+  if (L.hist.length >= 2) h += '<div class="card chart"><div class="t1">Tus puntos por semana</div>' + barras(L.hist) + '</div>';
+  // Medallas: todas las ganadas y solo la siguiente de cada tipo, con su avance
+  const ganadas = L.medallas.filter(m => m.ok), vistas = {};
+  const siguientes = L.medallas.filter(m => !m.ok && !vistas[m.fam] && (vistas[m.fam] = true));
+  const med = m => '<div class="med' + (m.ok ? '' : ' no') + '"><div class="i">' + m.ico + '</div><div class="n">' + esc(m.nom) + '</div>' +
+    (m.ok ? '<div class="p">' + esc(m.desc) + '</div>' : '<div class="mb"><div style="width:' + Math.round(m.val / m.meta * 100) + '%"></div></div><div class="p num">' + m.val + ' / ' + m.meta + '</div>') + '</div>';
+  h += '<h2>Medallas · ' + ganadas.length + ' de ' + L.medallas.length + '</h2>';
+  if (ganadas.length) h += '<div class="meds">' + ganadas.map(med).join('') + '</div>';
+  else h += '<div class="muted" style="margin:0 4px 8px">Todavía ninguna: la primera llega con tu primer entrenamiento registrado.</div>';
+  h += '<h2>Siguientes</h2><div class="meds">' + siguientes.map(med).join('') + '</div>';
+  return h;
+}
+// Al ganar una medalla nueva: celebración (o un aviso corto si estás a media sesión)
+function revisarMedallas() {
+  if (!DATA || !DATA.logros) return;
+  const ok = DATA.logros.medallas.filter(m => m.ok).map(m => m.id);
+  const vistas = LS.get('gym_medallas', null);
+  if (vistas === null) { LS.set('gym_medallas', ok); return; }      // primera vez con esta versión: sin avalancha
+  const nuevas = DATA.logros.medallas.filter(m => m.ok && !vistas.includes(m.id));
+  if (!nuevas.length) return;
+  LS.set('gym_medallas', vistas.concat(nuevas.map(m => m.id)));
+  vibrar([40, 60, 40, 60, 120]);
+  if (sesionActiva() || $('modal').classList.contains('show')) return toast('🏅 Medalla nueva: ' + nuevas.map(m => m.nom).join(', '), 'pr');
+  $('sheet').innerHTML = '<div class="celebra"><div class="i">' + nuevas[0].ico + '</div><div class="t2" style="margin-top:6px">' +
+    (nuevas.length === 1 ? '¡Medalla nueva!' : '¡' + nuevas.length + ' medallas nuevas!') + '</div>' +
+    nuevas.map(m => '<div style="margin-top:8px"><b>' + esc(m.nom) + '</b><div class="muted">' + esc(m.desc) + '</div></div>').join('') + '</div>' +
+    '<div class="acts"><button class="btn ghost" onclick="cerrarModal()">Seguir</button><button class="btn" onclick="cerrarModal();verTab(\'Progreso\');PTAB=\'Logros\';pintarProgreso()">Ver mis logros</button></div>';
+  abrirModal();
 }
 function tarjetaFuerza() {
   const conHist = DATA.exercises.filter(e => e.hist && e.hist.length >= 2 && e.inc > 0);
@@ -1173,6 +1328,45 @@ function procesarFoto(input) {
   img.src = url;
 }
 
+/* ===================== BIENVENIDA (una sola vez, para quien no es el dueño) ===================== */
+let BV = null;
+function abrirBienvenida() {
+  if (BV_POSPUESTA || sesionActiva() || $('modal').classList.contains('show')) return;
+  if (!BV) BV = { peso: '', dias: (DATA.dias || [1, 2, 3, 4, 5]).slice(), km: 0, fecha: '' };
+  const meta = BV.peso ? Math.round(Number(BV.peso) * 1.6 / 5) * 5 : null;
+  $('sheet').innerHTML = '<div class="bv"><div class="t2">¡Bienvenido, ' + esc(DATA.nombre || '') + '!</div>' +
+    '<div class="muted" style="margin-top:4px">3 datos y listo: con esto ajusto tu meta de proteína y tus avisos.</div>' +
+    '<label>1. Tu peso (kg)</label><input type="number" inputmode="decimal" step="0.1" id="bvPeso" placeholder="Ej. 72" value="' + esc(BV.peso) + '" oninput="BV.peso=this.value;bvMeta()">' +
+    '<div class="muted" id="bvMeta" style="margin-top:6px">' + (meta ? 'Tu meta de proteína: <b style="color:var(--text)">' + meta + ' g al día</b>' : 'Con tu peso calculo tu meta de proteína.') + '</div>' +
+    '<label>2. ¿Qué días entrenas?</label><div class="muted">Esos días te llega el aviso a las 5:00 am.</div><div class="dias">' +
+    [1, 2, 3, 4, 5, 6, 0].map(d => '<button class="' + (BV.dias.includes(d) ? 'on' : '') + '" onclick="BV.dias=bvToggle(BV.dias,' + d + ');abrirBienvenida()">' + DIAS_CORTOS[d] + '</button>').join('') + '</div>' +
+    '<label>3. ¿Tienes alguna carrera?</label><div class="pills" style="display:grid;grid-template-columns:repeat(4,1fr);margin:0">' +
+    [[0, 'No'], [5, '5 km'], [10, '10 km'], [21, '21 km']].map(x => '<button class="' + (BV.km === x[0] ? 'on' : '') + '" onclick="BV.km=' + x[0] + ';abrirBienvenida()">' + x[1] + '</button>').join('') + '</div>' +
+    (BV.km ? '<input type="date" id="bvFecha" min="' + hoy() + '" value="' + esc(BV.fecha) + '" onchange="BV.fecha=this.value">' : '') +
+    '<div class="acts"><button class="btn ghost" onclick="BV_POSPUESTA=true;cerrarModal()">Ahora no</button><button class="btn" onclick="guardarBienvenida()">Listo</button></div></div>';
+  abrirModal();
+}
+function bvToggle(lista, d) { return lista.includes(d) ? lista.filter(x => x !== d) : lista.concat([d]).sort(); }
+function bvMeta() {
+  const m = Number(BV.peso) >= 30 ? Math.round(Number(BV.peso) * 1.6 / 5) * 5 : null;
+  $('bvMeta').innerHTML = m ? 'Tu meta de proteína: <b style="color:var(--text)">' + m + ' g al día</b>' : 'Con tu peso calculo tu meta de proteína.';
+}
+function guardarBienvenida() {
+  const p = Number(BV.peso);
+  if (!(p >= 30 && p <= 250)) return toast('Pon tu peso en kg');
+  if (!BV.dias.length) return toast('Elige al menos un día');
+  if (BV.km && !BV.fecha) return toast('Elige la fecha de tu carrera');
+  const cfg = { metaProteina: Math.round(p * 1.6 / 5) * 5, dias: BV.dias, perfil: true };
+  cfg.carrera = BV.km ? { fecha: BV.fecha, km: BV.km, nombre: BV.km === 21 ? 'medio maratón' : BV.km + 'K' } : null;
+  Object.assign(DATA, { metaProteina: cfg.metaProteina, dias: cfg.dias, perfil: true, carrera: cfg.carrera });
+  LS.set('gym_data', DATA); LS.set('gym_bienvenida', true);
+  encolar('saveConfig', [cfg], 'cfg-bienvenida');
+  cerrarModal(); vibrar(15);
+  toast('¡Listo! Meta de proteína: ' + cfg.metaProteina + ' g');
+  pintarTab();
+  setTimeout(() => enviar().then(actualizar), 1500);
+}
+
 /* ===================== AJUSTES ===================== */
 function abrirAjustes() {
   if (!DATA) return;
@@ -1187,6 +1381,13 @@ function abrirAjustes() {
     DESCANSOS.map(s => '<button class="' + (s === def ? 'on' : '') + '" onclick="setAjuste(\'descanso\',' + s + ');abrirAjustes()">' + mmss(s) + '</button>').join('') + '</div></div>' +
     '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Meta de proteína</div><div class="muted">Unos 1.6–2 g por kilo de tu peso</div></div>' +
     '<div class="unit"><button onclick="cambiarMeta(-5)">−5</button><button class="on num" style="pointer-events:none">' + metaProt() + ' g</button><button onclick="cambiarMeta(5)">+5</button></div></div>' +
+    '<div class="opt" style="display:block"><div class="t1" style="font-size:15px">Días de aviso</div><div class="muted">Esos días te llega a las 5:00 am lo que te toca</div><div class="dias">' +
+    [1, 2, 3, 4, 5, 6, 0].map(d => '<button class="' + ((DATA.dias || []).includes(d) ? 'on' : '') + '" onclick="cambiarDias(' + d + ')">' + DIAS_CORTOS[d] + '</button>').join('') + '</div></div>' +
+    '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Meta de cintura</div><div class="muted">' +
+    (DATA.cuerpo && DATA.cuerpo.actual ? 'Hoy: ' + DATA.cuerpo.actual + ' cm' : 'A la altura del ombligo') + '</div></div>' +
+    (DATA.cuerpo && DATA.cuerpo.meta
+      ? '<div class="unit"><button onclick="cambiarMetaCintura(-0.5)">−</button><button class="on num" style="pointer-events:none">' + DATA.cuerpo.meta + ' cm</button><button onclick="cambiarMetaCintura(0.5)">+</button></div>'
+      : '<button class="btn ghost sm" onclick="cambiarMetaCintura(0)">Poner meta</button>') + '</div>' +
     '<div class="opt" style="display:block"><div class="t1" style="font-size:15px">Carrera</div><div class="muted">Con una carrera de 5 km activa tu plan de 6 semanas en la pestaña Trote</div>' +
     '<input type="date" id="carFecha" min="' + hoy() + '" value="' + (c ? c.fecha : '') + '">' +
     '<div class="pills" style="display:grid;grid-template-columns:repeat(4,1fr);margin:0">' + [5, 10, 21].map(k => '<button class="' + (c && c.km === k ? 'on' : '') + '" onclick="guardarCarrera(' + k + ')">' + k + ' km</button>').join('') +
@@ -1194,7 +1395,7 @@ function abrirAjustes() {
     '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Respaldo</div><div class="muted">Descarga lo que tiene la app en este celular</div></div>' +
     '<button class="btn ghost sm" onclick="descargarRespaldo()">Descargar</button></div>' +
     '<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none;margin-top:8px" href="' + DATA.resumen.sheetUrl + '" target="_blank" rel="noopener">Abrir mi hoja de Google</a>' +
-    '<div class="muted" style="text-align:center;margin-top:10px;font-size:12px">Gym v5.2 · ' + esc(DATA.nombre || '') + '</div>';
+    '<div class="muted" style="text-align:center;margin-top:10px;font-size:12px">Gym v5.3 · ' + esc(DATA.nombre || '') + '</div>';
   abrirModal();
 }
 async function toggleAjuste(k, d) {
@@ -1212,6 +1413,21 @@ function cambiarMeta(d) {
   DATA.metaProteina = Math.max(40, Math.min(300, metaProt() + d));
   LS.set('gym_data', DATA);
   encolar('saveConfig', [{ metaProteina: DATA.metaProteina }], 'cfg-meta');
+  abrirAjustes();
+}
+function cambiarDias(d) {
+  const nuevos = bvToggle(DATA.dias || [], d);
+  if (!nuevos.length) return toast('Deja al menos un día');
+  DATA.dias = nuevos; LS.set('gym_data', DATA);
+  encolar('saveConfig', [{ dias: nuevos }], 'cfg-dias');
+  abrirAjustes();
+}
+function cambiarMetaCintura(d) {
+  if (!DATA.cuerpo) return;
+  const base = DATA.cuerpo.meta || (DATA.cuerpo.actual ? Math.round((DATA.cuerpo.actual - 4) * 2) / 2 : 80);
+  DATA.cuerpo.meta = Math.max(50, Math.min(150, base + d));
+  LS.set('gym_data', DATA);
+  encolar('saveConfig', [{ metaCintura: DATA.cuerpo.meta }], 'cfg-cintura');
   abrirAjustes();
 }
 function guardarCarrera(km) {
