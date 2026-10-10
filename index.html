@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#6D3BE8">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Gym Martin</title>
+<title>Gym</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -130,22 +130,24 @@
 
   /* Temporizador de descanso: barra delgada sobre la navegación */
   .rest { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + 8px + env(safe-area-inset-bottom));
-          width: min(496px, calc(100% - 16px)); background: var(--text); color: var(--bg); border-radius: 16px; padding: 7px 8px 7px 12px;
+          width: min(496px, calc(100% - 16px)); background: var(--card); color: var(--text); border: 1.5px solid var(--acc); border-radius: 16px; padding: 7px 8px 7px 12px;
           box-shadow: 0 8px 30px rgba(0,0,0,.25); z-index: 20; display: none; }
   .rest.show { display: block; animation: up .2s ease; }
   @keyframes up { from { transform: translate(-50%, 12px); opacity: 0; } }
   .rest .rrow { display: flex; align-items: center; gap: 6px; }
-  .rest .rbtn { border: 0; background: rgba(127,127,127,.24); color: inherit; border-radius: 10px; padding: 10px 0; font-weight: 700; font-size: 14px; flex: 1; min-width: 0; }
-  .rest .rbtn.def { box-shadow: inset 0 0 0 2px var(--acc); }
+  .rest .rbtn { border: 0; background: var(--card2); color: inherit; border-radius: 10px; padding: 10px 0; font-weight: 700; font-size: 14px; flex: 1; min-width: 0; }
+  .rest .rbtn.def { box-shadow: inset 0 0 0 2px var(--acc); color: var(--acc); }
+  .rest > .rrow > .icon { color: var(--acc); }
   .rest .x { flex: none; width: 38px; }
   .rest .big { font-size: 22px; font-weight: 800; }
   .rest.fin { background: var(--acc); color: var(--on-acc); }
+  .rest.fin .rbtn { background: rgba(255,255,255,.25); color: inherit; }
   .rbar { height: 3px; background: rgba(127,127,127,.3); border-radius: 9px; overflow: hidden; margin-top: 6px; }
   .rbar div { height: 100%; background: var(--acc); }
 
   /* Barra de sesión pegada arriba */
   .sesbar { position: sticky; top: env(safe-area-inset-top); z-index: 15; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px;
-            border-radius: 14px; background: linear-gradient(135deg, var(--pri), var(--pri-2)); color: #fff; margin: 0 0 12px; box-shadow: var(--shadow); }
+            border-radius: 14px; background: linear-gradient(135deg, #5B2FD0, #7444E8); color: #fff; margin: 0 0 12px; box-shadow: 0 4px 18px rgba(60,20,160,.25); }
   .sesbar .dotlive { width: 8px; height: 8px; border-radius: 9px; background: var(--acc); box-shadow: 0 0 0 4px rgba(255,138,61,.3); }
   .sesbar b { font-size: 16px; }
   .sesbar .btn { margin-left: auto; background: rgba(255,255,255,.2); color: #fff; padding: 8px 12px; font-size: 14px; border-radius: 10px; }
@@ -204,7 +206,8 @@
   .medal { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--acc-weak); color: var(--acc); flex: none; }
   .mus { padding: 11px 0; border-top: 1px solid var(--line); }
   .mus:first-of-type { border-top: 0; }
-  .mbar { height: 8px; background: var(--card2); border-radius: 99px; overflow: hidden; margin-top: 7px; }
+  .mbar { height: 8px; background: var(--card2); border-radius: 99px; overflow: hidden; margin-top: 7px; position: relative; }
+  .mbar i { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 2px; background: var(--muted); opacity: .55; }
   .mbar div { height: 100%; border-radius: 99px; background: var(--pri); }
   .mbar div.ok { background: var(--ok); }
   .up { color: var(--ok); } .down { color: var(--bad); }
@@ -235,13 +238,57 @@
   .stats div { background: var(--card2); border-radius: 14px; padding: 12px 8px; text-align: center; }
   .stats b { display: block; font-size: 22px; font-weight: 800; }
 
-  .toast { position: fixed; left: 50%; transform: translateX(-50%); top: calc(14px + env(safe-area-inset-top)); background: var(--text); color: var(--bg);
-           padding: 10px 16px; border-radius: 12px; font-size: 14px; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 60; max-width: 90%; text-align: center; }
+  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + 74px + env(safe-area-inset-bottom)); background: var(--text); color: var(--bg);
+           padding: 10px 14px; border-radius: 14px; font-size: 14px; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 60;
+           width: max-content; max-width: min(460px, calc(100% - 32px)); display: flex; align-items: center; gap: 12px; }
   .toast.show { opacity: 1; }
+  .toast.act { pointer-events: auto; }
+  .toast button { border: 0; background: transparent; color: var(--acc); font-weight: 800; font-size: 14px; padding: 4px 2px; flex: none; }
   .toast.pr { background: var(--acc); color: var(--on-acc); }
+  .toast.pr button { color: var(--on-acc); text-decoration: underline; }
   #loading { text-align: center; padding: 80px 0; color: var(--muted); }
   #setup input { width: 100%; padding: 12px; border: 1.5px solid var(--line); border-radius: 12px; font-size: 15px; background: var(--card2); color: var(--text); margin: 6px 0 12px; }
   .hide { display: none !important; }
+
+  /* v5 */
+  .gear { width: 36px; height: 32px; border-radius: 10px; border: 0; background: var(--card2); color: var(--muted); display: grid; place-items: center; }
+  .gear .icon { width: 18px; height: 18px; }
+  .ex-ico svg.ring2 { width: 38px; height: 38px; transform: rotate(-90deg); }
+  .ex-ico { position: relative; }
+  .ex-ico .rt { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+  .ex.prog .ex-ico, .ex.open .ex-ico { background: transparent; }
+  details.sec > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--muted); font-weight: 700;
+    text-transform: uppercase; letter-spacing: .08em; margin: 20px 4px 8px; cursor: pointer; }
+  details.sec > summary::-webkit-details-marker { display: none; }
+  details.sec > summary::after { content: "Ver ▾"; text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--pri); font-weight: 700; }
+  details.sec[open] > summary::after { content: "Ocultar ▴"; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; background: var(--card2); border-radius: 14px; margin-bottom: 12px; border: 1px solid var(--line); }
+  .seg button { border: 0; background: transparent; border-radius: 10px; padding: 9px 0; font-weight: 700; font-size: 14px; color: var(--muted); }
+  .seg button.on { background: var(--card); color: var(--pri); box-shadow: var(--shadow); }
+  .otro { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--acc-weak); color: var(--acc); font-weight: 700; margin-bottom: 12px; font-size: 14px; }
+  .otro .btn { white-space: nowrap; margin-left: auto; background: var(--acc); color: var(--on-acc); padding: 7px 12px; font-size: 13px; border-radius: 10px; }
+  .link { border: 0; background: none; color: var(--pri); font-weight: 700; font-size: 14px; padding: 0; }
+  .aviso { display: flex; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 16px; background: var(--pri-weak); color: var(--pri); margin-bottom: 12px; font-size: 14px; font-weight: 600; }
+  .sstag { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 99px; background: var(--acc-weak); color: var(--acc); margin-left: 6px; vertical-align: 2px; }
+  .platos { text-align: center; font-size: 13px; color: var(--muted); margin: -2px 0 8px; }
+  .platos b { color: var(--text); }
+  .pses { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
+  .pses:first-of-type { border-top: 0; }
+  .pses .ck { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; flex: none; background: var(--card2); border: 1.5px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 800; }
+  .pses.ok .ck { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .pses.ok .t1 { text-decoration: line-through; opacity: .6; }
+  .count { font-size: 40px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+  .minis { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .fotos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .fotos img { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 10px; background: var(--card2); display: block; }
+  .fotos div { font-size: 11px; color: var(--muted); text-align: center; margin-top: 2px; }
+  .comp { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .comp img { width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 12px; display: block; }
+  .pesobtn { width: 92px; height: 46px; border-radius: 12px; border: 1.5px solid var(--line); font-size: 18px; font-weight: 800; background: var(--card2); color: var(--text); }
+  .lista button { display: flex; width: 100%; text-align: left; align-items: center; gap: 10px; border: 0; border-top: 1px solid var(--line); background: none; padding: 13px 2px; font-size: 15px; color: var(--text); }
+  .lista button:first-child { border-top: 0; }
+  input[type=date] { width: 100%; padding: 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card2); color: var(--text); font-size: 16px; margin: 8px 0; }
+  .sheet { max-height: 92vh; overflow-y: auto; }
 </style>
 </head>
 <body>
@@ -249,7 +296,7 @@
   <div id="loading">Cargando…</div>
 
   <div id="setup" class="hide">
-    <div class="brand" style="margin:10px 0">Gym <span>Martin</span></div>
+    <div class="brand" style="margin:10px 0">Gym <span>·</span></div>
     <p class="muted">Solo se hace una vez. Lo más fácil es abrir el link de configuración; si no, pega aquí los dos datos.</p>
     <div class="card">
       <div class="t1">URL de la API</div>
@@ -261,7 +308,7 @@
   </div>
 
   <div id="app" class="hide">
-    <div class="top"><div class="brand">Gym <span>Martin</span></div><span id="sync" class="sync"></span></div>
+    <div class="top"><div class="brand" id="brand">Gym</div><div class="row" style="gap:8px"><span id="sync" class="sync"></span><button class="gear" onclick="abrirAjustes()" aria-label="Ajustes"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div></div>
     <div class="sub" id="fecha"></div>
     <div id="vEntrenar"></div>
     <div id="vComida" class="hide"></div>
