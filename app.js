@@ -76,7 +76,7 @@ const FOODS = [
 const META_DIAS = 4;
 const metaProt = () => (DATA && DATA.metaProteina) || 130;
 const DESCANSOS = [60, 90, 120, 180];
-const TIPOS_TROTE = ['Suave', 'Calidad', 'Larga', 'Carrera', 'Libre'];
+const TIPOS_TROTE = ['Fácil', 'Calidad', 'Larga', 'Carrera', 'Libre'];
 const ajuste = (k, d) => LS.get('gym_cfg_' + k, d);
 const setAjuste = (k, v) => LS.set('gym_cfg_' + k, v);
 const diaReg = () => FECHA || hoy();
@@ -886,7 +886,7 @@ function sesionesPlan() {
   trotesPendientes().filter(t => claveDia(new Date(t.ts)) >= lunes).forEach(t => {
     let s = ses.find(x => !x.hecho && x.tipo === t.tipo);
     if (!s && (!t.tipo || t.tipo === 'Libre')) s = ses.find(x => !x.hecho);
-    if (s) { s.hecho = true; s.real = t.km; }
+    if (s) { s.hecho = true; s.real = t.min || null; }
   });
   return ses;
 }
@@ -901,11 +901,12 @@ function vistaTrote() {
     h += '<div class="card"><div class="row between"><div><div class="count num">' + p.faltan + '</div><div class="muted">día' + (p.faltan === 1 ? '' : 's') + ' para tu ' + esc(p.carrera.nombre) + ' · ' + diaCorto(p.carrera.fecha) + '</div></div>' +
       (ses ? '<span class="pill pri">Semana ' + p.semana + ' de ' + p.total + '</span>' : '') + '</div>';
     if (ses) {
-      const kmHechos = ses.filter(s => s.hecho).reduce((a, s) => a + (s.real || s.km), 0);
+      const minHechos = ses.filter(s => s.hecho).reduce((a, s) => a + (s.real || s.min), 0);
       h += '<div style="margin-top:10px">' + ses.map((s, i) => '<div class="pses' + (s.hecho ? ' ok' : '') + '"><div class="ck">' + (s.hecho ? ICO.check.replace('class="icon"', 'class="icon" style="width:16px;height:16px"') : i + 1) + '</div>' +
         '<div style="flex:1"><div class="t1" style="font-size:15px">' + s.tipo + (s.ritmo ? ' · <span class="num">' + s.ritmo + '/km</span>' : '') + '</div><div class="muted">' + esc(s.txt) + '</div></div></div>').join('') + '</div>' +
-        '<div class="muted" style="margin-top:8px">Esta semana: <b class="num" style="color:var(--text)">' + Math.round(kmHechos * 10) / 10 + ' de ~' + p.kmMeta + ' km</b>' +
-        (p.ritmos ? ' · ritmos según tu mejor salida reciente (' + p.ritmos.ref + '/km)' : ' · aún sin salidas de 4 km o más para calcular tus ritmos') + '</div>';
+        '<div class="muted" style="margin-top:8px">Esta semana: <b class="num" style="color:var(--text)">' + Math.round(minHechos) + ' de ~' + p.minMeta + ' min</b>' +
+        (p.ritmos ? (p.ritmos.fijos ? ' · ritmos de tu plan; meta de carrera ' + p.ritmos.carrera + '/km' : ' · ritmos según tu mejor salida reciente (' + p.ritmos.ref + '/km)')
+                  : ' · aún sin salidas de 4 km o más para calcular tus ritmos') + '</div>';
     } else if (p.empieza) h += '<div class="muted" style="margin-top:8px">Tu plan de 6 semanas empieza el ' + diaCorto(p.empieza) + '. Mientras, trota como siempre.</div>';
     h += '</div>';
   }
@@ -1163,7 +1164,7 @@ function abrirAjustes() {
     '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Respaldo</div><div class="muted">Descarga lo que tiene la app en este celular</div></div>' +
     '<button class="btn ghost sm" onclick="descargarRespaldo()">Descargar</button></div>' +
     '<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none;margin-top:8px" href="' + DATA.resumen.sheetUrl + '" target="_blank" rel="noopener">Abrir mi hoja de Google</a>' +
-    '<div class="muted" style="text-align:center;margin-top:10px;font-size:12px">Gym v5 · ' + esc(DATA.nombre || '') + '</div>';
+    '<div class="muted" style="text-align:center;margin-top:10px;font-size:12px">Gym v5.1 · ' + esc(DATA.nombre || '') + '</div>';
   abrirModal();
 }
 async function toggleAjuste(k, d) {
