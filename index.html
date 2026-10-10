@@ -54,8 +54,18 @@
   .stepper input { width: 100%; min-width: 0; border: 0; text-align: center; font-size: 17px;
                    background: var(--card); color: var(--text); padding: 8px 0; }
   .x { text-align: center; color: var(--muted); }
-  .unit { border: 1px solid var(--line); background: var(--card); color: var(--text);
-          border-radius: 8px; padding: 4px 10px; font-size: 13px; }
+  .unit { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex: none; }
+  .unit button { border: 0; background: var(--card); color: var(--muted); font-size: 15px;
+                 padding: 9px 16px; min-width: 52px; }
+  .unit button.on { background: var(--accent); color: var(--accent-text); font-weight: 700; }
+  .mus { padding: 10px 0; border-top: 1px solid var(--line); }
+  .mus:first-of-type { border-top: 0; }
+  .mus .pct { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .mus .pct.up { color: var(--ok); }
+  .mus .pct.down { color: #C0392B; }
+  .mbar { height: 8px; background: var(--chip); border-radius: 99px; overflow: hidden; margin-top: 6px; position: relative; }
+  .mbar > div { height: 100%; border-radius: 99px; background: var(--accent); }
+  .mbar > div.ok { background: var(--bar); }
   .pills { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
   .pills button { border: 1px solid var(--line); background: var(--card); color: var(--text);
                   border-radius: 8px; padding: 7px 10px; font-size: 13px; }

@@ -112,7 +112,15 @@ function arrancar() {
     history.replaceState(null, '', location.pathname);
     toast('App configurada ✓');
   }
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) {
+    // Cuando hay versión nueva, el celular la baja y la app se recarga sola una vez
+    const teniaVersion = !!navigator.serviceWorker.controller;
+    let recargada = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (teniaVersion && !recargada) { recargada = true; location.reload(); }
+    });
+    navigator.serviceWorker.register('sw.js').then(reg => reg.update()).catch(() => {});
+  }
   if (!API || !KEY) { $('loading').style.display = 'none'; $('setup').style.display = 'block'; return; }
 
   DATA = LS.get('gym_data', null);
@@ -292,7 +300,8 @@ function card(ex, id) {
       : '<button class="ghost" onclick="corregir(\'' + id + '\')">Registrar otra vez</button>') + '</div>';
   } else if (abierto) {
     h += '<div class="row between" style="margin-top:6px"><div class="muted">' + esc(ex.howTo || '') + '</div>' +
-      '<button class="unit" onclick="toggleUnit(\'' + id + '\')">' + st.unit + '</button></div>';
+      '<div class="unit">' + ['lb', 'kg'].map(u => '<button class="' + (st.unit === u ? 'on' : '') +
+      '" onclick="setUnit(\'' + id + '\',\'' + u + '\')">' + u + '</button>').join('') + '</div></div>';
     h += '<div class="hint' + (ex.up ? ' up' : '') + '">' + esc(ex.hint) + '</div>';
     st.sets.forEach((s, k) => {
       h += '<div class="set"><div class="n">S' + (k + 1) + '</div>' + stepper(id, k, 'w', s.w, ex.step) +
@@ -347,7 +356,7 @@ function addSet(id) { const st = stOf(id), l = st.sets[st.sets.length - 1]; st.s
 function delSet(id) { const st = stOf(id); st.sets.pop(); st.edited = true; redraw(id); }
 function setRir(id, v) { const st = stOf(id); st.rir = st.rir === v ? '' : v; st.edited = true; redraw(id); }
 function setNotas(id, v) { const st = stOf(id); st.notas = v; st.edited = true; }
-function toggleUnit(id) { const st = stOf(id); st.unit = st.unit === 'lb' ? 'kg' : 'lb'; st.edited = true; redraw(id); }
+function setUnit(id, u) { const st = stOf(id); st.unit = u; st.edited = true; redraw(id); }
 
 function guardar(id) {
   const name = nameOf(id), st = state[name];
@@ -395,6 +404,7 @@ function renderResumen() {
       'Meta: ' + META_PROT + ' g', r.protProm7 !== null && r.protProm7 >= META_PROT) +
     '</div>';
   h += '<div class="card chart"><div class="ex-title">Peso, últimos 30 días</div>' + grafica(r.serie30) + '</div>';
+  if (r.musculos) h += tarjetaMusculos(r.musculos);
   h += '<div class="card"><div class="ex-title">Te toca subir peso</div>';
   h += r.subir.length
     ? r.subir.map(s => '<div class="row between" style="margin-top:8px"><div>' + esc(s.ej) +
@@ -403,6 +413,24 @@ function renderResumen() {
   h += '</div><a class="save link" href="' + r.sheetUrl + '" target="_blank" rel="noopener">Abrir dashboard completo</a>';
   $('vistaRes').innerHTML = h;
 }
+// Por músculo: cuánto ha subido tu fuerza desde que empezaste y cuántas series hiciste esta semana
+function tarjetaMusculos(ms) {
+  let h = '<div class="card"><div class="ex-title">Tus músculos</div>' +
+    '<div class="muted">Fuerza: cambio desde tu primera vez en cada ejercicio (aprox.). ' +
+    'Series: lo que hiciste en 7 días; la meta es 10–20 por músculo.</div>';
+  ms.forEach(x => {
+    const pct = x.pct === null ? '<span class="pct">—</span>'
+      : '<span class="pct ' + (x.pct > 0 ? 'up' : x.pct < 0 ? 'down' : '') + '">' + (x.pct > 0 ? '+' : '') + x.pct.toFixed(1) + '%</span>';
+    const ancho = Math.min(100, Math.round(x.series7 / 20 * 100));
+    h += '<div class="mus"><div class="row between"><div class="ex-title" style="font-size:15px">' + esc(x.m) + '</div>' + pct + '</div>' +
+      '<div class="mbar"><div class="' + (x.series7 >= 10 ? 'ok' : '') + '" style="width:' + ancho + '%"></div></div>' +
+      '<div class="row between muted" style="margin-top:3px"><span>' + x.series7 + ' series esta semana</span><span>' +
+      (x.pct === null ? (x.ultimo ? 'Última vez ' + x.ultimo : 'Sin registros aún') : x.n + ' ejercicio' + (x.n > 1 ? 's' : '')) +
+      '</span></div></div>';
+  });
+  return h + '</div>';
+}
+
 function grafica(s) {
   if (!s || s.length < 2) return '<div class="muted" style="margin-top:8px">La gráfica aparece cuando tengas al menos 2 días de peso.</div>';
   const W = 340, H = 150, pl = 34, pr = 8, pt = 10, pb = 22;
