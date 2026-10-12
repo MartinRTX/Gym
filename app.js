@@ -1,4 +1,4 @@
-/* Gym v5.3 – app instalable (sirve para varias personas: cada quien con su clave y su propia hoja).
+/* Gym v5.4 – app instalable (sirve para varias personas: cada quien con su clave y su propia hoja).
  * Lee y escribe la hoja de Google a través del script de Apps Script (la "API").
  * Todo lo que guardas se queda primero en el celular y se sube en cuanto hay señal.
  */
@@ -52,7 +52,7 @@ const RPE = { 'Al fallo': 10, 'Casi (1–2 más)': 8.5, 'Sobraban 3+': 7 };
 const KG_A_LB = 2.2046;
 const GRUPOS3 = ['Push', 'Pull', 'Legs'];
 const DIAS_CORTOS = ['D', 'L', 'M', 'Mi', 'J', 'V', 'S'];   // 0 = domingo … 6 = sábado
-// Estilos de la v5.3 (metas, logros, bienvenida); van aquí para no tener que cambiar index.html
+// Estilos de la v5.3 y v5.4 (metas, logros, bienvenida, notas); van aquí para no tener que cambiar index.html
 const CSS_V53 = `
   .seg.s4 { grid-template-columns: repeat(4, 1fr); }
   .seg.s4 button { font-size: 13px; }
@@ -67,6 +67,10 @@ const CSS_V53 = `
   .meds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .med { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px 6px; text-align: center; }
   .med .i { font-size: 30px; line-height: 1.1; }
+  .meds.mini { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .meds.mini .med { padding: 8px 4px; border-radius: 12px; }
+  .meds.mini .i { font-size: 22px; }
+  .meds.mini .n { font-size: 11px; font-weight: 600; }
   .med .n { font-size: 12.5px; font-weight: 700; margin-top: 4px; line-height: 1.2; }
   .med .p { font-size: 11px; color: var(--muted); margin-top: 3px; }
   .med.no { background: var(--card2); }
@@ -79,6 +83,14 @@ const CSS_V53 = `
   .bv label { display: block; font-weight: 700; margin: 14px 0 4px; }
   .bv input[type=number] { width: 100%; padding: 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card2); color: var(--text); font-size: 18px; font-weight: 700; }
   .pesobtn.vacio { color: var(--pri); font-size: 15px; font-weight: 700; }
+  .nota { display: block; width: 100%; text-align: left; border: 0; background: var(--card2); color: var(--text); border-radius: 12px; padding: 9px 12px; font-size: 13.5px; margin: 0 0 10px; }
+  .nota .ed { float: right; color: var(--pri); font-weight: 700; font-size: 12.5px; margin-left: 8px; }
+  .ajuste-ed { display: flex; gap: 8px; margin: 0 0 10px; }
+  .ajuste-ed input { flex: 1; min-width: 0; padding: 10px 12px; border: 1.5px solid var(--pri); border-radius: 12px; background: var(--card2); color: var(--text); font-size: 15px; }
+  .swapbtn { flex: none; border: 1.5px solid var(--line); background: var(--card2); color: var(--pri); border-radius: 99px; padding: 6px 10px; font-size: 12.5px; font-weight: 700; }
+  .links { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin-top: 10px; }
+  .esf { margin-top: 10px; }
+  .esf .pills { margin-top: 4px; }
   .celebra { text-align: center; padding: 6px 0 2px; }
   .celebra .i { font-size: 64px; line-height: 1.1; animation: pop .5s ease; }
 `;
@@ -325,7 +337,7 @@ function pesoDe(dia) {
 }
 function pintarFecha() {
   const p = pesoDe(hoy());
-  $('fecha').innerHTML = esc(fresco() ? DATA.today : 'Sin conexión') + ' · hoy toca ' + esc(DATA.sugGrupo) +
+  $('fecha').innerHTML = esc(fresco() ? DATA.today : 'Sin conexión') + ' · ' + ((DATA.dias || [1, 2, 3, 4, 5]).includes(new Date().getDay()) ? 'hoy toca ' : 'próximo: ') + esc(DATA.sugGrupo) +
     ' (' + DATA.bloquePara[DATA.sugGrupo] + ')' + (p !== null ? ' · ' + p + ' kg ✓' : '');
 }
 
@@ -453,6 +465,8 @@ function tarjetaPeso() {
 }
 function tarjetaCintura() {
   if (LS.get('gym_cint_' + hoy(), null) !== null) return '';
+  const ult = DATA.cuerpo && DATA.cuerpo.serie && DATA.cuerpo.serie[DATA.cuerpo.serie.length - 1];
+  if (ult && ult.cint !== null && ult.d === ddmm(hoy())) return '';      // ya está en la hoja (desde otro celular o desde el chat)
   return '<div class="card"><div class="peso"><div class="lbl"><div class="t1">Cintura</div><div class="muted">Domingo: a la altura del ombligo</div></div>' +
     '<input id="cintura" class="in num" type="number" inputmode="decimal" step="0.5" placeholder="cm">' +
     '<button class="okmark" onclick="guardarCintura()" aria-label="Guardar cintura">' + ICO.check + '</button></div></div>';
@@ -499,7 +513,8 @@ function tarjetaEjercicio(ex) {
   if (st.done) {
     const sets = log ? log.sets : ex.hoySets;
     meta = (sets && sets.length ? resumenSets(sets) : 'Registrado') +
-      (log && log.prs && log.prs.length ? ' · <b style="color:var(--acc)">Récord</b>' : '');
+      (log && log.prs && log.prs.length ? ' · <b style="color:var(--acc)">Récord</b>'
+        : log && log.cambio >= 1 ? ' · <b style="color:var(--ok)">↑ ' + log.cambio + '%</b>' : '');
   } else if (enCurso) meta = '<b style="color:var(--acc)">' + hechas + ' de ' + trabajo.length + ' series</b>';
   else meta = ex.anterior.length ? 'Última (' + ex.lastWhen + '): ' + resumenSets(ex.anterior) : ex.min + '–' + ex.max + ' reps · primera vez';
   let ico;
@@ -510,7 +525,8 @@ function tarjetaEjercicio(ex) {
   let h = '<div class="ex' + (abierto ? ' open' : '') + (st.done ? ' done' : '') + (enCurso ? ' prog' : '') + '" id="ex-' + esc(ex.name) + '">' +
     '<div class="ex-head" onclick="abrir(\'' + n + '\')"><div class="ex-ico">' + ico + '</div>' +
     '<div style="flex:1;min-width:0"><div class="ex-name">' + esc(ex.ejercicio) + (par && !st.done ? '<span class="sstag">Superserie</span>' : '') + '</div><div class="ex-meta">' + meta + '</div></div>' +
-    (ex.up && !st.done ? '<span class="pill acc">' + ICO.up + 'Sube</span>' : '') + '</div>';
+    (ex.up && !st.done ? '<span class="pill acc">' + ICO.up + 'Sube</span>' : '') +
+    (abierto ? '<button class="swapbtn" onclick="event.stopPropagation();elegirCambio(\'' + n + '\')" aria-label="Máquina ocupada: cambiar ejercicio">⇄ Cambiar</button>' : '') + '</div>';
   if (st.done && OPEN === ex.name) {
     h += '<div class="ex-body"><div class="acts">' + (st.uid ? '<button class="btn ghost sm" onclick="deshacer(\'' + n + '\')">Borrar</button>' : '') +
       '<button class="btn ghost sm" onclick="corregir(\'' + n + '\')">' + (st.uid ? 'Corregir' : 'Registrar otra vez') + '</button></div></div>';
@@ -522,15 +538,25 @@ function cuerpoEjercicio(ex, st) {
   const n = jsq(ex.name);
   let h = '<div class="row between" style="margin-bottom:10px"><div class="muted">' + ex.min + '–' + ex.max + ' reps · ' + esc(ex.howTo) + '</div>' +
     '<div class="unit">' + ['lb', 'kg'].map(u => '<button class="' + (st.unit === u ? 'on' : '') + '" onclick="setUnit(\'' + n + '\',\'' + u + '\')">' + u + '</button>').join('') + '</div></div>';
+  const trabAnt = ex.anterior.filter(a => a.t !== 'C');
+  const pesoAnt = trabAnt.length ? Math.max.apply(null, trabAnt.map(a => Number(a.w) || 0)) : null;
   if (ex.up) h += '<div class="tip acc">' + ICO.up + esc(ex.hint) + '</div>';
-  else if (ex.sugerido) h += '<div class="sug">Sugerido hoy: ' + ex.sugerido.w + ' ' + ex.unit + ' × ' + ex.sugerido.r + ' (RPE 8)' +
+  else if (ex.hint && /al fallo/.test(ex.hint)) h += '<div class="tip">' + esc(ex.hint) + '</div>';
+  else if (ex.sugerido && (pesoAnt === null || ex.sugerido.w > pesoAnt)) h += '<div class="sug">Sugerido hoy: ' + ex.sugerido.w + ' ' + ex.unit + ' × ' + ex.sugerido.r + ' (RPE 8)' +
     '<button class="btn" onclick="usarSugerido(\'' + n + '\')">Usar</button></div>';
-  else if (!ex.anterior.length) h += '<div class="tip">Elige un peso que te deje ' + ex.min + '–' + ex.max + ' reps con 1–2 de reserva</div>';
+  else if (!trabAnt.length) h += '<div class="tip">Elige un peso que te deje ' + ex.min + '–' + ex.max + ' reps con 1–2 de reserva</div>';
+  else if (!/Semana de carrera/.test(ex.hint || '')) h += '<div class="tip">Meta de hoy: mismo peso y 1 rep más en alguna serie (la última vez: ' + trabAnt.map(a => a.r).join(', ') + ')</div>';
+  else h += '<div class="tip">' + esc(ex.hint) + '</div>';
+  if (st.editAjuste) h += '<div class="ajuste-ed"><input id="aj-' + esc(ex.name) + '" maxlength="120" placeholder="Ej. banco a 30°, asiento en 4, agarre neutro" value="' + esc(ex.ajuste || '') + '">' +
+    '<button class="btn sm" onclick="guardarAjuste(\'' + n + '\')">Guardar</button></div>';
+  else if (ex.ajuste) h += '<button class="nota" onclick="editarAjuste(\'' + n + '\')">⚙️ ' + esc(ex.ajuste) + '<span class="ed">Editar</span></button>';
+  if (ex.notaUlt) h += '<div class="muted" style="margin:-4px 2px 10px;font-size:13px">La última vez anotaste: «' + esc(ex.notaUlt) + '»</div>';
   h += '<div class="sets-h"><span>#</span><span>Anterior</span><span>' + st.unit + '</span><span>Reps</span><span></span></div>';
-  let num = 0;
+  let num = 0, nc = 0;
+  const antC = ex.anterior.filter(a => a.t === 'C'), antT = ex.anterior.filter(a => a.t !== 'C');
   st.sets.forEach((s, i) => {
-    if (s.t !== 'C') num++;
-    const a = ex.anterior[i];
+    if (s.t !== 'C') num++; else nc++;
+    const a = s.t === 'C' ? antC[nc - 1] : antT[num - 1];
     const etiqueta = s.t === 'C' ? 'C' : s.t === 'D' ? 'D' : num;
     h += '<div class="set' + (s.ok ? ' hecho' : '') + '">' +
       '<button class="tipo ' + (s.t === 'T' ? '' : s.t) + '" onclick="cambiarTipo(\'' + n + '\',' + i + ')" aria-label="Tipo de serie">' + etiqueta + '</button>' +
@@ -548,12 +574,17 @@ function cuerpoEjercicio(ex, st) {
     '<button class="btn ghost sm" onclick="addSet(\'' + n + '\')"' + (st.sets.length >= 10 ? ' disabled' : '') + '>+ Serie</button>' +
     '<button class="btn ghost sm" onclick="delSet(\'' + n + '\')"' + (st.sets.length <= 1 ? ' disabled' : '') + '>− Serie</button></div>';
   const par = companero(ex.name);
-  h += '<div class="row between" style="margin-top:8px">' +
-    (par ? '<span class="muted" style="font-size:13px">' + ICO.swap + ' Superserie con <b>' + esc(exDe(par).ejercicio) + '</b></span><button class="link" onclick="quitarSuper()">Quitar</button>'
-         : '<button class="link" onclick="elegirSuper(\'' + n + '\')">' + ICO.swap + ' Hacer superserie</button>') + '</div>';
-  h += '<details class="more"' + (st.rir || st.notas ? ' open' : '') + '><summary>Esfuerzo y notas</summary><div class="pills">' +
-    Object.keys(RPE).map(v => '<button class="' + (st.rir === v ? 'on' : '') + '" onclick="setRir(\'' + n + '\',\'' + v + '\')">' + v + '</button>').join('') +
-    '</div><textarea rows="2" placeholder="Notas (opcional)" onchange="setNotas(\'' + n + '\', this.value)">' + esc(st.notas) + '</textarea></details>';
+  const sinCal = !st.sets.some(s => s.t === 'C') && esBasico(ex);
+  h += '<div class="links">' +
+    (sinCal ? '<button class="link" onclick="agregarCalentamiento(\'' + n + '\')">+ Calentamiento</button>' : '') +
+    (!ex.ajuste && !st.editAjuste ? '<button class="link" onclick="editarAjuste(\'' + n + '\')">⚙️ Ajuste de máquina</button>' : '') +
+    (par ? '<span class="muted" style="font-size:13px">' + ICO.swap + ' Superserie con <b>' + esc(exDe(par).ejercicio) + '</b> · <button class="link" onclick="quitarSuper()">Quitar</button></span>'
+         : '<button class="link" onclick="elegirSuper(\'' + n + '\')">' + ICO.swap + ' Superserie</button>') + '</div>';
+  // El esfuerzo va a la vista: con un toque ajusta cuándo te toca subir de peso
+  h += '<div class="esf"><div class="muted">¿Cómo terminó la última serie? <span style="opacity:.75">(opcional)</span></div><div class="pills">' +
+    Object.keys(RPE).map(v => '<button class="' + (st.rir === v ? 'on' : '') + '" onclick="setRir(\'' + n + '\',\'' + v + '\')">' + v + '</button>').join('') + '</div></div>';
+  h += '<details class="more"' + (st.notas ? ' open' : '') + '><summary>Nota de hoy</summary>' +
+    '<textarea rows="2" placeholder="Solo de esta sesión: «hombro cargado», «dormí mal»…" onchange="setNotas(\'' + n + '\', this.value)">' + esc(st.notas) + '</textarea></details>';
   const hechas = st.sets.filter(s => s.ok).length;
   h += '<div class="acts"><button class="btn" onclick="guardar(\'' + n + '\')">' +
     (hechas && hechas < st.sets.length ? 'Guardar ' + hechas + ' series' : 'Guardar ejercicio') + '</button></div>';
@@ -573,6 +604,7 @@ function elegirGrupo(g) { GRUPO = g; BUSCA = ''; OPEN = siguiente(g, ''); pintar
 function abrir(name) {
   const p = companero(name);
   OPEN = (OPEN === name || (p && OPEN === p)) ? '' : name;
+  if (OPEN && ajuste('calentamiento', false) && esBasico(exDe(OPEN)) && !state[OPEN].edited && !state[OPEN].sets.some(s => s.t === 'C')) agregarCalentamiento(OPEN, true);
   if (OPEN) LS.set('gym_tipcount', LS.get('gym_tipcount', 0) + 1);
   pintarEntrenar();
   if (OPEN) irA(OPEN);
@@ -606,8 +638,13 @@ function cambiarTipo(name, i) {
   s.t = s.t === 'T' ? 'C' : s.t === 'C' ? 'D' : 'T';
   cambio(name);
 }
+function anteriorDe(name, i) {
+  const ex = exDe(name), st = state[name], s = st.sets[i];
+  const pos = st.sets.slice(0, i + 1).filter(x => (x.t === 'C') === (s.t === 'C')).length - 1;
+  return ex.anterior.filter(a => (a.t === 'C') === (s.t === 'C'))[pos];
+}
 function copiarAnterior(name, i) {
-  const a = exDe(name).anterior[i];
+  const a = anteriorDe(name, i);
   if (!a) return;
   const s = state[name].sets[i];
   s.w = a.w; s.r = a.r; s.t = a.t || s.t; vibrar(10);
@@ -622,6 +659,73 @@ function usarSugerido(name) {
   const ex = exDe(name), st = state[name];
   st.sets.forEach(s => { if (s.t === 'T' && !s.ok) { s.w = ex.sugerido.w; s.r = ex.sugerido.r; } });
   cambio(name);
+}
+
+/* ----- v5.4: nota fija, cambio por máquina ocupada, calentamiento ----- */
+// Cómo vas contra la última vez (fuerza estimada). Si fue menos, no se dice: un día malo es ruido, no retroceso
+function textoCambio(p) {
+  if (p === null || p === undefined) return '';
+  if (p >= 1.5) return '↑ +' + p + '% de fuerza vs. la última vez';
+  if (p > -1.5) return '= Igual que la última vez: carga consolidada';
+  return '';
+}
+function editarAjuste(name) {
+  state[name].editAjuste = true; pintarEntrenar();
+  setTimeout(() => { const el = document.getElementById('aj-' + name); if (el) el.focus(); }, 50);
+}
+function guardarAjuste(name) {
+  const el = document.getElementById('aj-' + name), v = el ? el.value.trim() : '';
+  exDe(name).ajuste = v; state[name].editAjuste = false;
+  LS.set('gym_data', DATA);
+  encolar('saveAjuste', [name, v], 'aj-' + name);
+  toast(v ? 'Ajuste guardado: te aparece cada vez ✓' : 'Ajuste borrado');
+  pintarEntrenar();
+}
+// Básicos con barra o por lado: ahí sí vale la pena calentar con series de aproximación
+function esBasico(ex) { return ex.barra > 0 || ex.mult === 2; }
+function agregarCalentamiento(name, silencioso) {
+  const ex = exDe(name), st = state[name];
+  const t = st.sets.find(s => s.t === 'T' && !vacio(s.w) && Number(s.w) > 0);
+  if (!t) { if (!silencioso) toast('Pon primero tu peso de trabajo'); return false; }
+  const barra = st.unit === 'kg' ? ex.barra / KG_A_LB : ex.barra, paso = ex.step || 2.5;
+  const carga = Number(t.w) * ex.mult + barra;
+  // Con barra y carga de 50 kg (110 lb) o más, primero la barra sola
+  const pasos = (barra > 0 && carga >= (st.unit === 'kg' ? 50 : 110) ? [[0, 10]] : []).concat([[0.5, 8], [0.7, 4]]);
+  const cal = pasos.map(x => {
+    const w = x[0] ? Math.max(0, Math.floor(((carga * x[0] - barra) / ex.mult) / paso) * paso) : 0;
+    return { w: Math.round(w * 100) / 100, r: x[1], t: 'C', ok: false };
+  });
+  st.sets = cal.concat(st.sets.filter(s => s.t !== 'C'));
+  cambio(name);
+  if (!silencioso) toast(cal.length + ' series de calentamiento: ' + cal.map(c => (c.w || (barra ? 'barra' : 0)) + '×' + c.r).join(', '));
+  return true;
+}
+// Máquina ocupada: primero los del mismo movimiento (equivalentes de verdad), luego otros del mismo músculo.
+// Dentro de cada grupo, los que ya has hecho van primero porque traen tu peso.
+function elegirCambio(name, todos) {
+  const ex = exDe(name);
+  const libres = DATA.exercises.filter(e => e.name !== name && !state[e.name].done);
+  const orden = (a, b) => (b.anterior.length ? 1 : 0) - (a.anterior.length ? 1 : 0);
+  const mismo = ex.patron ? libres.filter(e => e.patron === ex.patron).sort(orden) : [];
+  const musc = libres.filter(e => e.musculo === ex.musculo && !mismo.includes(e)).sort(orden);
+  const fila = e => '<button onclick="usarCambio(\'' + jsq(e.name) + '\')"><b style="flex:1">' + esc(e.ejercicio) + '</b><span class="muted">' +
+    (e.anterior.length ? resumenSets(e.anterior) : 'nuevo') + '</span></button>';
+  const top = (mismo.length ? mismo : musc).slice(0, 3), resto = mismo.concat(musc).filter(e => !top.includes(e));
+  $('sheet').innerHTML = '<div class="t2">Cambiar ' + esc(ex.ejercicio) + '</div><div class="muted" style="margin:4px 0 8px">' +
+    (mismo.length ? 'Mismo movimiento (' + esc(ex.patron.toLowerCase()) + '). ' : 'Mismo músculo (' + esc(ex.musculo) + '). ') + 'Te carga tu peso de la última vez.</div>' +
+    '<div class="lista">' + (top.length ? top.map(fila).join('') : '<div class="muted" style="padding:12px 0">No hay otro ejercicio equivalente en tu catálogo.</div>') +
+    (todos && resto.length ? '<div class="muted" style="padding:10px 2px 2px">Otros de ' + esc(ex.musculo) + '</div>' + resto.map(fila).join('') : '') + '</div>' +
+    '<div class="acts">' + (!todos && resto.length ? '<button class="btn ghost" onclick="elegirCambio(\'' + jsq(name) + '\', true)">Ver ' + resto.length + ' más</button>' : '') +
+    '<button class="btn ghost" onclick="cerrarModal()">Cancelar</button></div>';
+  abrirModal();
+}
+function usarCambio(name) {
+  cerrarModal();
+  const g = exDe(name).group;
+  if (g !== GRUPO) GRUPO = g;
+  BUSCA = ''; OPEN = name;
+  pintarEntrenar(); irA(name);
+  toast('Cambiado: ' + exDe(name).ejercicio);
 }
 
 /* ----- Superserie: dos ejercicios alternados; el descanso se sugiere al terminar el par ----- */
@@ -746,8 +850,9 @@ function guardar(name, auto) {
   st.uid = uid(); st.done = true; st.edited = false; guardarWip(name);
   encolar('saveExercise', [{ name: name, unit: st.unit, sets: sets, rpe: RPE[st.rir] || '', notas: st.notas,
                               ts: tsReg(), uid: st.uid, day: diaReg() }]);
-  // Récords: fuerza estimada, peso y repeticiones con el mismo peso
+  // Récords: fuerza estimada, peso y repeticiones con el mismo peso; y cómo vas contra la última vez
   const prs = [];
+  let cambioPct = null;
   if (!ex.sinPeso && ex.inc > 0) {
     const efectivas = sets.filter(s => s.t !== 'C' && s.r > 0);
     const cargas = efectivas.map(s => ({ c: cargaReal(ex, s.w, st.unit), r: s.r }));
@@ -756,17 +861,19 @@ function guardar(name, auto) {
     if (ex.best && mejorE1 > ex.best + 0.05) prs.push('fuerza');
     if (ex.bestCarga && mejorCarga > ex.bestCarga + 0.05) prs.push('peso');
     if (!prs.length && cargas.some(x => { const prev = ex.repsEn[String(Math.round(x.c * 2) / 2)]; return prev && x.r > prev; })) prs.push('repeticiones');
+    if (ex.ultE1 && mejorE1 > 0) cambioPct = Math.round((mejorE1 / ex.ultE1 - 1) * 1000) / 10;
   }
   if (!FECHA) {
     const ses = sesion();
     ses.log = ses.log.filter(l => l.name !== name);
-    ses.log.push({ name: name, ej: ex.ejercicio, sets: sets, unit: st.unit, prs: prs, uid: st.uid,
+    ses.log.push({ name: name, ej: ex.ejercicio, sets: sets, unit: st.unit, prs: prs, uid: st.uid, cambio: cambioPct,
                    vol: sets.filter(s => s.t !== 'C').reduce((a, s) => a + cargaReal(ex, s.w, st.unit) * s.r, 0) });
     guardarSesion(ses);
   }
   const deshacerUlt = { txt: 'Deshacer', fn: () => corregir(name) };
-  if (prs.length) { vibrar([40, 60, 40, 60, 120]); toast('¡Récord de ' + prs.join(' y ') + '!', 'pr', deshacerUlt); }
-  else toast(navigator.onLine ? 'Guardado ✓' : 'Guardado en el celular; se sube con señal', '', deshacerUlt);
+  const vsUlt = textoCambio(cambioPct);
+  if (prs.length) { vibrar([40, 60, 40, 60, 120]); toast('¡Récord de ' + prs.join(' y ') + '!' + (cambioPct >= 1 ? ' ' + vsUlt : ''), 'pr', deshacerUlt); }
+  else toast(vsUlt || (navigator.onLine ? 'Guardado ✓' : 'Guardado en el celular; se sube con señal'), '', deshacerUlt);
   const p = companero(name);
   if (p && state[p].done) LS.del('gym_super_' + diaReg());
   if (auto && p && !state[p].done) OPEN = p;
@@ -1063,7 +1170,7 @@ function tarjetaAyer() {
   return '<div class="card"><div class="row between"><div class="t1">¿Qué comiste ayer?</div>' +
     '<button class="btn ghost sm" onclick="LS.set(\'gym_ayer_no_' + ayer + '\', true);pintarTab()" aria-label="No registrar">✕</button></div>' +
     '<div class="muted" style="margin:2px 0 10px">Se quedó sin registrar la proteína del ' + diaCorto(ayer) + '.</div><div class="acts" style="margin-top:0">' +
-    (tipico.length ? '<button class="btn" onclick="ayerTipico()">Mi día típico · ' + g + ' g</button>' : '') +
+    (tipico.length ? '<button class="btn" style="white-space:nowrap" onclick="ayerTipico()">Día típico · ' + g + ' g</button>' : '') +
     '<button class="btn ghost" onclick="comidaDe(\'' + ayer + '\')">' + (tipico.length ? 'Fue diferente' : 'Registrar ayer') + '</button></div></div>';
 }
 function ayerTipico() {
@@ -1153,7 +1260,7 @@ function progresoSemana() {
   let diasSemana = r.diasSemana || 0;
   if (hoyLocal && !semana[hoyIdx]) { semana[hoyIdx] = true; diasSemana++; }
   const subir = (r.subir || []).filter(s => !DATA.exercises.some(e => e.ejercicio === s.ej && state[e.name] && state[e.name].done));
-  let h = '<div class="card"><div class="row between"><div><div class="t2">' + diasSemana + ' de ' + META_DIAS + ' días</div><div class="muted">esta semana · ' + fmt(r.km7) + ' km trotados</div></div>' +
+  let h = '<div class="card"><div class="row between"><div><div class="t2">' + (diasSemana >= META_DIAS ? diasSemana + ' días ✓' : diasSemana + ' de ' + META_DIAS + ' días') + '</div><div class="muted">esta semana · ' + fmt(r.km7) + ' km trotados</div></div>' +
     (r.racha ? '<span class="pill acc" style="font-size:13px;padding:6px 10px">' + ICO.flame + r.racha + ' semana' + (r.racha === 1 ? '' : 's') + '</span>' : '') + '</div>' +
     '<div class="week">' + dias.map((d, i) => '<div class="' + (semana[i] ? 'y' : '') + (i === hoyIdx ? ' hoy' : '') + '"><i></i>' + d + '</div>').join('') + '</div>' +
     '<div class="muted" style="margin-top:8px">La racha cuenta semanas seguidas con 3 o más días de gym.</div>' +
@@ -1166,10 +1273,12 @@ function progresoSemana() {
     '<div class="t1" style="font-size:15px">' + esc(s.ej) + '</div><div class="muted">Próxima vez</div></div><b class="num" style="color:var(--acc)">' + s.peso + ' ' + s.unit + '</b></div>').join('') + '</div>';
   if (r.records && r.records.length) h += '<h2>Récords recientes</h2><div class="card">' + r.records.map(x =>
     '<div class="rec"><div class="medal">' + ICO.trophy + '</div><div style="flex:1;min-width:0"><div class="t1" style="font-size:15px">' + esc(x.ej) + '</div>' +
-    '<div class="muted num">' + x.w + ' ' + x.unit + ' × ' + x.r + ' · ' + x.k.slice(8, 10) + '/' + x.k.slice(5, 7) + ' · ' + x.tipo + '</div></div>' +
+    '<div class="muted num">' + x.w + ' ' + x.unit + ' × ' + x.r + ' · ' + x.k.slice(8, 10) + '/' + x.k.slice(5, 7) + (/peso/.test(x.tipo) ? ' · más peso que nunca' : '') + '</div></div>' +
     (x.pct > 0 ? '<b class="num up">+' + x.pct + '%</b>' : '') + '</div>').join('') + '</div>';
   h += '<h2>Hábitos</h2><div class="kpis">' +
-    kpi(r.gymDias7, 'Días de gym (7 días)', 'Meta: ' + META_DIAS, r.gymDias7 >= META_DIAS) +
+    (DATA.plan && DATA.plan.sesiones
+      ? kpi(DATA.plan.sesiones.filter(x => x.hecho).length + '/' + DATA.plan.sesiones.length, 'Trotes del plan', 'Semana ' + DATA.plan.semana + ' de ' + DATA.plan.total, DATA.plan.sesiones.every(x => x.hecho))
+      : kpi(fmt(r.km7), 'Km trotados (7 días)', '', false)) +
     kpi(r.protProm7 !== null ? r.protProm7 + ' g' : '—', 'Proteína promedio', 'Meta: ' + metaProt() + ' g', r.protProm7 !== null && r.protProm7 >= metaProt()) + '</div>';
   h += '<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none;margin-top:6px" href="' + r.sheetUrl + '" target="_blank" rel="noopener">Abrir dashboard completo</a>';
   return h;
@@ -1213,7 +1322,7 @@ function progresoLogros() {
   let h = '<div class="card"><div class="row between"><div><div class="muted">Esta semana</div><div class="pts"><b class="num">' + s.pts + '</b><span class="muted">/ 100 puntos</span></div></div>' +
     (L.total > 1 ? '<span class="pill ' + (L.rank === 1 ? 'acc' : 'pri') + '" style="font-size:13px;padding:6px 10px">' + (L.rank === 1 ? '🥇 Tu mejor semana' : 'Lugar ' + L.rank + ' de ' + L.total) + '</span>' : '') + '</div>' +
     '<div class="desglose">' + parte('Gym', s.gym, 4) + parte('Proteína en meta', s.prot, 7) + parte('Trote', s.trote, 3) + parte('Pesarte', s.peso, 7) + '</div>' +
-    '<div class="muted" style="margin-top:10px">' + (L.mejor === null ? 'Tu primera semana: esta es la marca a superar.' : 'Tu mejor semana: ' + L.mejor + ' puntos. Compites solo contra ti.') + '</div></div>';
+    '<div class="muted" style="margin-top:10px">' + (L.mejor === null ? 'Tu primera semana: esta es la marca a superar.' : (L.rank === 1 ? '¡Es tu mejor semana! Compites solo contra ti.' : 'Tu mejor semana: ' + L.mejor + ' puntos' + (L.mejor - s.pts <= 10 ? ' · te faltan ' + (L.mejor - s.pts + 1) + ' para superarla' : '') + '. Compites solo contra ti.')) + '</div></div>';
   if (L.hist.length >= 2) h += '<div class="card chart"><div class="t1">Tus puntos por semana</div>' + barras(L.hist) + '</div>';
   // Medallas: todas las ganadas y solo la siguiente de cada tipo, con su avance
   const ganadas = L.medallas.filter(m => m.ok), vistas = {};
@@ -1221,7 +1330,7 @@ function progresoLogros() {
   const med = m => '<div class="med' + (m.ok ? '' : ' no') + '"><div class="i">' + m.ico + '</div><div class="n">' + esc(m.nom) + '</div>' +
     (m.ok ? '<div class="p">' + esc(m.desc) + '</div>' : '<div class="mb"><div style="width:' + Math.round(m.val / m.meta * 100) + '%"></div></div><div class="p num">' + m.val + ' / ' + m.meta + '</div>') + '</div>';
   h += '<h2>Medallas · ' + ganadas.length + ' de ' + L.medallas.length + '</h2>';
-  if (ganadas.length) h += '<div class="meds">' + ganadas.map(med).join('') + '</div>';
+  if (ganadas.length) h += '<div class="meds mini">' + ganadas.map(m => '<div class="med"><div class="i">' + m.ico + '</div><div class="n">' + esc(m.nom) + '</div></div>').join('') + '</div>';
   else h += '<div class="muted" style="margin:0 4px 8px">Todavía ninguna: la primera llega con tu primer entrenamiento registrado.</div>';
   h += '<h2>Siguientes</h2><div class="meds">' + siguientes.map(med).join('') + '</div>';
   return h;
@@ -1259,14 +1368,14 @@ function tarjetaFuerza() {
 function tarjetaMusculos(ms) {
   const con = ms.filter(x => x.series7 > 0 || x.pct !== null || x.ultimo).sort((a, b) => a.series7 - b.series7);
   const sin = ms.filter(x => !con.includes(x));
-  let h = '<h2>Tus músculos</h2><div class="card"><div class="muted" style="margin-bottom:4px">Series efectivas de los últimos 7 días (sin calentamientos; los secundarios cuentan media serie). La rayita marca el mínimo: 10.</div>';
+  let h = '<h2>Tus músculos</h2><div class="card"><div class="muted" style="margin-bottom:4px">Series efectivas de los últimos 7 días (sin calentamientos; los secundarios cuentan media serie). Rango útil: 10 a 20 por músculo.</div>';
   con.forEach(x => {
     const pct = x.pct === null ? '<span class="muted">—</span>'
       : Math.abs(x.pct) < 0.5 ? '<span class="muted">fuerza igual</span>'
       : '<b class="num ' + (x.pct > 0 ? 'up' : 'down') + '">' + (x.pct > 0 ? '+' : '') + x.pct.toFixed(1) + '% fuerza</b>';
     h += '<div class="mus"><div class="row between"><div class="t1" style="font-size:15px">' + esc(x.m) + '</div>' + pct + '</div>' +
       '<div class="mbar"><div class="' + (x.series7 >= 10 ? 'ok' : '') + '" style="width:' + Math.min(100, Math.round(x.series7 / 20 * 100)) + '%"></div><i></i></div>' +
-      '<div class="row between muted" style="margin-top:4px"><span class="num">' + x.series7 + ' series</span><span>' + (x.ultimo ? 'Última vez ' + x.ultimo : '') + '</span></div></div>';
+      '<div class="row between muted" style="margin-top:4px"><span class="num">' + x.series7 + ' series' + (x.series7 > 20 ? ' · arriba de 20: bien si te recuperas' : '') + '</span><span>' + (x.ultimo ? 'Última vez ' + x.ultimo : '') + '</span></div></div>';
   });
   if (!con.length) h += '<div class="muted" style="padding:8px 0">Aquí verás tu progreso cuando registres tus primeros entrenamientos.</div>';
   if (sin.length) h += '<div class="muted" style="padding-top:10px;border-top:1px solid var(--line)">Sin registros aún: ' + sin.map(x => x.m).join(', ') + '</div>';
@@ -1377,6 +1486,7 @@ function abrirAjustes() {
     tog('pantalla', true, 'Pantalla encendida en la sesión', 'Para que el descanso suene y no tengas que desbloquear') +
     tog('reloj', false, 'Avisar en el reloj', 'Al terminar el descanso llega una notificación (tu reloj la recibe si refleja las de Chrome)') +
     tog('autoDescanso', false, 'Iniciar el descanso solo', 'Si está apagado, solo te sugiere tiempos al marcar una serie') +
+    tog('calentamiento', false, 'Calentamiento automático', 'En los básicos con barra agrega 2 series ligeras (50 % y 70 %) al abrirlos') +
     '<div class="opt" style="display:block"><div class="t1" style="font-size:15px;margin-bottom:8px">Descanso predeterminado</div><div class="pills" style="margin:0;display:grid;grid-template-columns:repeat(4,1fr)">' +
     DESCANSOS.map(s => '<button class="' + (s === def ? 'on' : '') + '" onclick="setAjuste(\'descanso\',' + s + ');abrirAjustes()">' + mmss(s) + '</button>').join('') + '</div></div>' +
     '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Meta de proteína</div><div class="muted">Unos 1.6–2 g por kilo de tu peso</div></div>' +
@@ -1395,7 +1505,7 @@ function abrirAjustes() {
     '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Respaldo</div><div class="muted">Descarga lo que tiene la app en este celular</div></div>' +
     '<button class="btn ghost sm" onclick="descargarRespaldo()">Descargar</button></div>' +
     '<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none;margin-top:8px" href="' + DATA.resumen.sheetUrl + '" target="_blank" rel="noopener">Abrir mi hoja de Google</a>' +
-    '<div class="muted" style="text-align:center;margin-top:10px;font-size:12px">Gym v5.3 · ' + esc(DATA.nombre || '') + '</div>';
+    '<div class="muted" style="text-align:center;margin-top:10px;font-size:12px">Gym v5.4 · ' + esc(DATA.nombre || '') + '</div>';
   abrirModal();
 }
 async function toggleAjuste(k, d) {
