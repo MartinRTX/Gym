@@ -338,7 +338,7 @@ function pesoDe(dia) {
 function pintarFecha() {
   const p = pesoDe(hoy());
   $('fecha').innerHTML = esc(fresco() ? DATA.today : 'Sin conexión') + ' · ' + ((DATA.dias || [1, 2, 3, 4, 5]).includes(new Date().getDay()) ? 'hoy toca ' : 'próximo: ') + esc(DATA.sugGrupo) +
-    ' (' + DATA.bloquePara[DATA.sugGrupo] + ')' + (p !== null ? ' · ' + p + ' kg ✓' : '');
+    ' (' + DATA.bloquePara[DATA.sugGrupo] + ')' + (p !== null ? ' · <button class="link" style="font-size:inherit;font-weight:600" onclick="PESO_TMP=' + p + ';tecladoPeso()" aria-label="Corregir peso de hoy">' + p + ' kg ✓</button>' : '');
 }
 
 function verTab(t) {
@@ -388,12 +388,12 @@ function pintarEntrenar() {
   if (FECHA) h += '<div class="otro">' + ICO.cal + '<span>Registrando para el ' + diaCorto(FECHA) + '</span><button class="btn" onclick="cambiarFecha(null)">Volver a hoy</button></div>';
   h += avisoErrores();
   if (!FECHA && DATA.descargaCarrera) h += '<div class="aviso">' + ICO.flame + '<span>Semana de carrera: descarga. Mitad de series con el mismo peso (ya viene así). Legs a más tardar el lunes; el viernes descansas.</span></div>';
-  if (!FECHA && !activa) h += tarjetaAyer();
   const diasSin = DATA.ultimoGrupoFecha ? difDias(DATA.ultimoGrupoFecha, hoy()) - 1 : 0;
   if (!FECHA && !activa && diasSin >= 3 && !sesion().log.length)
     h += '<div class="aviso">' + ICO.flame + '<span>Llevas ' + diasSin + ' días sin ir. Hoy toca ' + esc(DATA.sugGrupo) + ': aunque sean 30 minutos, cuenta.</span></div>';
   if (FECHA ? pesoDe(FECHA) === null : (pesoDe(hoy()) === null && !activa)) h += tarjetaPeso();
   else if (!FECHA && new Date().getDay() === 0 && !activa) h += tarjetaCintura();
+  if (!FECHA && !activa) h += tarjetaAyer();               // después del peso: en la mañana lo primero es pesarte
   h += '<input class="buscar" id="buscar" type="search" placeholder="Buscar ejercicio…" value="' + esc(BUSCA) + '" oninput="buscar(this.value)">';
   if (BUSCA) {
     const q = BUSCA.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
