@@ -93,12 +93,23 @@ const CSS_V53 = `
   .esf .pills { margin-top: 4px; }
   .celebra { text-align: center; padding: 6px 0 2px; }
   .celebra .i { font-size: 64px; line-height: 1.1; animation: pop .5s ease; }
+  /* v5.5: volumen en vivo, esfuerzo al terminar, completados y coach IA */
+  .vol { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 12px; }
+  .vol span { background: var(--card2); border: 1px solid var(--line); border-radius: 99px; padding: 5px 10px; font-size: 12.5px; color: var(--muted); }
+  .vol b { color: var(--text); font-weight: 700; margin-right: 3px; }
+  .esf.pide { background: var(--acc-weak); border-radius: 14px; padding: 10px 12px; }
+  .esf.pide > .muted { color: var(--text); font-weight: 700; }
+  details.hechos > summary { color: var(--ok); }
+  .ia { display: flex; gap: 8px; align-items: flex-start; background: var(--card2); border-left: 3px solid var(--pri); border-radius: 10px; padding: 9px 12px; margin: 0 0 10px; font-size: 14px; }
+  .ia .btn { flex: none; margin-left: auto; }
+  .ia.cargando { color: var(--muted); }
 `;
 
 /* ===================== Configuración y datos ===================== */
 let API = LS.get('gym_api', ''), KEY = LS.get('gym_key', '');
 let DATA = null, GRUPO = null, TAB = 'Entrenar', OPEN = null, BUSCA = '', PTAB = 'Semana';
 let FECHA = null;              // null = hoy; 'aaaa-mm-dd' = registrando otro día
+let GRUPO_MANUAL = false, GRUPO_DIA = null;   // el grupo sigue al de hoy salvo que tú elijas otro ese día
 let state = {};
 let prot = [];
 let COMIDA_DIA = null;         // null = hoy; 'aaaa-mm-dd' = registrando la comida de ayer
@@ -228,7 +239,7 @@ function arrancar() {
     toast('App configurada ✓');
   }
   const g = p.get('g');
-  if (g) { GRUPO = g; OPEN = null; }
+  if (g) { GRUPO = g; OPEN = null; GRUPO_MANUAL = true; GRUPO_DIA = hoy(); }
   if (p.toString()) history.replaceState(null, '', location.pathname);
   if ('serviceWorker' in navigator) {
     const teniaVersion = !!navigator.serviceWorker.controller;
@@ -314,8 +325,13 @@ function pintarTodo() {
       : nuevoEstado(ex, done, id);
     state[ex.name].dia = dia;
   });
-  if (!GRUPO) GRUPO = DATA.sugGrupo;
-  if (OPEN === null) OPEN = siguiente(GRUPO, '');
+  // Grupo del día: al abrir, al cambiar de día o cuando llegan datos nuevos, salvo que hoy hayas elegido otro a mano
+  if (!FECHA) {
+    if (GRUPO_DIA !== hoy()) { GRUPO_MANUAL = false; GRUPO_DIA = hoy(); }
+    const gHoy = grupoDeHoy();
+    if (!GRUPO || (!GRUPO_MANUAL && GRUPO !== gHoy)) { GRUPO = gHoy; OPEN = null; }
+  } else if (!GRUPO) GRUPO = DATA.sugGrupo;
+  if (OPEN === null || (OPEN && !exDe(OPEN))) OPEN = siguiente(GRUPO, '');
   if (COMIDA_DIA && COMIDA_DIA !== sumarDias(hoy(), -1)) COMIDA_DIA = null;   // pasó la medianoche
   prot = cargarProt(diaComida());
   $('brand').innerHTML = 'Gym <span>' + esc(DATA.nombre || '') + '</span>';
@@ -323,6 +339,13 @@ function pintarTodo() {
   pintarFecha();
   $('loading').classList.add('hide'); $('app').classList.remove('hide'); $('nav').classList.remove('hide');
   pintarTab(); pintarSync();
+}
+// Lo que te toca hoy: lo que ya empezaste hoy; si los datos son de otro día, el siguiente de la rotación
+function grupoDeHoy() {
+  const yaHoy = sesion().log.map(l => l.name.split(':')[0]).filter(g => GRUPOS3.includes(g)).pop();
+  if (yaHoy) return yaHoy;
+  if (DATA.todayKey === hoy() || !GRUPOS3.includes(DATA.ultimoGrupo)) return DATA.sugGrupo;
+  return DATA.ultimoGrupoFecha === hoy() ? DATA.ultimoGrupo : GRUPOS3[(GRUPOS3.indexOf(DATA.ultimoGrupo) + 1) % 3];
 }
 // Lo que comiste un día: primero lo guardado en el celular, luego lo que tiene la hoja
 function cargarProt(dia) {
@@ -384,6 +407,7 @@ function pintarEntrenar() {
       '<div style="font-size:12px;opacity:.9">' + ses.log.length + ' ejercicio' + (ses.log.length === 1 ? '' : 's') + ' · ' +
       (n => n + (n === 1 ? ' serie' : ' series'))(seriesSesion()) + '</div></div>' +
       '<button class="btn" onclick="terminarSesion()">Terminar</button></div>';
+    h += chipsVolumen();
   }
   if (FECHA) h += '<div class="otro">' + ICO.cal + '<span>Registrando para el ' + diaCorto(FECHA) + '</span><button class="btn" onclick="cambiarFecha(null)">Volver a hoy</button></div>';
   h += avisoErrores();
@@ -405,7 +429,11 @@ function pintarEntrenar() {
   h += '<div class="chips">' + DATA.chips.concat(['Trote']).map(g => '<button class="chip' + (g === GRUPO ? ' on' : '') + '" onclick="elegirGrupo(\'' + g + '\')">' +
     g + (g === DATA.sugGrupo ? '<span class="dot"></span>' : '') + '</button>').join('') + '</div>';
   if (GRUPO === 'Trote') { $('vEntrenar').innerHTML = h + vistaTrote() + pieFecha(); return; }
-  const secs = ordenGrupo(GRUPO);
+  const hechos = ordenGrupo(GRUPO).flat().filter(e => state[e.name].done);
+  if (hechos.length) h += '<details class="sec hechos"' + (PLEG['hechos' + GRUPO] || hechos.some(e => e.name === OPEN) ? ' open' : '') +
+    ' ontoggle="PLEG[\'hechos' + GRUPO + '\']=this.open"><summary>✓ Completados · ' + hechos.length + '</summary>' + hechos.map(tarjetaEjercicio).join('') + '</details>';
+  const secs = ordenGrupo(GRUPO).map(items => items.filter(e => !state[e.name].done));
+  if (hechos.length && !secs.some(x => x.length)) h += '<div class="tip">' + ICO.check + ' Terminaste todo ' + esc(GRUPO) + '. Toca «Terminar» arriba para ver tu resumen.</div>';
   const titulos = GRUPO === 'Core' ? ['Elige 1 o 2 al final de cualquier día']
     : ['Recomendado · bloque ' + DATA.bloquePara[GRUPO], 'Bloque ' + (DATA.bloquePara[GRUPO] === 'A' ? 'B' : 'A'), 'Más ejercicios'];
   let primera = true;
@@ -581,7 +609,10 @@ function cuerpoEjercicio(ex, st) {
     (par ? '<span class="muted" style="font-size:13px">' + ICO.swap + ' Superserie con <b>' + esc(exDe(par).ejercicio) + '</b> · <button class="link" onclick="quitarSuper()">Quitar</button></span>'
          : '<button class="link" onclick="elegirSuper(\'' + n + '\')">' + ICO.swap + ' Superserie</button>') + '</div>';
   // El esfuerzo va a la vista: con un toque ajusta cuándo te toca subir de peso
-  h += '<div class="esf"><div class="muted">¿Cómo terminó la última serie? <span style="opacity:.75">(opcional)</span></div><div class="pills">' +
+  const pide = st.sets.every(s => s.ok) && !st.rir;
+  if (st.ia) h += '<div class="ia' + (st.ia.cargando ? ' cargando' : '') + '"><span>💡 ' + esc(st.ia.cargando ? 'Pensando tu siguiente serie…' : st.ia.mensaje) + '</span>' +
+    (st.ia.usar ? '<button class="btn sm" onclick="usarIA(\'' + n + '\')">Usar</button>' : '') + '</div>';
+  h += '<div class="esf' + (pide ? ' pide' : '') + '"><div class="muted">' + (pide ? '¿Cómo terminó la última serie? Toca uno y se guarda' : '¿Cómo terminó la última serie? <span style="opacity:.75">(opcional)</span>') + '</div><div class="pills">' +
     Object.keys(RPE).map(v => '<button class="' + (st.rir === v ? 'on' : '') + '" onclick="setRir(\'' + n + '\',\'' + v + '\')">' + v + '</button>').join('') + '</div></div>';
   h += '<details class="more"' + (st.notas ? ' open' : '') + '><summary>Nota de hoy</summary>' +
     '<textarea rows="2" placeholder="Solo de esta sesión: «hombro cargado», «dormí mal»…" onchange="setNotas(\'' + n + '\', this.value)">' + esc(st.notas) + '</textarea></details>';
@@ -600,8 +631,13 @@ function siguiente(g, actual) {
   for (const sec of orden) { const e = sec.find(e => !state[e.name].done && e.name !== actual); if (e) return e.name; }
   return '';
 }
-function elegirGrupo(g) { GRUPO = g; BUSCA = ''; OPEN = siguiente(g, ''); pintarEntrenar(); }
+function elegirGrupo(g) {
+  if (!FECHA) { GRUPO_MANUAL = g !== grupoDeHoy(); GRUPO_DIA = hoy(); }
+  guardarPendientes();
+  GRUPO = g; BUSCA = ''; OPEN = siguiente(g, ''); pintarEntrenar();
+}
 function abrir(name) {
+  guardarPendientes(name);
   const p = companero(name);
   OPEN = (OPEN === name || (p && OPEN === p)) ? '' : name;
   if (OPEN && ajuste('calentamiento', false) && esBasico(exDe(OPEN)) && !state[OPEN].edited && !state[OPEN].sets.some(s => s.t === 'C')) agregarCalentamiento(OPEN, true);
@@ -630,7 +666,19 @@ function ponerPeso(st, i, nv) {
 }
 function addSet(name) { const st = state[name], l = st.sets[st.sets.length - 1]; st.sets.push({ w: l.w, r: l.r, t: 'T', ok: false }); cambio(name); }
 function delSet(name) { if (state[name].sets.length > 1) state[name].sets.pop(); cambio(name); }
-function setRir(name, v) { const st = state[name]; st.rir = st.rir === v ? '' : v; cambio(name); }
+function setRir(name, v) {
+  const st = state[name]; st.rir = st.rir === v ? '' : v;
+  // Con todas las series hechas, elegir el esfuerzo es el último paso: guarda y pasa al siguiente
+  if (st.rir && st.sets.every(x => x.ok) && !st.done) { cambio(name, false); return setTimeout(() => guardar(name, true), 250); }
+  cambio(name);
+}
+// Ejercicios con todas las series marcadas pero sin guardar: se guardan al irte a otro o al terminar la sesión
+function guardarPendientes(excepto) {
+  Object.keys(state).forEach(k => {
+    const st = state[k];
+    if (k !== excepto && !st.done && st.sets.length && st.sets.every(x => x.ok)) guardar(k, false, true);
+  });
+}
 function setNotas(name, v) { state[name].notas = v; cambio(name, false); }
 function setUnit(name, u) { state[name].unit = u; cambio(name); }
 function cambiarTipo(name, i) {
@@ -722,7 +770,7 @@ function elegirCambio(name, todos) {
 function usarCambio(name) {
   cerrarModal();
   const g = exDe(name).group;
-  if (g !== GRUPO) GRUPO = g;
+  if (g !== GRUPO) { GRUPO = g; GRUPO_MANUAL = true; GRUPO_DIA = hoy(); }
   BUSCA = ''; OPEN = name;
   pintarEntrenar(); irA(name);
   toast('Cambiado: ' + exDe(name).ejercicio);
@@ -826,7 +874,12 @@ function marcar(name, i) {
   if (s.ok) { vibrar(15); iniciarSesion(); }
   cambio(name);
   if (!s.ok) return;
-  if (st.sets.every(x => x.ok)) return setTimeout(() => guardar(name, true), 450);
+  // Última serie: la tarjeta se queda abierta para que marques cómo terminó; al tocar el esfuerzo se guarda
+  if (st.sets.every(x => x.ok)) {
+    setTimeout(() => { const el = document.querySelector('[id="ex-' + name + '"] .esf'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60);
+    return;
+  }
+  if (s.t !== 'C') consejoIA(name, i);
   if (s.t === 'C' || FECHA) return;
   const p = companero(name);
   if (p && !state[p].done) {
@@ -837,9 +890,58 @@ function marcar(name, i) {
   }
   sugerirDescanso();
 }
+/* ----- Coach IA: después de cada serie de trabajo te dice qué hacer en la siguiente ----- */
+const RIR_DE = { 'Al fallo': 0, 'Casi (1–2 más)': 1.5, 'Sobraban 3+': 3 };
+// i = índice de la serie que acabas de marcar en state[name].sets
+function payloadIA(name, i) {
+  const ex = exDe(name), st = state[name], s = st.sets[i];
+  const trabajo = st.sets.filter(x => x.t !== 'C');
+  const serie = x => ({ peso: Number(x.w) || 0, reps: Number(x.r) || 0, tipo: x.t || 'T' });
+  return {
+    ejercicio: ex.ejercicio,
+    unidad: st.unit,
+    como_anotar: ex.howTo,
+    rango_reps: [ex.min, ex.max],
+    paso: ex.paso || ex.step,
+    serie_actual: Object.assign(serie(s), { numero: trabajo.indexOf(s) + 1, de: trabajo.length }),
+    series_hoy: st.sets.filter(x => x.ok).map(serie),
+    rir_ultima_serie: st.rir ? RIR_DE[st.rir] : null,
+    sesion_anterior: ex.anterior.length
+      ? { fecha: ex.lastWhen, series: ex.anterior.filter(a => a.t !== 'C').map(a => ({ peso: Number(a.w) || 0, reps: Number(a.r) || 0 })), rir: ex.rirUlt === undefined ? null : ex.rirUlt }
+      : null,
+    regla_app: ex.hint || '',
+    descarga: !!DATA.descargaCarrera,
+    ejercicio_terminado: st.sets.every(x => x.ok)
+  };
+}
+let IA_SEQ = 0;
+async function consejoIA(name, i) {
+  const st = state[name];
+  if (!ajuste('ia', false) || FECHA || !navigator.onLine || st.sets.every(x => x.ok)) return;
+  const seq = ++IA_SEQ;
+  st.ia = { cargando: true }; pintarEntrenar();
+  try {
+    const r = await Promise.race([apiPost('ia', [payloadIA(name, i)]),
+                                  new Promise((_, no) => setTimeout(() => no(new Error('tiempo')), 12000))]);
+    if (seq !== IA_SEQ || !state[name] || state[name].done) return;
+    const sig = state[name].sets.find(x => !x.ok && x.t !== 'C');
+    state[name].ia = { mensaje: r.mensaje, peso: r.peso, reps: r.reps,
+                       usar: !!sig && r.peso !== null && r.reps !== null && (Number(sig.w) !== r.peso || Number(sig.r) !== r.reps) };
+  } catch (e) {
+    if (seq === IA_SEQ && state[name]) state[name].ia = null;   // sin señal o sin clave: la app sigue igual, sin aviso
+  }
+  if (TAB === 'Entrenar' && OPEN === name) pintarEntrenar();
+}
+// Copia el peso y las reps que propuso la IA a la siguiente serie pendiente
+function usarIA(name) {
+  const st = state[name], ia = st.ia, sig = st.sets.find(x => !x.ok && x.t !== 'C');
+  if (!ia || !sig) return;
+  sig.w = ia.peso; sig.r = ia.reps; st.ia.usar = false;
+  cambio(name);
+}
 function cargaReal(ex, w, unit) { return (Number(w) || 0) * ex.mult * (unit === 'kg' ? KG_A_LB : 1) + ex.barra; }
 
-function guardar(name, auto) {
+function guardar(name, auto, silencioso) {
   const st = state[name], ex = exDe(name);
   if (st.done) return;
   const marcadas = st.sets.filter(s => s.ok);
@@ -876,6 +978,7 @@ function guardar(name, auto) {
   else toast(vsUlt || (navigator.onLine ? 'Guardado ✓' : 'Guardado en el celular; se sube con señal'), '', deshacerUlt);
   const p = companero(name);
   if (p && state[p].done) LS.del('gym_super_' + diaReg());
+  if (silencioso) return;
   if (auto && p && !state[p].done) OPEN = p;
   else OPEN = auto && ex.group === GRUPO && !BUSCA ? siguiente(GRUPO, name) : '';
   pintarEntrenar();
@@ -929,6 +1032,29 @@ function seriesSesion() {
   Object.keys(state).forEach(k => { const st = state[k]; if (!st.done) n += st.sets.filter(s => s.ok && s.t !== 'C').length; });
   return n;
 }
+// Volumen de la sesión por músculo: principal 1 serie, secundario 0.5 (igual que el correo); sin calentamientos.
+// Incluye lo guardado hoy y las series que llevas marcadas en ejercicios sin guardar.
+function volumenSesion() {
+  const vol = {};
+  const sumar = (name, sets) => {
+    const ex = exDe(name), n = sets.filter(s => s.t !== 'C').length;
+    if (!ex || !n) return;
+    const m = ex.musculo || 'Otro';
+    vol[m] = vol[m] || { series: 0, ej: 0 };
+    vol[m].series += n; vol[m].ej += 1;
+    if (ex.sec && ex.sec !== m) { vol[ex.sec] = vol[ex.sec] || { series: 0, ej: 0 }; vol[ex.sec].series += n * 0.5; }
+  };
+  sesion().log.forEach(l => sumar(l.name, l.sets));
+  Object.keys(state).forEach(k => { const st = state[k]; if (!st.done) sumar(k, st.sets.filter(s => s.ok)); });
+  return Object.keys(vol).map(m => ({ musculo: m, series: vol[m].series, ej: vol[m].ej })).sort((a, b) => b.series - a.series);
+}
+function chipsVolumen() {
+  const v = volumenSesion();
+  if (!v.length) return '';
+  const medio = n => (Math.floor(n) || '') + (n % 1 ? '½' : '');
+  return '<div class="vol">' + v.map(x => '<span><b>' + esc(x.musculo) + '</b>' + medio(x.series) + (x.series === 1 ? ' serie' : ' series') +
+    (x.ej ? ' · ' + x.ej + ' ej.' : ' (apoyo)') + '</span>').join('') + '</div>';
+}
 function resumenSesion() {
   const s = sesion();
   return {
@@ -939,6 +1065,7 @@ function resumenSesion() {
   };
 }
 function terminarSesion() {
+  guardarPendientes();
   const r = resumenSesion();
   let h = '<div class="t2">' + (r.s.log.length ? '¡Buena sesión!' : 'Sesión sin ejercicios') + '</div>' +
     '<div class="muted">' + esc(DATA.today) + '</div>' +
@@ -957,6 +1084,7 @@ function terminarSesion() {
 function abrirModal() { $('toast').className = 'toast'; $('modal').classList.add('show'); }
 function cerrarModal() { $('modal').classList.remove('show'); }
 function cerrarSesion() {
+  guardarPendientes();
   const s = sesion(); s.ended = true; guardarSesion(s);
   cerrarModal(); OPEN = ''; detenerRest(); soltarPantalla(); pintarEntrenar(); toast('Sesión terminada. ¡A descansar!');
 }
@@ -1486,6 +1614,7 @@ function abrirAjustes() {
     tog('pantalla', true, 'Pantalla encendida en la sesión', 'Para que el descanso suene y no tengas que desbloquear') +
     tog('reloj', false, 'Avisar en el reloj', 'Al terminar el descanso llega una notificación (tu reloj la recibe si refleja las de Chrome)') +
     tog('autoDescanso', false, 'Iniciar el descanso solo', 'Si está apagado, solo te sugiere tiempos al marcar una serie') +
+    tog('ia', false, 'Coach IA entre series', 'Después de cada serie de trabajo, la IA (Gemini, gratis) te dice qué hacer en la siguiente (necesita señal)') +
     tog('calentamiento', false, 'Calentamiento automático', 'En los básicos con barra agrega 2 series ligeras (50 % y 70 %) al abrirlos') +
     '<div class="opt" style="display:block"><div class="t1" style="font-size:15px;margin-bottom:8px">Descanso predeterminado</div><div class="pills" style="margin:0;display:grid;grid-template-columns:repeat(4,1fr)">' +
     DESCANSOS.map(s => '<button class="' + (s === def ? 'on' : '') + '" onclick="setAjuste(\'descanso\',' + s + ');abrirAjustes()">' + mmss(s) + '</button>').join('') + '</div></div>' +
