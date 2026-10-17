@@ -24,6 +24,25 @@ function jsq(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); 
 function mmss(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + pad(s % 60); }
 function minutos(ms) { const m = Math.floor(ms / 60000); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + pad(m % 60) + ' min'; }
 function vibrar(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
+/* ----- App nativa (APK con Capacitor): mismos archivos; si corre dentro del APK usa el motor háptico y alarmas reales ----- */
+const NATIVO = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+function nativo(plugin, metodo, opts) {
+  try { return window.Capacitor.nativePromise(plugin, metodo, opts || {}).catch(() => null); } catch (e) { return Promise.resolve(null); }
+}
+// Vibración con intención: ligera al teclear, golpe fuerte al marcar serie, patrón de éxito en récord
+const HAPTICOS = {
+  tecla: [['impact', { style: 'LIGHT' }], 6],
+  ok:    [['impact', { style: 'MEDIUM' }], 15],
+  serie: [['impact', { style: 'HEAVY' }], 35],
+  pr:    [['notification', { type: 'SUCCESS' }], [40, 60, 40, 60, 120]],
+  fin:   [['vibrate', { duration: 600 }], [300, 150, 300]],
+  error: [['notification', { type: 'ERROR' }], [60, 40, 60]]
+};
+function hap(tipo) {
+  const h = HAPTICOS[tipo] || HAPTICOS.ok;
+  if (NATIVO) { nativo('Haptics', h[0][0], h[0][1]); if (tipo === 'pr') setTimeout(() => nativo('Haptics', 'impact', { style: 'HEAVY' }), 220); }
+  else vibrar(h[1]);
+}
 function vacio(v) { return v === '' || v === null || v === undefined; }
 let toastFn = null;
 // toast(mensaje, tipo, {txt, fn}) — con acción (por ejemplo "Deshacer") dura 5 segundos
@@ -131,6 +150,35 @@ const CSS_V53 = `
   .chatin { display: flex; gap: 8px; align-items: flex-end; }
   .chatin textarea { min-height: 46px; }
   @media (prefers-reduced-motion: no-preference) { ::view-transition-group(*) { animation-duration: .28s; } }
+  /* v5.7: RIR en línea, pareja, técnica y video */
+  .rirx { margin: -2px 0 10px; padding: 8px 10px; border-radius: 12px; background: var(--card2); }
+  .rirx .q { font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+  .rirx .pills { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0; }
+  .rirx .pills button { padding: 9px 4px; font-size: 13px; }
+  .rirx.pide { background: var(--acc-weak); }
+  .rirx.pide .q { color: var(--text); font-weight: 700; }
+  .vidbtn { border: 0; background: transparent; color: var(--muted); padding: 0 0 0 6px; vertical-align: -3px; }
+  .vidbtn svg { width: 18px; height: 18px; }
+  .vidbtn.tiene { color: var(--pri); }
+  .media { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #000; margin: 10px 0 12px; }
+  .media.vert { aspect-ratio: 9 / 16; height: 48vh; width: auto; margin-left: auto; margin-right: auto; }
+  .media iframe, .media video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .media.img { aspect-ratio: auto; background: transparent; }
+  .media.img img { width: 100%; display: block; border-radius: 14px; }
+  .tecnica { margin: 8px 0 12px; padding-left: 22px; font-size: 17px; line-height: 1.45; }
+  .tecnica li { margin-bottom: 6px; }
+  .medialink { display: flex; gap: 8px; margin-top: 14px; }
+  .medialink input { flex: 1; min-width: 0; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card2); color: var(--text); font-size: 14px; }
+  .parbtn { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px; border: 1.5px solid var(--line); background: var(--card);
+    color: var(--text); border-radius: 14px; padding: 11px 14px; margin: 0 0 10px; font-weight: 700; font-size: 14.5px; text-align: left; }
+  .parbtn .sw { flex: none; width: 40px; height: 24px; border-radius: 99px; background: var(--line); position: relative; transition: background .2s; }
+  .parbtn .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .2s; }
+  .parbtn.on { border-color: var(--pri); }
+  .parbtn.on .sw { background: var(--pri); }
+  .parbtn.on .sw::after { transform: translateX(16px); }
+  .quien { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--card2); padding: 4px; border-radius: 12px; margin-bottom: 12px; }
+  .quien button { border: 0; background: transparent; border-radius: 9px; padding: 9px 6px; font-weight: 700; font-size: 14px; color: var(--muted); }
+  .quien button.on { background: var(--pri); color: var(--on-pri); }
 `;
 
 /* ===================== Configuración y datos ===================== */
@@ -170,12 +218,12 @@ const setAjuste = (k, v) => LS.set('gym_cfg_' + k, v);
 const diaReg = () => FECHA || hoy();
 const tsReg = () => FECHA ? new Date(FECHA + 'T07:00:00').getTime() : Date.now();
 // Nombres para avisar qué dato rechazó la hoja
-const NOMBRE_OP = { saveExercise: 'Ejercicio', savePeso: 'Peso', saveProteina: 'Proteína', saveCintura: 'Cintura', saveTrote: 'Trote',
+const NOMBRE_OP = { saveExercise: 'Ejercicio', savePeso: 'Peso', saveProteina: 'Proteína', saveCintura: 'Cintura', saveTrote: 'Trote', saveMedia: 'Video', saveAjuste: 'Ajuste de máquina',
                     saveFoto: 'Foto', saveConfig: 'Ajuste', undoById: 'Borrado', undoTrote: 'Borrado de trote', borrarFoto: 'Borrado de foto' };
 
 /* ===================== API ===================== */
-async function apiGet(action) {
-  const r = await fetch(API + '?action=' + action + '&k=' + encodeURIComponent(KEY), { redirect: 'follow' });
+async function apiGet(action, clave) {
+  const r = await fetch(API + '?action=' + action + '&k=' + encodeURIComponent(clave || KEY), { redirect: 'follow' });
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || 'Error de la API');
   return j.result;
@@ -196,10 +244,10 @@ function guardarCola(q) {
   if (!LS.set('gym_queue', q)) toast('El celular no tiene espacio para guardar esto sin señal');
   pintarSync();
 }
-function encolar(action, args, tag) {
+function encolar(action, args, tag, clave) {
   let q = cola();
   if (tag) q = q.filter(op => op.tag !== tag);
-  q.push({ id: uid(), action: action, args: args, tag: tag || null, k: KEY });
+  q.push({ id: uid(), action: action, args: args, tag: tag || null, k: clave || KEY });
   guardarCola(q);
   clearTimeout(flushTimer); flushTimer = setTimeout(enviar, 1200);
 }
@@ -296,7 +344,19 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
+const VERSION_APP = 'v5.7';
+// Tu link de configuración (lleva tu clave): para configurar el APK sin escribir nada
+function copiarLinkConfig() {
+  const link = location.origin + location.pathname + '?api=' + encodeURIComponent(API) + '&key=' + encodeURIComponent(KEY);
+  (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => toast('Link copiado: pégalo en la app (no lo compartas)'),
+    () => toast('No pude copiar; tu link: ' + link.slice(0, 60) + '…'));
+}
 function guardarConfig() {
+  // Si pegas el link completo (…?api=…&key=…) en la casilla de la URL, se toman los dos datos de ahí
+  const pegado = $('cfgApi').value.trim();
+  if (/[?&]api=/.test(pegado)) {
+    try { const u = new URL(pegado); $('cfgApi').value = u.searchParams.get('api') || ''; $('cfgKey').value = u.searchParams.get('key') || $('cfgKey').value; } catch (e) {}
+  }
   const a = $('cfgApi').value.trim(), k = $('cfgKey').value.trim();
   if (!/^https:\/\/script\.google\.com\//.test(a) || !k) return toast('Revisa la URL y la clave');
   LS.set('gym_api', a); LS.set('gym_key', k);
@@ -328,7 +388,82 @@ function guardarWip(name) {
   else delete w[name];
   LS.set('gym_wip_' + diaReg(), w);
 }
-function exDe(name) { return DATA.exercises.find(e => e.name === name); }
+function exDe(name) { return esPar(name) ? (PAR && PAR.exs ? PAR.exs[name] : undefined) : DATA.exercises.find(e => e.name === name); }
+/* ----- Entrenamiento en pareja: registras a tu compañero en tu celular y se guarda en SU hoja ----- */
+let PAR = null;          // { nombre, key, data, exs } cuando el modo pareja está activo hoy
+const QUIEN = {};        // pestaña visible por ejercicio: 'yo' | 'par'
+const esPar = n => typeof n === 'string' && n.indexOf('P|') === 0;
+const baseDe = n => esPar(n) ? n.slice(2) : n;
+const claveDe = n => esPar(n) && PAR ? PAR.key : KEY;
+const quienDe = n => esPar(n) && PAR ? PAR.nombre + ': ' : '';
+function parOn() { return !!(PAR && PAR.exs && !FECHA); }
+function parejaDisponible() { return DATA && DATA.pareja && DATA.pareja.length ? DATA.pareja[0] : null; }
+function parejaHoy() { const c = LS.get('gym_pareja', null); return c && c.dia === hoy() ? c : null; }
+function estadoDe(ex, clave, fresh, pend, w, viejo, dia) {
+  const real = baseDe(ex.name);
+  let done = !FECHA && fresh && ex.done, id = !FECHA && fresh ? (ex.uid || '') : '';
+  pend.forEach(op => {
+    if ((op.k || KEY) !== clave) return;
+    if (op.action === 'saveExercise' && op.args[0].name === real && op.args[0].day === dia) { done = true; id = op.args[0].uid; }
+    if (op.action === 'undoById' && op.args[0] === id) { done = false; id = ''; }
+  });
+  const prev = viejo[ex.name];
+  if (prev && prev.dia === dia && prev.edited && !prev.done && !done) return prev;
+  const g = w[ex.name];
+  const st = g && !done ? { unit: g.unit, sets: g.sets, rir: g.rir || '', notas: g.notas || '', uid: '', done: false, edited: true } : nuevoEstado(ex, done, id);
+  st.dia = dia;
+  return st;
+}
+function construirEstadosPar(viejo) {
+  if (!PAR || !PAR.exs) return;
+  const pend = cola(), w = wip(), dia = diaReg(), fresh = PAR.data.todayKey === hoy();
+  Object.keys(PAR.exs).forEach(k => { state[k] = estadoDe(PAR.exs[k], PAR.key, fresh, pend, w, viejo || state, dia); });
+}
+function prepararPar() {
+  PAR.exs = {};
+  PAR.data.exercises.forEach(e => { PAR.exs['P|' + e.name] = Object.assign({}, e, { name: 'P|' + e.name }); });
+  construirEstadosPar(state);
+}
+async function cargarPareja() {
+  const cfg = parejaHoy(), p = parejaDisponible();
+  if (!cfg || !p) { PAR = null; return; }
+  if (!PAR || PAR.key !== p.key) {
+    PAR = { nombre: p.nombre, key: p.key, data: LS.get('gym_par_' + p.key, null), exs: null };
+    if (PAR.data) prepararPar();
+  }
+  if (PAR.cargando) return;
+  PAR.cargando = true;
+  try {
+    const d = await apiGet('data', p.key);
+    if (!PAR || PAR.key !== p.key) return;
+    PAR.data = d; LS.set('gym_par_' + p.key, d); prepararPar();
+  } catch (e) { if (PAR && !PAR.data) toast('No pude cargar los datos de ' + p.nombre + '; revisa la señal'); }
+  if (PAR) PAR.cargando = false;
+  if (TAB === 'Entrenar') pintarEntrenar();
+}
+function alternarPareja() {
+  const p = parejaDisponible();
+  if (!p) return;
+  if (parejaHoy()) {
+    guardarPendientes();
+    LS.del('gym_pareja'); PAR = null;
+    Object.keys(state).filter(esPar).forEach(k => delete state[k]);
+    toast('Modo pareja apagado');
+  } else {
+    LS.set('gym_pareja', { key: p.key, dia: hoy() });
+    toast('Entrenando con ' + p.nombre + ': cada ejercicio tiene su pestaña');
+    cargarPareja();
+  }
+  pintarEntrenar();
+}
+// Un ejercicio en pareja pasa a "Completados" cuando los dos terminaron (o uno terminó y el otro ni lo empezó)
+function cardDone(base) {
+  const yo = state[base], pa = parOn() ? state['P|' + base] : null;
+  if (!pa) return yo.done;
+  const listo = s => s.done || !s.sets.some(x => x.ok);
+  return (yo.done || pa.done) && listo(yo) && listo(pa) && (OPEN !== base || (yo.done && pa.done));
+}
+function verLado(base, lado) { QUIEN[base] = lado; hap('tecla'); pintarEntrenar(); }
 function nuevoEstado(ex, done, id) {
   return { unit: ex.unit, sets: ex.sets.map(s => ({ w: s.w, r: s.r, t: s.t || 'T', ok: false })), rir: '', notas: '',
            uid: id, done: done, edited: false };
@@ -339,20 +474,9 @@ function companero(name) { const s = superserie(); return s && s.includes(name) 
 function pintarTodo() {
   const pend = cola(), w = wip(), viejo = state, dia = diaReg();
   state = {};
-  DATA.exercises.forEach(ex => {
-    let done = !FECHA && fresco() && ex.done, id = !FECHA && fresco() ? (ex.uid || '') : '';
-    pend.forEach(op => {
-      if (op.action === 'saveExercise' && op.args[0].name === ex.name && op.args[0].day === dia) { done = true; id = op.args[0].uid; }
-      if (op.action === 'undoById' && op.args[0] === id) { done = false; id = ''; }
-    });
-    const prev = viejo[ex.name];
-    if (prev && prev.dia === dia && prev.edited && !prev.done && !done) { state[ex.name] = prev; return; }
-    const g = w[ex.name];
-    state[ex.name] = g && !done
-      ? { unit: g.unit, sets: g.sets, rir: g.rir || '', notas: g.notas || '', uid: '', done: false, edited: true }
-      : nuevoEstado(ex, done, id);
-    state[ex.name].dia = dia;
-  });
+  DATA.exercises.forEach(ex => { state[ex.name] = estadoDe(ex, KEY, fresco(), pend, w, viejo, dia); });
+  if (parejaHoy() && parejaDisponible()) { if (PAR && PAR.exs) construirEstadosPar(viejo); if (!PAR || !PAR.cargando) cargarPareja(); }
+  else PAR = null;
   // Grupo del día: al abrir, al cambiar de día o cuando llegan datos nuevos, salvo que hoy hayas elegido otro a mano
   if (!FECHA) {
     if (GRUPO_DIA !== hoy()) { GRUPO_MANUAL = false; GRUPO_DIA = hoy(); }
@@ -464,13 +588,16 @@ function pintarEntrenar() {
     $('vEntrenar').innerHTML = h;
     return;
   }
+  const comp = parejaDisponible();
+  if (comp && !FECHA) h += '<button class="parbtn' + (parejaHoy() ? ' on' : '') + '" onclick="alternarPareja()"><span>👥 ' +
+    (parejaHoy() ? 'Entrenando con ' + esc(comp.nombre) + (PAR && !PAR.exs ? ' · cargando…' : '') : '¿Entrenas con ' + esc(comp.nombre) + ' hoy?') + '</span><span class="sw"></span></button>';
   h += '<div class="chips">' + DATA.chips.concat(['Trote']).map(g => '<button class="chip' + (g === GRUPO ? ' on' : '') + '" onclick="elegirGrupo(\'' + g + '\')">' +
     g + (g === DATA.sugGrupo ? '<span class="dot"></span>' : '') + '</button>').join('') + '</div>';
   if (GRUPO === 'Trote') { $('vEntrenar').innerHTML = h + vistaTrote() + pieFecha(); return; }
-  const hechos = ordenGrupo(GRUPO).flat().filter(e => state[e.name].done);
+  const hechos = ordenGrupo(GRUPO).flat().filter(e => cardDone(e.name));
   if (hechos.length) h += '<details class="sec hechos"' + (PLEG['hechos' + GRUPO] || hechos.some(e => e.name === OPEN) ? ' open' : '') +
     ' ontoggle="PLEG[\'hechos' + GRUPO + '\']=this.open"><summary>✓ Completados · ' + hechos.length + '</summary>' + hechos.map(tarjetaEjercicio).join('') + '</details>';
-  const secs = ordenGrupo(GRUPO).map(items => items.filter(e => !state[e.name].done));
+  const secs = ordenGrupo(GRUPO).map(items => items.filter(e => !cardDone(e.name)));
   if (hechos.length && !secs.some(x => x.length)) h += '<div class="tip">' + ICO.check + ' Terminaste todo ' + esc(GRUPO) + '. Toca «Terminar» arriba para ver tu resumen.</div>';
   const titulos = GRUPO === 'Core' ? ['Elige 1 o 2 al final de cualquier día']
     : ['Recomendado · bloque ' + DATA.bloquePara[GRUPO], 'Bloque ' + (DATA.bloquePara[GRUPO] === 'A' ? 'B' : 'A'), 'Más ejercicios'];
@@ -545,14 +672,14 @@ function guardarPeso() {
   const dia = diaReg();
   LS.set('gym_peso_' + dia, v);
   encolar('savePeso', [v, dia], 'peso-' + dia);
-  vibrar(15); toast('Peso guardado ✓'); pintarFecha(); pintarEntrenar();
+  hap('ok'); toast('Peso guardado ✓'); pintarFecha(); pintarEntrenar();
 }
 function guardarCintura() {
   const v = $('cintura').value;
   if (!v) return toast('Escribe tu cintura');
   LS.set('gym_cint_' + hoy(), Number(v));
   encolar('saveCintura', [Number(v), hoy()], 'cintura-' + hoy());
-  vibrar(15); toast('Cintura guardada ✓'); pintarEntrenar();
+  hap('ok'); toast('Cintura guardada ✓'); pintarEntrenar();
 }
 
 /* ----- Tarjeta de ejercicio ----- */
@@ -569,6 +696,7 @@ function abiertaTarjeta(name) {
   return !!(p && OPEN === p);
 }
 function tarjetaEjercicio(ex) {
+  if (parOn() && state['P|' + ex.name]) return tarjetaPareja(ex);
   const st = state[ex.name], abierto = abiertaTarjeta(ex.name);
   const trabajo = st.sets.filter(s => s.t !== 'C');
   const hechas = trabajo.filter(s => s.ok).length;
@@ -590,7 +718,7 @@ function tarjetaEjercicio(ex) {
   const n = jsq(ex.name);
   let h = '<div class="ex' + (abierto ? ' open' : '') + (st.done ? ' done' : '') + (enCurso ? ' prog' : '') + '" id="ex-' + esc(ex.name) + '" style="view-transition-name:ex' + DATA.exercises.indexOf(ex) + '">' +
     '<div class="ex-head" onclick="abrir(\'' + n + '\')"><div class="ex-ico">' + ico + '</div>' +
-    '<div style="flex:1;min-width:0"><div class="ex-name">' + esc(ex.ejercicio) + (par && !st.done ? '<span class="sstag">Superserie</span>' : '') + '</div><div class="ex-meta">' + meta + '</div></div>' +
+    '<div style="flex:1;min-width:0"><div class="ex-name">' + esc(ex.ejercicio) + botonTecnica(ex) + (par && !st.done ? '<span class="sstag">Superserie</span>' : '') + '</div><div class="ex-meta">' + meta + '</div></div>' +
     (ex.up && !st.done ? '<span class="pill acc">' + ICO.up + 'Sube</span>' : '') +
     (abierto ? '<button class="swapbtn" onclick="event.stopPropagation();elegirCambio(\'' + n + '\')" aria-label="Máquina ocupada: cambiar ejercicio">⇄ Cambiar</button>' : '') + '</div>';
   if (st.done && OPEN === ex.name) {
@@ -600,6 +728,77 @@ function tarjetaEjercicio(ex) {
   return h + '</div>';
 }
 
+/* ----- Técnica y video del ejercicio (Catálogo: Q = link, R = técnica) ----- */
+function botonTecnica(ex) {
+  return '<button class="vidbtn' + (ex.media ? ' tiene' : '') + '" onclick="event.stopPropagation();verTecnica(\'' + jsq(ex.name) + '\')" aria-label="Ver técnica y video">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M10 8.5v7l5.5-3.5z" fill="currentColor"/></svg></button>';
+}
+// YouTube (normal, Shorts o youtu.be) se incrusta; MP4/WebM se reproduce en bucle; GIF o imagen se muestra; lo demás, botón para abrir
+function reproductor(url) {
+  if (!url) return '';
+  const yt = url.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/);
+  if (yt) {
+    const vertical = /shorts\//.test(url);
+    return '<div class="media' + (vertical ? ' vert' : '') + '"><iframe src="https://www.youtube-nocookie.com/embed/' + yt[1] + '?rel=0&playsinline=1&modestbranding=1" ' +
+      'title="Video del ejercicio" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>';
+  }
+  if (/\.(mp4|webm|mov)(\?|#|$)/i.test(url)) return '<div class="media"><video src="' + esc(url) + '" autoplay muted loop playsinline controls></video></div>';
+  if (/\.(gif|png|jpe?g|webp)(\?|#|$)/i.test(url) || /giphy\.com\/media|tenor\.com\/.*\.gif/i.test(url)) return '<div class="media img"><img src="' + esc(url) + '" alt="Demostración del ejercicio"></div>';
+  return '<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none" href="' + esc(url) + '" target="_blank" rel="noopener">▶ Abrir video</a>';
+}
+function verTecnica(name) {
+  const ex = exDe(name), n = jsq(name);
+  const puntos = (ex.tecnica || '').split(/\s*·\s*/).filter(Boolean);
+  const buscar = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(ex.ejercicio + ' técnica correcta');
+  $('sheet').innerHTML = '<div class="row between"><div class="t2" style="padding-right:8px">' + esc(ex.ejercicio) + '</div><button class="btn ghost sm" onclick="cerrarModal()">✕</button></div>' +
+    reproductor(ex.media) +
+    (puntos.length ? '<ol class="tecnica">' + puntos.map(p => '<li>' + esc(p.charAt(0).toUpperCase() + p.slice(1)) + '</li>').join('') + '</ol>' : '<div class="muted" style="margin:10px 0">Sin técnica escrita: agrégala en la columna R del Catálogo.</div>') +
+    '<div class="muted" style="font-size:13.5px;margin:4px 0 2px"><b style="color:var(--text)">Cómo anotar el peso:</b> ' + esc(ex.howTo || '—') + ' · ' + ex.min + '–' + ex.max + ' reps</div>' +
+    (ex.ajuste ? '<div class="muted" style="font-size:13.5px">⚙️ ' + esc(ex.ajuste) + '</div>' : '') +
+    '<div class="medialink"><input id="mediaUrl" type="url" inputmode="url" placeholder="Pega un link de YouTube, GIF o MP4" value="' + esc(ex.media || '') + '">' +
+    '<button class="btn sm" onclick="guardarMedia(\'' + n + '\')">Guardar</button></div>' +
+    '<a class="link" style="display:inline-block;margin-top:8px" href="' + buscar + '" target="_blank" rel="noopener">Buscar un video en YouTube ↗</a>';
+  abrirModal();
+}
+function guardarMedia(name) {
+  const v = ($('mediaUrl').value || '').trim();
+  if (v && !/^https:\/\//i.test(v)) return toast('El link debe empezar con https://');
+  const base = baseDe(name);
+  // El video es del ejercicio, no de la persona: se guarda en tu catálogo y, si entrenas en pareja, también en el de tu compañero
+  [base, 'P|' + base].forEach(k => { const e = exDe(k); if (e) e.media = v; });
+  LS.set('gym_data', DATA);
+  encolar('saveMedia', [base, v], 'media-' + base);
+  if (PAR && PAR.exs && PAR.exs['P|' + base]) encolar('saveMedia', [base, v], 'media-P|' + base, PAR.key);
+  hap('ok'); toast(v ? 'Video guardado ✓' : 'Video quitado');
+  verTecnica(name); pintarEntrenar();
+}
+
+// Vista en pareja: el encabezado resume a los dos; el cuerpo es el de la pestaña elegida
+function tarjetaPareja(ex) {
+  const base = ex.name, pk = 'P|' + base, yo = state[base], pa = state[pk];
+  const lado = QUIEN[base] === 'par' ? 'par' : 'yo', k = lado === 'par' ? pk : base, st = state[k], exV = exDe(k);
+  const hecho = cardDone(base), abierto = OPEN === base || (companero(base) && OPEN === companero(base));
+  const cuenta = x => { const t = x.sets.filter(s => s.t !== 'C'); return { h: t.filter(s => s.ok).length, t: t.length }; };
+  const cy = cuenta(yo), cp = cuenta(pa);
+  const prog = (x, c) => x.done ? '✓' : c.h + '/' + c.t;
+  const meta = 'Tú ' + prog(yo, cy) + ' · ' + esc(PAR.nombre) + ' ' + prog(pa, cp);
+  const enCurso = !hecho && (cy.h + cp.h > 0 || yo.done || pa.done);
+  const ico = hecho ? ICO.check : anillo(cy.h + cp.h + (yo.done ? cy.t - cy.h : 0) + (pa.done ? cp.t - cp.h : 0), cy.t + cp.t, false);
+  const n = jsq(base);
+  let h = '<div class="ex' + (abierto ? ' open' : '') + (hecho ? ' done' : '') + (enCurso ? ' prog' : '') + '" id="ex-' + esc(base) + '" style="view-transition-name:ex' + DATA.exercises.indexOf(ex) + '">' +
+    '<div class="ex-head" onclick="abrir(\'' + n + '\')"><div class="ex-ico">' + ico + '</div>' +
+    '<div style="flex:1;min-width:0"><div class="ex-name">' + esc(ex.ejercicio) + botonTecnica(ex) + '</div><div class="ex-meta">' + meta + '</div></div>' +
+    (abierto && !hecho ? '<button class="swapbtn" onclick="event.stopPropagation();elegirCambio(\'' + n + '\')" aria-label="Máquina ocupada: cambiar ejercicio">⇄</button>' : '') + '</div>';
+  if (!abierto) return h + '</div>';
+  h += '<div class="ex-body"><div class="quien">' +
+    '<button class="' + (lado === 'yo' ? 'on' : '') + '" onclick="verLado(\'' + n + '\',\'yo\')">Tú · ' + prog(yo, cy) + '</button>' +
+    '<button class="' + (lado === 'par' ? 'on' : '') + '" onclick="verLado(\'' + n + '\',\'par\')">' + esc(PAR.nombre) + ' · ' + prog(pa, cp) + '</button></div>';
+  if (!exV) h += '<div class="tip">Este ejercicio no está en el catálogo de ' + esc(PAR.nombre) + '.</div>';
+  else if (st.done) h += '<div class="acts">' + (st.uid ? '<button class="btn ghost sm" onclick="deshacer(\'' + jsq(k) + '\')">Borrar</button>' : '') +
+    '<button class="btn ghost sm" onclick="corregir(\'' + jsq(k) + '\')">' + (st.uid ? 'Corregir' : 'Registrar otra vez') + '</button></div>';
+  else h += cuerpoEjercicio(exV, st);
+  return h + '</div></div>';
+}
 function cuerpoEjercicio(ex, st) {
   const n = jsq(ex.name);
   let h = '<div class="row between" style="margin-bottom:10px"><div class="muted">' + ex.min + '–' + ex.max + ' reps · ' + esc(ex.howTo) + '</div>' +
@@ -618,6 +817,7 @@ function cuerpoEjercicio(ex, st) {
   else if (ex.ajuste) h += '<button class="nota" onclick="editarAjuste(\'' + n + '\')">⚙️ ' + esc(ex.ajuste) + '<span class="ed">Editar</span></button>';
   if (ex.notaUlt) h += '<div class="muted" style="margin:-4px 2px 10px;font-size:13px">La última vez anotaste: «' + esc(ex.notaUlt) + '»</div>';
   h += '<div class="sets-h"><span>#</span><span>Anterior</span><span>' + st.unit + '</span><span>Reps</span><span></span></div>';
+  const kUlt = ultimaMarcada(st);
   let num = 0, nc = 0;
   const antC = ex.anterior.filter(a => a.t === 'C'), antT = ex.anterior.filter(a => a.t !== 'C');
   st.sets.forEach((s, i) => {
@@ -630,6 +830,7 @@ function cuerpoEjercicio(ex, st) {
       '<button class="val num' + (vacio(s.w) ? ' vacio' : '') + '" onclick="teclado(\'' + n + '\',' + i + ',\'w\')">' + (vacio(s.w) ? 'peso' : s.w) + '</button>' +
       '<button class="val num' + (vacio(s.r) ? ' vacio' : '') + '" onclick="teclado(\'' + n + '\',' + i + ',\'r\')">' + (vacio(s.r) ? 'reps' : s.r) + '</button>' +
       '<button class="chk" onclick="marcar(\'' + n + '\',' + i + ')" aria-label="Serie hecha">' + ICO.check + (s.ok && s.e ? '<span class="e">' + ETQ_E[s.e] + '</span>' : '') + '</button></div>';
+    if (i === kUlt) h += filaEsfuerzo(n, st, s) + tipIA(n, st);
   });
   const vistas = LS.get('gym_tipcount', 0);
   if (vistas < 3) h += '<div class="muted" style="margin:-2px 0 8px;font-size:12px">Toca el # para cambiarla a calentamiento (C) o drop (D) · toca "Anterior" para copiarla</div>';
@@ -644,17 +845,8 @@ function cuerpoEjercicio(ex, st) {
   h += '<div class="links">' +
     (sinCal ? '<button class="link" onclick="agregarCalentamiento(\'' + n + '\')">+ Calentamiento</button>' : '') +
     (!ex.ajuste && !st.editAjuste ? '<button class="link" onclick="editarAjuste(\'' + n + '\')">⚙️ Ajuste de máquina</button>' : '') +
-    (par ? '<span class="muted" style="font-size:13px">' + ICO.swap + ' Superserie con <b>' + esc(exDe(par).ejercicio) + '</b> · <button class="link" onclick="quitarSuper()">Quitar</button></span>'
+    (esPar(ex.name) ? '' : par ? '<span class="muted" style="font-size:13px">' + ICO.swap + ' Superserie con <b>' + esc(exDe(par).ejercicio) + '</b> · <button class="link" onclick="quitarSuper()">Quitar</button></span>'
          : '<button class="link" onclick="elegirSuper(\'' + n + '\')">' + ICO.swap + ' Superserie</button>') + '</div>';
-  // El esfuerzo va a la vista: con un toque ajusta cuándo te toca subir de peso
-  const pide = st.sets.every(s => s.ok) && !st.rir;
-  const kUlt = ultimaMarcada(st), sUlt = kUlt > -1 ? st.sets[kUlt] : null;
-  const eAct = sUlt ? (sUlt.e || '') : st.rir;
-  const nSerie = sUlt ? (sUlt.t === 'C' ? 'el calentamiento' : 'la serie ' + (st.sets.slice(0, kUlt + 1).filter(x => x.t !== 'C').length)) : 'la última serie';
-  if (st.ia) h += '<div class="ia' + (st.ia.cargando ? ' cargando' : '') + '"><span>💡 ' + esc(st.ia.cargando ? 'Pensando tu siguiente serie…' : st.ia.mensaje) + '</span>' +
-    (st.ia.usar ? '<button class="btn sm" onclick="usarIA(\'' + n + '\')">Usar</button>' : '') + '</div>';
-  h += '<div class="esf' + (pide ? ' pide' : '') + '"><div class="muted">' + (pide ? '¿Cómo terminó la última serie? Toca uno y se guarda' : '¿Cómo terminó ' + nSerie + '? <span style="opacity:.75">(opcional)</span>') + '</div><div class="pills">' +
-    Object.keys(RPE).map(v => '<button class="' + (eAct === v ? 'on' : '') + '" onclick="setRir(\'' + n + '\',\'' + v + '\')">' + v + '</button>').join('') + '</div></div>';
   h += '<details class="more"' + (st.notas ? ' open' : '') + '><summary>Nota de hoy</summary>' +
     '<textarea rows="2" placeholder="Solo de esta sesión: «hombro cargado», «dormí mal»…" onchange="setNotas(\'' + n + '\', this.value)">' + esc(st.notas) + '</textarea></details>';
   const hechas = st.sets.filter(s => s.ok).length;
@@ -663,13 +855,26 @@ function cuerpoEjercicio(ex, st) {
   return h;
 }
 
+// Esfuerzo de la serie que acabas de marcar, justo debajo de ella (sin bajar al fondo de la tarjeta)
+const CORTO_E = { 'Al fallo': 'Al fallo', 'Casi (1–2 más)': 'Quedaban 1–2', 'Sobraban 3+': 'Sobraban 3+' };
+function filaEsfuerzo(n, st, s) {
+  const final = st.sets.every(x => x.ok);
+  return '<div class="rirx' + (final && !s.e ? ' pide' : '') + '"><div class="q">' + (final ? (s.e ? 'Última serie: ' : '¿Cómo terminó? Toca uno y se guarda') : '¿Cómo terminó esta serie?') + '</div><div class="pills">' +
+    Object.keys(RPE).map(v => '<button class="' + (s.e === v ? 'on' : '') + '" onclick="setRir(\'' + n + '\',\'' + v + '\')">' + CORTO_E[v] + '</button>').join('') + '</div></div>';
+}
+function tipIA(n, st) {
+  if (!st.ia) return '';
+  return '<div class="ia' + (st.ia.cargando ? ' cargando' : '') + '"><span>💡 ' + esc(st.ia.cargando ? 'Pensando tu siguiente serie…' : st.ia.mensaje) + '</span>' +
+    (st.ia.usar ? '<button class="btn sm" onclick="usarIA(\'' + n + '\')">Usar</button>' : '') + '</div>';
+}
+
 // El siguiente ejercicio pendiente: primero en la sección del que acabas de hacer, luego en las demás
 function siguiente(g, actual) {
   if (!DATA.exercises.some(e => e.group === g)) return '';
   const secs = ordenGrupo(g).filter(x => x.length);
   const dentro = secs.find(x => x.some(e => e.name === actual));
   const orden = dentro ? [dentro].concat(secs.filter(x => x !== dentro)) : secs;
-  for (const sec of orden) { const e = sec.find(e => !state[e.name].done && e.name !== actual); if (e) return e.name; }
+  for (const sec of orden) { const e = sec.find(e => !state[e.name].done && !cardDone(e.name) && e.name !== actual); if (e) return e.name; }
   return '';
 }
 function elegirGrupo(g) {
@@ -719,12 +924,18 @@ function setRir(name, v) {
   if (s.e && st.sets.every(x => x.ok) && !st.done) { cambio(name, false); return setTimeout(() => guardar(name, true), 250); }
   cambio(name);
   if (s.e && s.t !== 'C') { clearTimeout(IA_TIMER[name]); consejoIA(name, k); }
+  // En pareja se turnan: al calificar tu serie pasa a la pestaña del otro si va atrás
+  if (s.e && parOn()) {
+    const base = baseDe(name), otro = esPar(name) ? base : 'P|' + base, so = state[otro];
+    const hechas = x => x.sets.filter(y => y.ok && y.t !== 'C').length;
+    if (so && !so.done && so.sets.some(y => !y.ok) && hechas(so) <= hechas(st)) setTimeout(() => { QUIEN[base] = esPar(name) ? 'yo' : 'par'; pintarEntrenar(); }, 350);
+  }
 }
 // Ejercicios con todas las series marcadas pero sin guardar: se guardan al irte a otro o al terminar la sesión
 function guardarPendientes(excepto) {
   Object.keys(state).forEach(k => {
     const st = state[k];
-    if (k !== excepto && !st.done && st.sets.length && st.sets.every(x => x.ok)) guardar(k, false, true);
+    if (baseDe(k) !== excepto && !st.done && st.sets.length && st.sets.every(x => x.ok)) guardar(k, false, true);
   });
 }
 function setNotas(name, v) { state[name].notas = v; cambio(name, false); }
@@ -743,13 +954,13 @@ function copiarAnterior(name, i) {
   const a = anteriorDe(name, i);
   if (!a) return;
   const s = state[name].sets[i];
-  s.w = a.w; s.r = a.r; s.t = a.t || s.t; vibrar(10);
+  s.w = a.w; s.r = a.r; s.t = a.t || s.t; hap('tecla');
   cambio(name);
 }
 function igualQueAntes(name) {
   const ex = exDe(name), st = state[name];
   st.sets = ex.anterior.map((a, i) => ({ w: a.w, r: a.r, t: a.t || 'T', ok: st.sets[i] ? st.sets[i].ok : false }));
-  vibrar(10); cambio(name);
+  hap('tecla'); cambio(name);
 }
 function usarSugerido(name) {
   const ex = exDe(name), st = state[name];
@@ -773,7 +984,7 @@ function guardarAjuste(name) {
   const el = document.getElementById('aj-' + name), v = el ? el.value.trim() : '';
   exDe(name).ajuste = v; state[name].editAjuste = false;
   LS.set('gym_data', DATA);
-  encolar('saveAjuste', [name, v], 'aj-' + name);
+  encolar('saveAjuste', [baseDe(name), v], 'aj-' + name, claveDe(name));
   toast(v ? 'Ajuste guardado: te aparece cada vez ✓' : 'Ajuste borrado');
   pintarEntrenar();
 }
@@ -800,7 +1011,7 @@ function agregarCalentamiento(name, silencioso) {
 // Dentro de cada grupo, los que ya has hecho van primero porque traen tu peso.
 function elegirCambio(name, todos) {
   const ex = exDe(name);
-  const libres = DATA.exercises.filter(e => e.name !== name && !state[e.name].done);
+  const libres = DATA.exercises.filter(e => e.name !== name && !state[e.name].done && !cardDone(e.name));
   const orden = (a, b) => (b.anterior.length ? 1 : 0) - (a.anterior.length ? 1 : 0);
   const mismo = ex.patron ? libres.filter(e => e.patron === ex.patron).sort(orden) : [];
   const musc = libres.filter(e => e.musculo === ex.musculo && !mismo.includes(e)).sort(orden);
@@ -878,13 +1089,13 @@ function kpTecla(k) {
   if (k === '⌫') KP.val = KP.nuevo ? '' : KP.val.slice(0, -1);
   else if (k === '.') { if (KP.f === 'r') return; KP.val = (KP.nuevo || KP.val === '' ? '0' : KP.val) + (KP.val.includes('.') && !KP.nuevo ? '' : '.'); }
   else KP.val = (KP.nuevo ? '' : KP.val) + k;
-  KP.nuevo = false; vibrar(5); kpPintar();
+  KP.nuevo = false; hap('tecla'); kpPintar();
 }
 function kpSumar(v) {
   // En el peso, los botones ± parten de tu último peso si la casilla está vacía
   const cur = KP.val === '' && KP.peso && DATA.ultimoPeso !== null ? DATA.ultimoPeso : (Number(KP.val) || 0);
   KP.val = String(Math.max(0, Math.round((cur + v) * 100) / 100));
-  KP.nuevo = false; vibrar(5); kpPintar();
+  KP.nuevo = false; hap('tecla'); kpPintar();
 }
 function kpListo(marcarSerie) {
   const st = state[KP.name], nv = KP.val === '' ? '' : Number(KP.val);
@@ -919,12 +1130,12 @@ function marcar(name, i) {
   if (!s.ok && vacio(s.r)) return toast('Pon las repeticiones de esta serie');
   if (!s.ok && vacio(s.w) && !ex.sinPeso) return toast('Pon el peso de esta serie');
   s.ok = !s.ok;
-  if (s.ok) { vibrar(15); iniciarSesion(); }
+  if (s.ok) { hap('serie'); iniciarSesion(); }
   cambio(name);
   if (!s.ok) return;
   // Última serie: la tarjeta se queda abierta para que marques cómo terminó; al tocar el esfuerzo se guarda
   if (st.sets.every(x => x.ok)) {
-    setTimeout(() => { const el = document.querySelector('[id="ex-' + name + '"] .esf'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60);
+    setTimeout(() => { const el = document.querySelector('[id="ex-' + baseDe(name) + '"] .rirx'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60);
     return;
   }
   // Coach IA: espera unos segundos por si marcas el esfuerzo de esta serie; si lo marcas, pregunta al momento
@@ -973,7 +1184,7 @@ async function consejoIA(name, i) {
   const seq = ++IA_SEQ;
   st.ia = { cargando: true }; pintarEntrenar();
   try {
-    const r = await Promise.race([apiPost('ia', [payloadIA(name, i)]),
+    const r = await Promise.race([apiPost('ia', [payloadIA(name, i)], claveDe(name)),
                                   new Promise((_, no) => setTimeout(() => no(new Error('tiempo')), 12000))]);
     if (seq !== IA_SEQ || !state[name] || state[name].done) return;
     const sig = state[name].sets.find(x => !x.ok && x.t !== 'C');
@@ -984,7 +1195,7 @@ async function consejoIA(name, i) {
     // Un error real (clave, cuota, modelo) sí se avisa, una vez por sesión, para que no falle en silencio
     if (e.message !== 'tiempo' && !/Failed to fetch|NetworkError|Load failed/i.test(e.message) && !IA_AVISADO) { IA_AVISADO = true; toast('Coach IA: ' + e.message.slice(0, 120)); }
   }
-  if (TAB === 'Entrenar' && OPEN === name) pintarEntrenar();
+  if (TAB === 'Entrenar' && OPEN === baseDe(name)) pintarEntrenar();
 }
 // Copia el peso y las reps que propuso la IA a la siguiente serie pendiente
 function usarIA(name) {
@@ -1004,8 +1215,8 @@ function guardar(name, auto, silencioso) {
   if (!sets.length) return toast('Pon al menos las repeticiones de una serie');
   iniciarSesion();
   st.uid = uid(); st.done = true; st.edited = false; guardarWip(name);
-  encolar('saveExercise', [{ name: name, unit: st.unit, sets: sets, rpe: RPE[st.rir] || '', notas: st.notas,
-                              ts: tsReg(), uid: st.uid, day: diaReg() }]);
+  encolar('saveExercise', [{ name: baseDe(name), unit: st.unit, sets: sets, rpe: RPE[st.rir] || '', notas: st.notas,
+                              ts: tsReg(), uid: st.uid, day: diaReg() }], null, claveDe(name));
   // Récords: fuerza estimada, peso y repeticiones con el mismo peso; y cómo vas contra la última vez
   const prs = [];
   let cambioPct = null;
@@ -1019,7 +1230,7 @@ function guardar(name, auto, silencioso) {
     if (!prs.length && cargas.some(x => { const prev = ex.repsEn[String(Math.round(x.c * 2) / 2)]; return prev && x.r > prev; })) prs.push('repeticiones');
     if (ex.ultE1 && mejorE1 > 0) cambioPct = Math.round((mejorE1 / ex.ultE1 - 1) * 1000) / 10;
   }
-  if (!FECHA) {
+  if (!FECHA && !esPar(name)) {
     const ses = sesion();
     ses.log = ses.log.filter(l => l.name !== name);
     ses.log.push({ name: name, ej: ex.ejercicio, sets: sets, unit: st.unit, prs: prs, uid: st.uid, cambio: cambioPct,
@@ -1028,11 +1239,17 @@ function guardar(name, auto, silencioso) {
   }
   const deshacerUlt = { txt: 'Deshacer', fn: () => corregir(name) };
   const vsUlt = textoCambio(cambioPct);
-  if (prs.length) { vibrar([40, 60, 40, 60, 120]); toast('¡Récord de ' + prs.join(' y ') + '!' + (cambioPct >= 1 ? ' ' + vsUlt : ''), 'pr', deshacerUlt); }
-  else toast(vsUlt || (navigator.onLine ? 'Guardado ✓' : 'Guardado en el celular; se sube con señal'), '', deshacerUlt);
+  if (prs.length) { hap('pr'); toast(quienDe(name) + '¡Récord de ' + prs.join(' y ') + '!' + (cambioPct >= 1 ? ' ' + vsUlt : ''), 'pr', deshacerUlt); }
+  else toast(quienDe(name) + (vsUlt || (navigator.onLine ? 'Guardado ✓' : 'Guardado en el celular; se sube con señal')), '', deshacerUlt);
   const p = companero(name);
   if (p && state[p].done) LS.del('gym_super_' + diaReg());
   if (silencioso) return;
+  // En pareja: al guardar uno, la tarjeta sigue abierta en la pestaña del otro si le falta
+  if (parOn()) {
+    const base = baseDe(name), otro = esPar(name) ? base : 'P|' + base;
+    if (state[otro] && !state[otro].done) { QUIEN[base] = esPar(name) ? 'yo' : 'par'; OPEN = base; conTransicion(pintarEntrenar); irA(base); return; }
+    name = base;
+  }
   if (auto && p && !state[p].done) OPEN = p;
   else OPEN = auto && ex.group === GRUPO && !BUSCA ? siguiente(GRUPO, name) : '';
   conTransicion(pintarEntrenar);
@@ -1047,9 +1264,10 @@ function quitarRegistro(name) {
   const st = state[name];
   const q = cola(), pend = q.find(op => op.action === 'saveExercise' && op.args[0].uid === st.uid);
   if (pend) guardarCola(q.filter(op => op !== pend));
-  else if (st.uid) encolar('undoById', [st.uid]);
-  const ses = sesion(); ses.log = ses.log.filter(l => l.name !== name); guardarSesion(ses);
-  st.uid = ''; st.done = false; OPEN = name;
+  else if (st.uid) encolar('undoById', [st.uid], null, claveDe(name));
+  if (!esPar(name)) { const ses = sesion(); ses.log = ses.log.filter(l => l.name !== name); guardarSesion(ses); }
+  st.uid = ''; st.done = false; OPEN = baseDe(name);
+  if (parOn()) QUIEN[baseDe(name)] = esPar(name) ? 'par' : 'yo';
 }
 function deshacer(name) {
   quitarRegistro(name);
@@ -1067,7 +1285,7 @@ function corregir(name) {
   if (sets) st.sets = sets.map(s => ({ w: s.w, r: s.r, t: s.t, ok: true }));
   else st.sets.forEach(s => { s.ok = false; });
   cambio(name);
-  irA(name);
+  irA(baseDe(name));
 }
 
 /* ----- Sesión, pantalla encendida y resumen ----- */
@@ -1088,7 +1306,7 @@ function tickSesion() {
 function seriesSesion() {
   const ses = sesion();
   let n = ses.log.reduce((a, l) => a + l.sets.filter(s => s.t !== 'C').length, 0);
-  Object.keys(state).forEach(k => { const st = state[k]; if (!st.done) n += st.sets.filter(s => s.ok && s.t !== 'C').length; });
+  Object.keys(state).forEach(k => { const st = state[k]; if (!st.done && !esPar(k)) n += st.sets.filter(s => s.ok && s.t !== 'C').length; });
   return n;
 }
 // Volumen de la sesión por músculo: principal 1 serie, secundario 0.5 (igual que el correo); sin calentamientos.
@@ -1104,14 +1322,14 @@ function volumenSesion() {
     if (ex.sec && ex.sec !== m) { vol[ex.sec] = vol[ex.sec] || { series: 0, ej: 0 }; vol[ex.sec].series += n * 0.5; }
   };
   sesion().log.forEach(l => sumar(l.name, l.sets));
-  Object.keys(state).forEach(k => { const st = state[k]; if (!st.done) sumar(k, st.sets.filter(s => s.ok)); });
+  Object.keys(state).forEach(k => { const st = state[k]; if (!st.done && !esPar(k)) sumar(k, st.sets.filter(s => s.ok)); });
   return Object.keys(vol).map(m => ({ musculo: m, series: vol[m].series, ej: vol[m].ej })).sort((a, b) => b.series - a.series);
 }
 function chipsVolumen() {
   const v = volumenSesion();
   if (!v.length) return '';
   const medio = n => (Math.floor(n) || '') + (n % 1 ? '½' : '');
-  return '<div class="vol">' + v.map(x => '<span><b>' + esc(x.musculo) + '</b>' + medio(x.series) + (x.series === 1 ? ' serie' : ' series') +
+  return '<div class="vol">' + v.map(x => '<span><b>' + esc(x.musculo) + '</b>' + medio(x.series) + (x.series <= 1 ? ' serie' : ' series') +
     (x.ej ? ' · ' + x.ej + ' ej.' : ' (apoyo)') + '</span>').join('') + '</div>';
 }
 function resumenSesion() {
@@ -1140,8 +1358,20 @@ function terminarSesion() {
     '<button class="btn" onclick="cerrarSesion()">Terminar</button></div>';
   $('sheet').innerHTML = h; abrirModal();
 }
-function abrirModal() { $('toast').className = 'toast'; $('modal').classList.add('show'); }
-function cerrarModal() { $('modal').classList.remove('show'); }
+function abrirModal() {
+  $('toast').className = 'toast'; $('modal').classList.add('show');
+  if (!(history.state && history.state.modal)) history.pushState({ modal: 1 }, '');
+}
+let IGNORAR_POP = false;
+function cerrarModal() {
+  $('modal').classList.remove('show');
+  if (history.state && history.state.modal) { IGNORAR_POP = true; history.back(); }
+}
+// El gesto o botón "atrás" de Android cierra la ventana abierta en vez de salir de la app
+window.addEventListener('popstate', () => {
+  if (IGNORAR_POP) { IGNORAR_POP = false; return; }
+  if ($('modal') && $('modal').classList.contains('show')) $('modal').classList.remove('show');
+});
 function cerrarSesion() {
   guardarPendientes();
   const s = sesion(); s.ended = true; guardarSesion(s);
@@ -1222,18 +1452,36 @@ function iniciarRest(seg) {
   clearTimeout(sugTimer);
   setAjuste('descanso', seg);
   LS.set('gym_rest', { end: Date.now() + seg * 1000, dur: seg, fired: false });
+  programarAviso(LS.get('gym_rest', null));
   arrancarRest();
 }
+// En el APK el aviso lo agenda Android (AlarmManager): llega aunque la pantalla esté bloqueada y la app congelada.
+// No hace falta mantener vivo tickRest(): el descanso se guarda como hora de fin y al volver se recalcula.
+const AVISO_ID = 7;
+let canalListo = false;
+function programarAviso(r) {
+  if (!NATIVO || !r || !ajuste('reloj', true)) return;
+  const agendar = () => nativo('LocalNotifications', 'schedule', { notifications: [{
+    id: AVISO_ID, title: '¡Siguiente serie!', body: 'Terminó tu descanso de ' + mmss(r.dur), channelId: 'descanso',
+    schedule: { at: new Date(r.end), allowWhileIdle: true } }] });
+  nativo('LocalNotifications', 'cancel', { notifications: [{ id: AVISO_ID }] }).then(() => {
+    if (canalListo) return agendar();
+    canalListo = true;
+    return nativo('LocalNotifications', 'createChannel', { id: 'descanso', name: 'Fin del descanso',
+      description: 'Te avisa cuando toca la siguiente serie', importance: 5, visibility: 1, vibration: true }).then(agendar);
+  });
+}
+function cancelarAviso() { if (NATIVO) nativo('LocalNotifications', 'cancel', { notifications: [{ id: AVISO_ID }] }); }
 function arrancarRest() { tickRest(); clearInterval(restInt); restInt = setInterval(tickRest, 250); }
-function sumarRest(seg) { const r = LS.get('gym_rest', null); if (!r) return; r.end += seg * 1000; r.dur += seg; r.fired = false; LS.set('gym_rest', r); tickRest(); }
-function detenerRest() { LS.del('gym_rest'); clearInterval(restInt); restInt = null; ocultarRest(); }
+function sumarRest(seg) { const r = LS.get('gym_rest', null); if (!r) return; r.end += seg * 1000; r.dur += seg; r.fired = false; LS.set('gym_rest', r); programarAviso(r); tickRest(); }
+function detenerRest() { LS.del('gym_rest'); clearInterval(restInt); restInt = null; ocultarRest(); cancelarAviso(); }
 function ocultarRest() { const el = $('rest'); el.className = 'rest'; el.innerHTML = ''; }
 function tickRest() {
   const r = LS.get('gym_rest', null), el = $('rest');
   if (!r) { clearInterval(restInt); restInt = null; return; }
   const left = (r.end - Date.now()) / 1000;
   if (left <= 0) {
-    if (!r.fired) { r.fired = true; LS.set('gym_rest', r); vibrar([300, 150, 300]); beep(); avisoReloj(r.dur); }
+    if (!r.fired) { r.fired = true; LS.set('gym_rest', r); hap('fin'); beep(); if (!NATIVO) avisoReloj(r.dur); }
     el.className = 'rest show fin';
     el.innerHTML = '<div class="rrow"><div style="flex:1"><div class="big">¡Siguiente serie!</div></div>' +
       '<button class="rbtn" style="flex:none;padding:10px 16px" onclick="detenerRest()">OK</button></div>';
@@ -1332,7 +1580,7 @@ function guardarTrote() {
               tipo: TROTE.tipo === 'Libre' ? '' : TROTE.tipo, ts: tsReg(), uid: uid() };
   encolar('saveTrote', [t]);
   TROTE = { km: '', min: '', tipo: null };
-  vibrar(15); toast('Trote guardado ✓'); pintarEntrenar();
+  hap('ok'); toast('Trote guardado ✓'); pintarEntrenar();
 }
 function borrarTrote(id) {
   const q = cola(), pend = q.find(op => op.action === 'saveTrote' && op.args[0].uid === id);
@@ -1364,7 +1612,7 @@ function ayerTipico() {
   const ayer = sumarDias(hoy(), -1), lista = diaTipicoLista();
   LS.set('gym_prot_' + ayer, lista);
   encolar('saveProteina', [protTotal(lista), lista.join(', '), ayer], 'prot-' + ayer);
-  vibrar(15); toast('Ayer: ' + protTotal(lista) + ' g ✓'); pintarTab();
+  hap('ok'); toast('Ayer: ' + protTotal(lista) + ' g ✓'); pintarTab();
 }
 function comidaDe(dia) {
   COMIDA_DIA = dia && dia !== hoy() ? dia : null;
@@ -1423,7 +1671,7 @@ function cambiarProt() {
   pintarComida();
 }
 function addProt(k) {
-  prot.push(k); vibrar(10);
+  prot.push(k); hap('tecla');
   const c = LS.get('gym_food_counts', {}); c[k] = (c[k] || 0) + 1; LS.set('gym_food_counts', c);
   cambiarProt();
 }
@@ -1472,7 +1720,7 @@ function agregarComidaIA() {
   items.forEach(x => { const k = clavePropia(x.nombre, x.g); prot.push(k); cuenta[k] = (cuenta[k] || 0) + 1; });
   LS.set('gym_food_counts', cuenta);
   const tot = items.reduce((a, x) => a + x.g, 0);
-  COMIDA_IA = null; vibrar(15); cambiarProt(); toast('+' + tot + ' g ✓');
+  COMIDA_IA = null; hap('ok'); cambiarProt(); toast('+' + tot + ' g ✓');
 }
 function guardarFav(i) {
   const x = COMIDA_IA.items[i];
@@ -1682,7 +1930,7 @@ function revisarMedallas() {
   const nuevas = DATA.logros.medallas.filter(m => m.ok && !vistas.includes(m.id));
   if (!nuevas.length) return;
   LS.set('gym_medallas', vistas.concat(nuevas.map(m => m.id)));
-  vibrar([40, 60, 40, 60, 120]);
+  hap('pr');
   if (sesionActiva() || $('modal').classList.contains('show')) return toast('🏅 Medalla nueva: ' + nuevas.map(m => m.nom).join(', '), 'pr');
   $('sheet').innerHTML = '<div class="celebra"><div class="i">' + nuevas[0].ico + '</div><div class="t2" style="margin-top:6px">' +
     (nuevas.length === 1 ? '¡Medalla nueva!' : '¡' + nuevas.length + ' medallas nuevas!') + '</div>' +
@@ -1769,7 +2017,7 @@ function procesarFoto(input) {
     const b64 = reducirImagen(img, 1280, 0.82), thumb = reducirImagen(img, 300, 0.6);
     URL.revokeObjectURL(url);
     encolar('saveFoto', [{ fecha: diaReg(), b64: b64, thumb: thumb, peso: DATA.promedio7, cintura: DATA.resumen.cintura, uid: uid() }]);
-    vibrar(15); toast('Foto guardada ✓'); pintarProgreso();
+    hap('ok'); toast('Foto guardada ✓'); pintarProgreso();
   };
   img.onerror = () => toast('No pude leer la foto');
   img.src = url;
@@ -1808,7 +2056,7 @@ function guardarBienvenida() {
   Object.assign(DATA, { metaProteina: cfg.metaProteina, dias: cfg.dias, perfil: true, carrera: cfg.carrera });
   LS.set('gym_data', DATA); LS.set('gym_bienvenida', true);
   encolar('saveConfig', [cfg], 'cfg-bienvenida');
-  cerrarModal(); vibrar(15);
+  cerrarModal(); hap('ok');
   toast('¡Listo! Meta de proteína: ' + cfg.metaProteina + ' g');
   pintarTab();
   setTimeout(() => enviar().then(actualizar), 1500);
@@ -1822,7 +2070,7 @@ function abrirAjustes() {
   const def = ajuste('descanso', 90), c = DATA.carrera;
   $('sheet').innerHTML = '<div class="row between"><div class="t2">Ajustes</div><button class="btn ghost sm" onclick="cerrarModal()">✕</button></div>' +
     tog('pantalla', true, 'Pantalla encendida en la sesión', 'Para que el descanso suene y no tengas que desbloquear') +
-    tog('reloj', false, 'Avisar en el reloj', 'Al terminar el descanso llega una notificación (tu reloj la recibe si refleja las de Chrome)') +
+    tog('reloj', NATIVO, 'Avisar al terminar el descanso', NATIVO ? 'Notificación con vibración aunque la pantalla esté bloqueada; llega a tu reloj' : 'Notificación al terminar (solo si la app está abierta; en el APK llega aunque bloquees)') +
     tog('autoDescanso', false, 'Iniciar el descanso solo', 'Si está apagado, solo te sugiere tiempos al marcar una serie') +
     tog('ia', false, 'Coach IA entre series', 'Después de cada serie de trabajo, la IA (Gemini, gratis) te dice qué hacer en la siguiente (necesita señal)') +
     tog('calentamiento', false, 'Calentamiento automático', 'En los básicos con barra agrega 2 series ligeras (50 % y 70 %) al abrirlos') +
@@ -1844,12 +2092,18 @@ function abrirAjustes() {
     '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Respaldo</div><div class="muted">Descarga lo que tiene la app en este celular</div></div>' +
     '<button class="btn ghost sm" onclick="descargarRespaldo()">Descargar</button></div>' +
     '<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none;margin-top:8px" href="' + DATA.resumen.sheetUrl + '" target="_blank" rel="noopener">Abrir mi hoja de Google</a>' +
-    '<div class="muted" style="text-align:center;margin-top:10px;font-size:12px">Gym v5.4 · ' + esc(DATA.nombre || '') + '</div>';
+    (NATIVO ? '' : '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Pasar a la app nativa (APK)</div><div class="muted">Copia tu link y pégalo en la app la primera vez</div></div>' +
+      '<button class="btn ghost sm" onclick="copiarLinkConfig()">Copiar</button></div>') +
+    '<div class="muted" style="text-align:center;margin-top:10px;font-size:12px">Gym ' + VERSION_APP + (NATIVO ? ' (app)' : '') + ' · ' + esc(DATA.nombre || '') + '</div>';
   abrirModal();
 }
 async function toggleAjuste(k, d) {
   const nuevo = !ajuste(k, d);
-  if (k === 'reloj' && nuevo) {
+  if (k === 'reloj' && nuevo && NATIVO) {
+    await nativo('LocalNotifications', 'requestPermissions');
+    const ex = await nativo('LocalNotifications', 'checkExactNotificationSetting');
+    if (ex && ex.exact_alarm && ex.exact_alarm !== 'granted') { toast('Activa "Alarmas y recordatorios" para que el aviso sea puntual'); await nativo('LocalNotifications', 'changeExactNotificationSetting'); }
+  } else if (k === 'reloj' && nuevo) {
     if (!('Notification' in window)) return toast('Este navegador no permite notificaciones');
     const p = await Notification.requestPermission();
     if (p !== 'granted') return toast('Necesito permiso de notificaciones para avisarte');
