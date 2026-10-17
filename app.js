@@ -103,6 +103,34 @@ const CSS_V53 = `
   .ia { display: flex; gap: 8px; align-items: flex-start; background: var(--card2); border-left: 3px solid var(--pri); border-radius: 10px; padding: 9px 12px; margin: 0 0 10px; font-size: 14px; }
   .ia .btn { flex: none; margin-left: auto; }
   .ia.cargando { color: var(--muted); }
+  /* v5.6: esfuerzo por serie, comida con IA, chat con el coach */
+  .set .e { font-size: 10px; font-weight: 800; color: inherit; opacity: .85; display: block; line-height: 1; margin-top: 2px; }
+  .iacard textarea, .chatin textarea { width: 100%; min-height: 64px; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px;
+    background: var(--card2); color: var(--text); font: inherit; font-size: 15px; resize: vertical; }
+  .iacard textarea:focus, .chatin textarea:focus { outline: none; border-color: var(--pri); }
+  .iitem { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .iitem:last-of-type { border-bottom: 0; }
+  .iitem .nm { flex: 1; min-width: 0; }
+  .iitem .nm small { display: block; color: var(--muted); font-size: 12px; }
+  .iitem .g { font-weight: 800; color: var(--pri); min-width: 46px; text-align: center; }
+  .iitem button.mini { border: 1.5px solid var(--line); background: var(--card); border-radius: 10px; width: 32px; height: 32px; font-weight: 800; }
+  .iitem button.mini.on { background: var(--pri); border-color: var(--pri); color: var(--on-pri); }
+  .iitem.off .nm, .iitem.off .g { opacity: .4; text-decoration: line-through; }
+  .food.fav b::after { content: ' ⭐'; font-size: 11px; }
+  .food.quitar { border-color: var(--acc); }
+  .chat { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 12px; }
+  .msg { max-width: 88%; padding: 10px 13px; border-radius: 16px; font-size: 15px; line-height: 1.45; white-space: normal; word-wrap: break-word; }
+  .msg.yo { align-self: flex-end; background: var(--pri); color: var(--on-pri); border-bottom-right-radius: 5px; }
+  .msg.coach { align-self: flex-start; background: var(--card); border: 1px solid var(--line); border-bottom-left-radius: 5px; }
+  .msg.err { border-color: var(--acc); color: var(--muted); }
+  .msg.pensando span { display: inline-block; width: 7px; height: 7px; margin: 0 2px; border-radius: 50%; background: var(--muted); animation: bote 1.2s infinite; }
+  .msg.pensando span:nth-child(2) { animation-delay: .15s; } .msg.pensando span:nth-child(3) { animation-delay: .3s; }
+  @keyframes bote { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
+  .sugs { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; }
+  .sugs button { border: 1.5px solid var(--line); background: var(--card); border-radius: 99px; padding: 8px 12px; font-size: 13.5px; text-align: left; }
+  .chatin { display: flex; gap: 8px; align-items: flex-end; }
+  .chatin textarea { min-height: 46px; }
+  @media (prefers-reduced-motion: no-preference) { ::view-transition-group(*) { animation-duration: .28s; } }
 `;
 
 /* ===================== Configuración y datos ===================== */
@@ -334,6 +362,7 @@ function pintarTodo() {
   if (OPEN === null || (OPEN && !exDe(OPEN))) OPEN = siguiente(GRUPO, '');
   if (COMIDA_DIA && COMIDA_DIA !== sumarDias(hoy(), -1)) COMIDA_DIA = null;   // pasó la medianoche
   prot = cargarProt(diaComida());
+  asegurarTabCoach();
   $('brand').innerHTML = 'Gym <span>' + esc(DATA.nombre || '') + '</span>';
   document.title = 'Gym' + (DATA.nombre ? ' ' + DATA.nombre : '');
   pintarFecha();
@@ -352,8 +381,15 @@ function cargarProt(dia) {
   const local = LS.get('gym_prot_' + dia, null);
   if (local) return local;
   const desdeHoja = dia === hoy() ? (fresco() ? DATA.protHoy : null) : (DATA.protAyer && DATA.protAyer.k === dia ? DATA.protAyer : null);
-  return desdeHoja && desdeHoja.detalle ? desdeHoja.detalle.split(', ').filter(k => FOODS.some(f => f.k === k)) : [];
+  return desdeHoja && desdeHoja.detalle ? desdeHoja.detalle.split(', ').filter(k => FOODS.some(f => f.k === k) || RE_PROPIO.test(k)) : [];
 }
+// Lo que registras puede ser un botón fijo (FOODS) o algo propio guardado como "Tacos de asada (27 g)"
+const RE_PROPIO = /^(.+) \((\d+(?:\.\d+)?) g\)$/;
+function gDe(k) { const f = FOODS.find(x => x.k === k); if (f) return f.g; const m = RE_PROPIO.exec(k); return m ? Number(m[2]) : 0; }
+function tDe(k) { const f = FOODS.find(x => x.k === k); if (f) return f.t; const m = RE_PROPIO.exec(k); return m ? m[1] + ' · ' + m[2] + ' g' : k; }
+const clavePropia = (t, g) => String(t).replace(/[,()]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40) + ' (' + Math.round(g) + ' g)';
+// Mis comidas: las que guardaste con ⭐ (se guardan en tu configuración, no en el código)
+function misComidas() { return (DATA.comidas || []).map(c => ({ k: clavePropia(c.t, c.g), t: c.t, g: c.g, fav: true })); }
 function pesoDe(dia) {
   const local = LS.get('gym_peso_' + dia, null);
   return local !== null ? local : (dia === hoy() && fresco() ? DATA.pesoHoy : null);
@@ -367,7 +403,8 @@ function pintarFecha() {
 function verTab(t) {
   if (t !== 'Comida' && COMIDA_DIA) { COMIDA_DIA = null; prot = cargarProt(hoy()); }
   TAB = t;
-  ['Entrenar', 'Comida', 'Progreso'].forEach(x => {
+  ['Entrenar', 'Comida', 'Progreso', 'Coach'].forEach(x => {
+    if (!$('v' + x)) return;
     $('v' + x).classList.toggle('hide', x !== t);
     $('n' + x).classList.toggle('on', x === t);
   });
@@ -379,6 +416,7 @@ function verTab(t) {
 function pintarTab() {
   if (TAB === 'Entrenar') pintarEntrenar();
   else if (TAB === 'Comida') pintarComida();
+  else if (TAB === 'Coach') { if ($('vCoach')) pintarCoach(); else verTab('Entrenar'); }
   else pintarProgreso();
 }
 
@@ -550,7 +588,7 @@ function tarjetaEjercicio(ex) {
   else if (enCurso || abierto) ico = anillo(hechas, trabajo.length, false) + '<span class="rt num">' + hechas + '/' + trabajo.length + '</span>';
   else ico = '<span class="num">' + trabajo.length + '</span>';
   const n = jsq(ex.name);
-  let h = '<div class="ex' + (abierto ? ' open' : '') + (st.done ? ' done' : '') + (enCurso ? ' prog' : '') + '" id="ex-' + esc(ex.name) + '">' +
+  let h = '<div class="ex' + (abierto ? ' open' : '') + (st.done ? ' done' : '') + (enCurso ? ' prog' : '') + '" id="ex-' + esc(ex.name) + '" style="view-transition-name:ex' + DATA.exercises.indexOf(ex) + '">' +
     '<div class="ex-head" onclick="abrir(\'' + n + '\')"><div class="ex-ico">' + ico + '</div>' +
     '<div style="flex:1;min-width:0"><div class="ex-name">' + esc(ex.ejercicio) + (par && !st.done ? '<span class="sstag">Superserie</span>' : '') + '</div><div class="ex-meta">' + meta + '</div></div>' +
     (ex.up && !st.done ? '<span class="pill acc">' + ICO.up + 'Sube</span>' : '') +
@@ -591,7 +629,7 @@ function cuerpoEjercicio(ex, st) {
       '<button class="ant num" onclick="copiarAnterior(\'' + n + '\',' + i + ')">' + (a ? a.w + '×' + a.r : '—') + '</button>' +
       '<button class="val num' + (vacio(s.w) ? ' vacio' : '') + '" onclick="teclado(\'' + n + '\',' + i + ',\'w\')">' + (vacio(s.w) ? 'peso' : s.w) + '</button>' +
       '<button class="val num' + (vacio(s.r) ? ' vacio' : '') + '" onclick="teclado(\'' + n + '\',' + i + ',\'r\')">' + (vacio(s.r) ? 'reps' : s.r) + '</button>' +
-      '<button class="chk" onclick="marcar(\'' + n + '\',' + i + ')" aria-label="Serie hecha">' + ICO.check + '</button></div>';
+      '<button class="chk" onclick="marcar(\'' + n + '\',' + i + ')" aria-label="Serie hecha">' + ICO.check + (s.ok && s.e ? '<span class="e">' + ETQ_E[s.e] + '</span>' : '') + '</button></div>';
   });
   const vistas = LS.get('gym_tipcount', 0);
   if (vistas < 3) h += '<div class="muted" style="margin:-2px 0 8px;font-size:12px">Toca el # para cambiarla a calentamiento (C) o drop (D) · toca "Anterior" para copiarla</div>';
@@ -610,10 +648,13 @@ function cuerpoEjercicio(ex, st) {
          : '<button class="link" onclick="elegirSuper(\'' + n + '\')">' + ICO.swap + ' Superserie</button>') + '</div>';
   // El esfuerzo va a la vista: con un toque ajusta cuándo te toca subir de peso
   const pide = st.sets.every(s => s.ok) && !st.rir;
+  const kUlt = ultimaMarcada(st), sUlt = kUlt > -1 ? st.sets[kUlt] : null;
+  const eAct = sUlt ? (sUlt.e || '') : st.rir;
+  const nSerie = sUlt ? (sUlt.t === 'C' ? 'el calentamiento' : 'la serie ' + (st.sets.slice(0, kUlt + 1).filter(x => x.t !== 'C').length)) : 'la última serie';
   if (st.ia) h += '<div class="ia' + (st.ia.cargando ? ' cargando' : '') + '"><span>💡 ' + esc(st.ia.cargando ? 'Pensando tu siguiente serie…' : st.ia.mensaje) + '</span>' +
     (st.ia.usar ? '<button class="btn sm" onclick="usarIA(\'' + n + '\')">Usar</button>' : '') + '</div>';
-  h += '<div class="esf' + (pide ? ' pide' : '') + '"><div class="muted">' + (pide ? '¿Cómo terminó la última serie? Toca uno y se guarda' : '¿Cómo terminó la última serie? <span style="opacity:.75">(opcional)</span>') + '</div><div class="pills">' +
-    Object.keys(RPE).map(v => '<button class="' + (st.rir === v ? 'on' : '') + '" onclick="setRir(\'' + n + '\',\'' + v + '\')">' + v + '</button>').join('') + '</div></div>';
+  h += '<div class="esf' + (pide ? ' pide' : '') + '"><div class="muted">' + (pide ? '¿Cómo terminó la última serie? Toca uno y se guarda' : '¿Cómo terminó ' + nSerie + '? <span style="opacity:.75">(opcional)</span>') + '</div><div class="pills">' +
+    Object.keys(RPE).map(v => '<button class="' + (eAct === v ? 'on' : '') + '" onclick="setRir(\'' + n + '\',\'' + v + '\')">' + v + '</button>').join('') + '</div></div>';
   h += '<details class="more"' + (st.notas ? ' open' : '') + '><summary>Nota de hoy</summary>' +
     '<textarea rows="2" placeholder="Solo de esta sesión: «hombro cargado», «dormí mal»…" onchange="setNotas(\'' + n + '\', this.value)">' + esc(st.notas) + '</textarea></details>';
   const hechas = st.sets.filter(s => s.ok).length;
@@ -666,11 +707,18 @@ function ponerPeso(st, i, nv) {
 }
 function addSet(name) { const st = state[name], l = st.sets[st.sets.length - 1]; st.sets.push({ w: l.w, r: l.r, t: 'T', ok: false }); cambio(name); }
 function delSet(name) { if (state[name].sets.length > 1) state[name].sets.pop(); cambio(name); }
+// El esfuerzo es de la última serie que marcaste (cada serie guarda el suyo)
+function ultimaMarcada(st) { for (let k = st.sets.length - 1; k >= 0; k--) if (st.sets[k].ok) return k; return -1; }
 function setRir(name, v) {
-  const st = state[name]; st.rir = st.rir === v ? '' : v;
+  const st = state[name], k = ultimaMarcada(st);
+  if (k < 0) { st.rir = st.rir === v ? '' : v; return cambio(name); }
+  const s = st.sets[k];
+  s.e = s.e === v ? '' : v;
+  st.rir = s.e;
   // Con todas las series hechas, elegir el esfuerzo es el último paso: guarda y pasa al siguiente
-  if (st.rir && st.sets.every(x => x.ok) && !st.done) { cambio(name, false); return setTimeout(() => guardar(name, true), 250); }
+  if (s.e && st.sets.every(x => x.ok) && !st.done) { cambio(name, false); return setTimeout(() => guardar(name, true), 250); }
   cambio(name);
+  if (s.e && s.t !== 'C') { clearTimeout(IA_TIMER[name]); consejoIA(name, k); }
 }
 // Ejercicios con todas las series marcadas pero sin guardar: se guardan al irte a otro o al terminar la sesión
 function guardarPendientes(excepto) {
@@ -879,7 +927,8 @@ function marcar(name, i) {
     setTimeout(() => { const el = document.querySelector('[id="ex-' + name + '"] .esf'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60);
     return;
   }
-  if (s.t !== 'C') consejoIA(name, i);
+  // Coach IA: espera unos segundos por si marcas el esfuerzo de esta serie; si lo marcas, pregunta al momento
+  if (s.t !== 'C') { clearTimeout(IA_TIMER[name]); IA_TIMER[name] = setTimeout(() => consejoIA(name, i), 4000); }
   if (s.t === 'C' || FECHA) return;
   const p = companero(name);
   if (p && !state[p].done) {
@@ -892,11 +941,14 @@ function marcar(name, i) {
 }
 /* ----- Coach IA: después de cada serie de trabajo te dice qué hacer en la siguiente ----- */
 const RIR_DE = { 'Al fallo': 0, 'Casi (1–2 más)': 1.5, 'Sobraban 3+': 3 };
+const ETQ_E = { 'Al fallo': 'FALLO', 'Casi (1–2 más)': 'RIR 1–2', 'Sobraban 3+': 'RIR 3+' };
+const IA_TIMER = {};
+let IA_AVISADO = false;
 // i = índice de la serie que acabas de marcar en state[name].sets
 function payloadIA(name, i) {
   const ex = exDe(name), st = state[name], s = st.sets[i];
   const trabajo = st.sets.filter(x => x.t !== 'C');
-  const serie = x => ({ peso: Number(x.w) || 0, reps: Number(x.r) || 0, tipo: x.t || 'T' });
+  const serie = x => ({ peso: Number(x.w) || 0, reps: Number(x.r) || 0, tipo: x.t || 'T', rir: x.e ? RIR_DE[x.e] : null });
   return {
     ejercicio: ex.ejercicio,
     unidad: st.unit,
@@ -905,7 +957,7 @@ function payloadIA(name, i) {
     paso: ex.paso || ex.step,
     serie_actual: Object.assign(serie(s), { numero: trabajo.indexOf(s) + 1, de: trabajo.length }),
     series_hoy: st.sets.filter(x => x.ok).map(serie),
-    rir_ultima_serie: st.rir ? RIR_DE[st.rir] : null,
+    rir_ultima_serie: s.e ? RIR_DE[s.e] : null,
     sesion_anterior: ex.anterior.length
       ? { fecha: ex.lastWhen, series: ex.anterior.filter(a => a.t !== 'C').map(a => ({ peso: Number(a.w) || 0, reps: Number(a.r) || 0 })), rir: ex.rirUlt === undefined ? null : ex.rirUlt }
       : null,
@@ -917,7 +969,7 @@ function payloadIA(name, i) {
 let IA_SEQ = 0;
 async function consejoIA(name, i) {
   const st = state[name];
-  if (!ajuste('ia', false) || FECHA || !navigator.onLine || st.sets.every(x => x.ok)) return;
+  if (!st || st.done || !ajuste('ia', false) || FECHA || !navigator.onLine || st.sets.every(x => x.ok)) return;
   const seq = ++IA_SEQ;
   st.ia = { cargando: true }; pintarEntrenar();
   try {
@@ -928,7 +980,9 @@ async function consejoIA(name, i) {
     state[name].ia = { mensaje: r.mensaje, peso: r.peso, reps: r.reps,
                        usar: !!sig && r.peso !== null && r.reps !== null && (Number(sig.w) !== r.peso || Number(sig.r) !== r.reps) };
   } catch (e) {
-    if (seq === IA_SEQ && state[name]) state[name].ia = null;   // sin señal o sin clave: la app sigue igual, sin aviso
+    if (seq === IA_SEQ && state[name]) state[name].ia = null;   // sin señal: la app sigue igual
+    // Un error real (clave, cuota, modelo) sí se avisa, una vez por sesión, para que no falle en silencio
+    if (e.message !== 'tiempo' && !/Failed to fetch|NetworkError|Load failed/i.test(e.message) && !IA_AVISADO) { IA_AVISADO = true; toast('Coach IA: ' + e.message.slice(0, 120)); }
   }
   if (TAB === 'Entrenar' && OPEN === name) pintarEntrenar();
 }
@@ -946,7 +1000,7 @@ function guardar(name, auto, silencioso) {
   if (st.done) return;
   const marcadas = st.sets.filter(s => s.ok);
   const sets = (marcadas.length ? marcadas : st.sets).filter(s => !vacio(s.r))
-    .map(s => ({ w: Number(s.w || 0), r: Number(s.r), t: s.t || 'T' }));
+    .map(s => ({ w: Number(s.w || 0), r: Number(s.r), t: s.t || 'T', rpe: RPE[s.e] || '' }));
   if (!sets.length) return toast('Pon al menos las repeticiones de una serie');
   iniciarSesion();
   st.uid = uid(); st.done = true; st.edited = false; guardarWip(name);
@@ -981,8 +1035,13 @@ function guardar(name, auto, silencioso) {
   if (silencioso) return;
   if (auto && p && !state[p].done) OPEN = p;
   else OPEN = auto && ex.group === GRUPO && !BUSCA ? siguiente(GRUPO, name) : '';
-  pintarEntrenar();
+  conTransicion(pintarEntrenar);
   if (OPEN) irA(OPEN);
+}
+// La tarjeta terminada se desliza a "Completados" en vez de saltar (Chrome; sin efecto si no lo soporta)
+function conTransicion(fn) {
+  const quieto = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (document.startViewTransition && !quieto) document.startViewTransition(fn); else fn();
 }
 function quitarRegistro(name) {
   const st = state[name];
@@ -1283,7 +1342,7 @@ function borrarTrote(id) {
 }
 
 /* ===================== COMIDA ===================== */
-function protTotal(lista) { return (lista || prot).reduce((s, k) => s + (FOODS.find(f => f.k === k) || { g: 0 }).g, 0); }
+function protTotal(lista) { return Math.round((lista || prot).reduce((s, k) => s + gDe(k), 0)); }
 
 // "¿Ayer comiste tu día típico?": si ayer quedó sin proteína, se registra con un toque
 function ayerPendiente() {
@@ -1322,7 +1381,8 @@ function pintarComida() {
   const meta = metaProt(), tot = protTotal(), pct = Math.min(1, tot / meta), falta = meta - tot;
   const R = 74, C = 2 * Math.PI * R;
   const cuenta = LS.get('gym_food_counts', {});
-  const top = FOODS.slice().sort((a, b) => (cuenta[b.k] || 0) - (cuenta[a.k] || 0)).slice(0, 3).filter(f => cuenta[f.k]);
+  const todas = FOODS.concat(misComidas());
+  const top = todas.slice().sort((a, b) => (cuenta[b.k] || 0) - (cuenta[a.k] || 0)).slice(0, 3).filter(f => cuenta[f.k]);
   const tipico = diaTipicoLista();
   let h = '';
   if (COMIDA_DIA) h += '<div class="otro">' + ICO.cal + '<span>Comida del ' + diaCorto(COMIDA_DIA) + '</span><button class="btn" onclick="comidaDe(null)">Volver a hoy</button></div>';
@@ -1334,19 +1394,26 @@ function pintarComida() {
     '<div><div class="v num">' + tot + ' g</div><div class="muted">de ' + meta + ' g</div></div></div>' +
     '<div class="t1" style="margin-top:4px">' + (falta > 0 ? 'Te faltan ~' + falta + ' g' : '¡Meta cumplida!') + '</div>' +
     '<div class="muted">' + (falta > 0 ? (prot.includes('Scoop') ? 'Fácil: 2 huevos (12 g), yogurt (15 g) o atún (20 g)' : 'Lo más barato: un scoop con agua (22 g)') : 'Bien hecho hoy') + '</div></div>';
+  h += tarjetaComidaIA();
   if (!prot.length && tipico.length) h += '<button class="btn block" style="margin-bottom:6px" onclick="diaTipico()">Mi día típico · +' +
     protTotal(tipico) + ' g</button>' +
     '<div class="muted" style="text-align:center;margin-bottom:12px">Tócalo en la noche y luego cambia lo que fue diferente</div>';
   if (top.length) h += '<h2>Lo que más comes</h2><div class="foods">' + top.map(f => botonComida(f, true)).join('') + '</div>';
+  const favs = misComidas().filter(f => !top.some(t => t.k === f.k));
+  if (favs.length || QUITAR_FAV) h += '<div class="row between"><h2>Mis comidas</h2><button class="link" onclick="QUITAR_FAV=!QUITAR_FAV;pintarComida()">' + (QUITAR_FAV ? 'Listo' : 'Editar') + '</button></div>' +
+    (QUITAR_FAV ? '<div class="muted" style="margin:-4px 0 8px;font-size:13px">Toca una para quitarla de tus comidas</div>' : '') +
+    '<div class="foods">' + (QUITAR_FAV ? misComidas() : favs).map(f => botonComida(f, false)).join('') + '</div>';
   h += '<h2>Agregar</h2><div class="foods">' + FOODS.filter(f => !top.includes(f)).map(f => botonComida(f, false)).join('') + '</div>';
   if (prot.length) h += '<h2>Hoy comiste · toca para quitar</h2><div class="eaten">' +
-    prot.map((k, i) => '<button onclick="quitarProt(' + i + ')">' + esc((FOODS.find(f => f.k === k) || {}).t || k) + ' ✕</button>').join('') + '</div>';
+    prot.map((k, i) => '<button onclick="quitarProt(' + i + ')">' + esc(tDe(k)) + ' ✕</button>').join('') + '</div>';
   h += '<p class="muted" style="margin-top:14px">Cantidades aproximadas. Lo que cuenta es acercarte a la meta casi todos los días.</p>';
   $('vComida').innerHTML = h;
 }
 function botonComida(f, esTop) {
   const c = prot.filter(k => k === f.k).length;
-  return '<button class="food' + (esTop ? ' top' : '') + '" onclick="addProt(\'' + jsq(f.k) + '\')">' + (c ? '<span class="c">×' + c + '</span>' : '') +
+  const quitar = QUITAR_FAV && f.fav;
+  return '<button class="food' + (esTop ? ' top' : '') + (f.fav ? ' fav' : '') + (quitar ? ' quitar' : '') + '" onclick="' +
+    (quitar ? 'quitarFav(\'' + jsq(f.t) + '\')' : 'addProt(\'' + jsq(f.k) + '\')') + '">' + (c && !quitar ? '<span class="c">×' + c + '</span>' : '') +
     '<b>+' + f.g + ' g</b>' + esc(f.t) + '</button>';
 }
 function cambiarProt() {
@@ -1361,6 +1428,149 @@ function addProt(k) {
   cambiarProt();
 }
 function diaTipico() { prot = prot.concat(diaTipicoLista()); cambiarProt(); }
+
+/* ----- Comida con IA: escribes lo que comiste y calcula la proteína ----- */
+let COMIDA_IA = null, QUITAR_FAV = false;
+function tarjetaComidaIA() {
+  if (!DATA.ia) return '';
+  const c = COMIDA_IA || {};
+  let h = '<div class="card iacard"><div class="t1" style="margin-bottom:6px">✨ Dime qué comiste</div>' +
+    '<textarea id="iaComida" maxlength="600" placeholder="Ej. 3 tacos de asada y una coca · o: la etiqueta dice 24 g por porción y me comí 2" oninput="(COMIDA_IA=COMIDA_IA||{}).texto=this.value">' + esc(c.texto || '') + '</textarea>' +
+    '<button class="btn block" style="margin-top:8px"' + (c.cargando ? ' disabled' : '') + ' onclick="calcularComida()">' + (c.cargando ? 'Calculando…' : 'Calcular proteína') + '</button>';
+  if (c.error) h += '<div class="muted" style="margin-top:8px;color:var(--acc)">' + esc(c.error) + '</div>';
+  if (c.items && c.items.length) {
+    const tot = c.items.filter(x => x.on).reduce((a, x) => a + x.g, 0);
+    h += '<div style="margin-top:10px">' + c.items.map((x, i) => '<div class="iitem' + (x.on ? '' : ' off') + '">' +
+      '<button class="mini' + (x.on ? ' on' : '') + '" onclick="COMIDA_IA.items[' + i + '].on=!COMIDA_IA.items[' + i + '].on;pintarComida()" aria-label="Incluir">✓</button>' +
+      '<div class="nm">' + esc(x.nombre) + (x.nota ? '<small>' + esc(x.nota) + '</small>' : '') + '</div>' +
+      '<button class="mini" onclick="ajustarItem(' + i + ',-2)" aria-label="Menos">−</button><span class="g num">' + x.g + ' g</span>' +
+      '<button class="mini" onclick="ajustarItem(' + i + ',2)" aria-label="Más">+</button>' +
+      '<button class="mini' + (x.fav ? ' on' : '') + '" onclick="guardarFav(' + i + ')" aria-label="Guardar en mis comidas">⭐</button></div>').join('') + '</div>';
+    if (c.consejo) h += '<div class="muted" style="margin:8px 0 0;font-size:13.5px">💡 ' + esc(c.consejo) + '</div>';
+    h += '<div class="acts"><button class="btn ghost" onclick="COMIDA_IA=null;pintarComida()">Descartar</button>' +
+      '<button class="btn"' + (tot ? '' : ' disabled') + ' onclick="agregarComidaIA()">Agregar +' + tot + ' g</button></div>';
+  }
+  return h + '</div>';
+}
+async function calcularComida() {
+  const c = COMIDA_IA = COMIDA_IA || {};
+  c.texto = ($('iaComida') || {}).value || c.texto || '';
+  if (!c.texto.trim()) return toast('Escribe qué comiste');
+  if (!navigator.onLine) return toast('Necesitas señal para calcular con la IA');
+  c.cargando = true; c.error = ''; c.items = null; pintarComida();
+  try {
+    const r = await conLimite(apiPost('comidaIA', [c.texto, { meta: metaProt(), llevas: protTotal(), comido: prot.map(tDe) }]), 30000);
+    c.items = r.items.map(x => Object.assign(x, { on: true })); c.consejo = r.consejo;
+  } catch (e) { c.error = 'No se pudo calcular: ' + (e.message === 'tiempo' ? 'tardó demasiado, intenta otra vez' : e.message); }
+  c.cargando = false;
+  if (TAB === 'Comida') pintarComida();
+}
+function ajustarItem(i, d) { const x = COMIDA_IA.items[i]; x.g = Math.max(0, x.g + d); pintarComida(); }
+function agregarComidaIA() {
+  const items = COMIDA_IA.items.filter(x => x.on && x.g > 0);
+  const cuenta = LS.get('gym_food_counts', {});
+  items.forEach(x => { const k = clavePropia(x.nombre, x.g); prot.push(k); cuenta[k] = (cuenta[k] || 0) + 1; });
+  LS.set('gym_food_counts', cuenta);
+  const tot = items.reduce((a, x) => a + x.g, 0);
+  COMIDA_IA = null; vibrar(15); cambiarProt(); toast('+' + tot + ' g ✓');
+}
+function guardarFav(i) {
+  const x = COMIDA_IA.items[i];
+  DATA.comidas = (DATA.comidas || []).filter(c => c.t !== x.nombre);
+  if (!x.fav) DATA.comidas.unshift({ t: x.nombre, g: x.g });
+  x.fav = !x.fav;
+  encolar('saveConfig', [{ comidas: DATA.comidas.slice(0, 30) }], 'cfg-comidas');
+  toast(x.fav ? 'Guardada en Mis comidas ⭐' : 'Quitada de Mis comidas'); pintarComida();
+}
+function quitarFav(t) {
+  DATA.comidas = (DATA.comidas || []).filter(c => c.t !== t);
+  encolar('saveConfig', [{ comidas: DATA.comidas }], 'cfg-comidas');
+  if (!DATA.comidas.length) QUITAR_FAV = false;
+  pintarComida();
+}
+// Promesa con tiempo máximo
+function conLimite(pr, ms) { return Promise.race([pr, new Promise((_, no) => setTimeout(() => no(new Error('tiempo')), ms))]); }
+
+/* ===================== COACH (chat con la IA y el contexto de la app) ===================== */
+let CHAT_CARGANDO = false;
+const SUGS_CHAT = ['¿Cómo voy esta semana?', '¿Qué hago hoy en el gym?', '¿Qué ceno para llegar a mi proteína?', '¿Voy bien para mi carrera?', '¿Qué músculo estoy dejando atrás?'];
+function chatLista() { return LS.get('gym_chat', []); }
+function asegurarTabCoach() {
+  if (!DATA.ia || $('vCoach')) return;
+  const v = document.createElement('div'); v.id = 'vCoach'; v.className = 'hide';
+  $('vProgreso').after(v);
+  const b = document.createElement('button'); b.id = 'nCoach';
+  b.setAttribute('onclick', "verTab('Coach')");
+  b.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></svg>Coach';
+  $('nProgreso').after(b);
+}
+// Texto del coach: **negritas**, viñetas y saltos de línea; todo lo demás escapado
+function formatoChat(t) {
+  return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^\s*[-*•]\s+/gm, '• ').replace(/\n/g, '<br>');
+}
+function pintarCoach() {
+  const lista = chatLista();
+  let h = '<div class="row between" style="margin:4px 0 6px"><div class="t1">Pregúntale a tu coach</div>' +
+    (lista.length ? '<button class="link" onclick="nuevaCharla()">Nueva conversación</button>' : '') + '</div>';
+  if (!lista.length) h += '<div class="muted" style="margin-bottom:10px">Conoce tus pesos, tu proteína, tu cintura, tus trotes y tu plan. Pregúntale lo que quieras.</div>' +
+    '<div class="sugs">' + SUGS_CHAT.map(q => '<button onclick="preguntar(\'' + jsq(q) + '\')">' + esc(q) + '</button>').join('') + '</div>';
+  h += '<div class="chat">' + lista.map(m => '<div class="msg ' + (m.rol === 'yo' ? 'yo' : 'coach') + (m.err ? ' err' : '') + '">' +
+    (m.rol === 'yo' ? esc(m.texto).replace(/\n/g, '<br>') : formatoChat(m.texto)) +
+    (m.err ? '<br><button class="link" onclick="reintentarChat()">Reintentar</button>' : '') + '</div>').join('') +
+    (CHAT_CARGANDO ? '<div class="msg coach pensando" aria-label="Pensando"><span></span><span></span><span></span></div>' : '') + '</div>';
+  h += '<div class="chatin"><textarea id="chatTxt" rows="1" maxlength="1500" placeholder="Escribe tu pregunta…"></textarea>' +
+    '<button class="btn"' + (CHAT_CARGANDO ? ' disabled' : '') + ' onclick="preguntar()">Enviar</button></div>' +
+    '<p class="muted" style="font-size:12px;margin-top:8px">Respuestas de IA (Gemini): pueden equivocarse. Si tienes dolor o una lesión, consulta a un médico.</p>';
+  $('vCoach').innerHTML = h;
+  if (lista.length || CHAT_CARGANDO) setTimeout(() => window.scrollTo({ top: document.body.scrollHeight }), 30);
+}
+function nuevaCharla() { if (CHAT_CARGANDO) return; LS.set('gym_chat', []); pintarCoach(); }
+function preguntar(q) {
+  if (CHAT_CARGANDO) return;
+  const txt = (q || ($('chatTxt') || {}).value || '').trim();
+  if (!txt) return;
+  if (!navigator.onLine) return toast('Necesitas señal para hablar con el coach');
+  const lista = chatLista().filter(m => !m.err);
+  lista.push({ rol: 'yo', texto: txt, ts: Date.now() });
+  LS.set('gym_chat', lista.slice(-40));
+  pedirRespuesta();
+}
+function reintentarChat() { LS.set('gym_chat', chatLista().filter(m => !m.err)); pedirRespuesta(); }
+async function pedirRespuesta() {
+  CHAT_CARGANDO = true; pintarCoach();
+  const hist = chatLista().slice(-10).map(m => ({ rol: m.rol, texto: m.texto }));
+  let msg;
+  try {
+    const r = await conLimite(apiPost('chat', [hist, contextoIA()]), 90000);
+    msg = { rol: 'coach', texto: r.texto, ts: Date.now() };
+  } catch (e) {
+    msg = { rol: 'coach', err: true, texto: 'No pude responder: ' + (e.message === 'tiempo' ? 'tardé demasiado.' : e.message), ts: Date.now() };
+  }
+  const lista = chatLista(); lista.push(msg); LS.set('gym_chat', lista.slice(-40));
+  CHAT_CARGANDO = false;
+  if (TAB === 'Coach') pintarCoach(); else if (!msg.err) toast('El coach te respondió', '', { txt: 'Ver', fn: () => verTab('Coach') });
+}
+// Lo que el coach ve de la app en cada pregunta (compacto: solo lo que ayuda a decidir)
+function contextoIA() {
+  const R = DATA.resumen || {}, Cu = DATA.cuerpo || {}, T = DATA.trotes || {};
+  const protHoyLista = cargarProt(hoy());
+  return {
+    fecha: DATA.today, dias_de_gym: DATA.dias, grupo_de_hoy: grupoDeHoy(), bloque: DATA.bloquePara, semana_de_carrera: !!DATA.descargaCarrera,
+    peso: { hoy: pesoDe(hoy()), promedio_7_dias: R.promedio7, cambio_vs_semana_pasada: R.cambioSemana,
+            ultimos_30_dias: (R.serie30 || []).map(x => x.d + ' ' + x.v).join(', ') },
+    cintura: { base: Cu.base, actual: Cu.actual, meta: Cu.meta, por_semana: (Cu.serie || []).map(x => x.d + ': ' + (x.cint || '—') + ' cm, ' + (x.peso || '—') + ' kg').join(' | ') },
+    proteina: { meta: metaProt(), hoy_g: protTotal(protHoyLista), comido_hoy: protHoyLista.map(tDe), promedio_7_dias: R.protProm7 },
+    gym: { dias_ultimos_7: R.gymDias7, dias_esta_semana: R.diasSemana, racha_semanas: R.racha,
+           series_por_musculo_7_dias: (R.musculos || []).map(m => m.m + ' ' + m.series7).join(', '),
+           records_recientes: (R.records || []).slice(0, 5) },
+    sesion_de_hoy: sesion().log.map(l => l.ej + ': ' + resumenSets(l.sets) + ' ' + l.unit),
+    ejercicios: DATA.exercises.filter(e => e.anterior && e.anterior.length).map(e => e.group + ' · ' + e.ejercicio + ' (' + e.min + '–' + e.max + ' reps) · ' +
+      'última vez ' + e.lastWhen + ' → ' + resumenSets(e.anterior) + ' ' + e.unit + (e.hint ? ' · siguiente: ' + e.hint : '')),
+    trote: { km_7_dias: T.km7, ultimos: (T.ultimos || []).map(t => t.d + ' ' + t.km + ' km en ' + t.min + ' min' + (t.tipo ? ' (' + t.tipo + ')' : '')),
+             carrera: DATA.carrera, plan_semana: DATA.plan ? (DATA.plan.sesiones || []).map(x => x.tipo + ' ' + x.txt + (x.hecho ? ' ✓' : '')) : null },
+    puntos_semana: DATA.logros ? DATA.logros.semana : null
+  };
+}
 function quitarProt(i) { prot.splice(i, 1); cambiarProt(); }
 
 /* ===================== PROGRESO ===================== */
