@@ -47,10 +47,16 @@ jobs:
             --splashBackgroundColor '#0E0C14' --splashBackgroundColorDark '#0E0C14' \
             || echo "No se pudo generar el ícono; se queda el de Capacitor"
 
+      - name: Permiso para el dictado por voz (Android 11+ necesita ver el servicio de reconocimiento)
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q 'android.speech.RecognitionService' "$M" || sed -i 's#<application#<queries><intent><action android:name="android.speech.RecognitionService" /></intent></queries>\n    <application#' "$M"
+          grep -n "queries" "$M"
+
       - name: Número de versión (sube solo en cada compilación)
         run: |
           sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/" android/app/build.gradle
-          sed -i -E "s/versionName \"[^\"]*\"/versionName \"5.7.${{ github.run_number }}\"/" android/app/build.gradle
+          sed -i -E "s/versionName \"[^\"]*\"/versionName \"5.9.${{ github.run_number }}\"/" android/app/build.gradle
 
       - name: Sincronizar
         run: npx cap sync android
