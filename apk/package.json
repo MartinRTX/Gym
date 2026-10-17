@@ -1,0 +1,15 @@
+{
+  "name": "gym-apk",
+  "private": true,
+  "version": "5.7.0",
+  "description": "Cascarón nativo (Capacitor) de la app Gym: carga https://martinrtx.github.io/Gym/ y agrega vibración y alarmas nativas",
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/local-notifications": "8.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

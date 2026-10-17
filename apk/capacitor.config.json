@@ -1,0 +1,12 @@
+{
+  "appId": "com.martinrtx.gym",
+  "appName": "Gym",
+  "webDir": "www",
+  "server": {
+    "url": "https://martinrtx.github.io/Gym/",
+    "errorPath": "error.html"
+  },
+  "android": {
+    "backgroundColor": "#0E0C14"
+  }
+}
