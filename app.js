@@ -232,7 +232,42 @@ const CSS_V53 = `
   .cquien { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--card2); padding: 4px; border-radius: 12px; margin: 8px 0 10px; }
   .cquien button { border: 0; background: transparent; border-radius: 9px; padding: 9px 4px; font-weight: 700; font-size: 13.5px; color: var(--muted); }
   .cquien button.on { background: var(--pri); color: var(--on-pri); }
-  @media (prefers-reduced-motion: reduce) { .entra, .set.recien .chk, .brillo { animation: none !important; } .set { transition: none; } }
+  /* v5.9: trote, check-in, mapa muscular y dictado */
+  .polar { height: 14px; border-radius: 99px; background: var(--card2); overflow: hidden; display: flex; position: relative; margin: 10px 0 6px; }
+  .polar .f { background: var(--ok); } .polar .i { background: var(--acc); }
+  .polar .meta { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text); opacity: .7; left: 80%; }
+  .leyenda { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); }
+  .leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .cap { display: flex; gap: 10px; align-items: center; justify-content: center; width: 100%; border: 1.5px dashed var(--pri); background: var(--pri-weak); color: var(--text);
+    border-radius: 14px; padding: 12px; font-weight: 700; margin-bottom: 12px; }
+  .datos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+  .datos div { background: var(--card2); border-radius: 12px; padding: 8px; text-align: center; }
+  .datos b { display: block; font-size: 18px; } .datos span { font-size: 11.5px; color: var(--muted); }
+  .zonas { display: flex; height: 10px; border-radius: 99px; overflow: hidden; margin: 6px 0 2px; }
+  .zonas div:nth-child(1) { background: #60A5FA; } .zonas div:nth-child(2) { background: #34D399; } .zonas div:nth-child(3) { background: #FBBF24; }
+  .zonas div:nth-child(4) { background: #FB923C; } .zonas div:nth-child(5) { background: #EF4444; }
+  .ready .fila { margin-top: 10px; } .ready .fila .muted { font-size: 13px; margin-bottom: 4px; }
+  .ready .pills { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0; }
+  .ready .pills button { padding: 10px 4px; }
+  .cuerpo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 6px 0 2px; }
+  .cuerpo svg { width: 100%; max-height: 300px; }
+  .cuerpo .base { fill: var(--card2); stroke: var(--line); stroke-width: 1; }
+  .cuerpo [data-m] { stroke: var(--card); stroke-width: 1.2; cursor: pointer; transition: opacity .2s; }
+  .cuerpo [data-m]:active { opacity: .7; }
+  .mz0 { fill: var(--card2); stroke: var(--muted) !important; stroke-dasharray: 3 2; } .mz1 { fill: var(--acc); fill-opacity: .85; } .mz2 { fill: var(--ok); } .mz3 { fill: var(--bad); }
+  .cuerpo .sel { stroke: var(--text) !important; stroke-width: 2.2 !important; stroke-dasharray: none; }
+  .cuerpo text { fill: var(--muted); font-size: 9px; text-anchor: middle; font-weight: 700; letter-spacing: .06em; }
+  .msel { background: var(--card2); border-radius: 12px; padding: 10px 12px; margin-top: 8px; font-size: 14px; }
+  .mchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .mchips button { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 99px; padding: 5px 10px; font-size: 12.5px; }
+  .mchips button i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .mic { flex: none; width: 52px; height: 52px; border-radius: 50%; border: 0; background: var(--pri-weak); color: var(--pri); display: grid; place-items: center; }
+  .mic svg { width: 24px; height: 24px; }
+  .mic.oye { background: var(--bad); color: #fff; animation: oye 1.1s ease-in-out infinite; }
+  @keyframes oye { 0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, .45); } 50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } }
+  .fila-ia { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .fila-ia .btn { flex: 1; }
+  @media (prefers-reduced-motion: reduce) { .entra, .set.recien .chk, .brillo, .mic.oye { animation: none !important; } .set { transition: none; } }
 `;
 
 /* ===================== Configuración y datos ===================== */
@@ -400,7 +435,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v5.8';
+const VERSION_APP = 'v5.9';
 // Tu link de configuración (lleva tu clave): para configurar el APK sin escribir nada
 function copiarLinkConfig() {
   const link = location.origin + location.pathname + '?api=' + encodeURIComponent(API) + '&key=' + encodeURIComponent(KEY);
@@ -895,7 +930,7 @@ async function resumenCoach(s) {
   abrirModal();
   const memAntes = (DATA.memoria || []).length;
   const ses = { fecha: DATA.today, grupo: GRUPO, duracion_min: Math.max(1, Math.round((Date.now() - (s.start || Date.now())) / 60000)),
-    con: parOn() ? PAR.nombre : null, foco_del_plan: planHoy() ? planHoy().foco : null,
+    con: parOn() ? PAR.nombre : null, foco_del_plan: planHoy() ? planHoy().foco : null, recuperacion: recuperacion(),
     ejercicios: s.log.map(l => { const ex = exDe(l.name) || {}; return {
       ejercicio: l.ej, modalidad: ex.modalidad || '', unidad: l.unit, rango: ex.min ? ex.min + '–' + ex.max : '',
       hoy: l.sets.map(x => ({ peso: x.w, reps: x.r, tipo: x.t, rir: x.rpe ? RIR_DE_RPE[x.rpe] : null })),
@@ -926,14 +961,14 @@ const clavePlan = () => 'gym_plan_' + hoy() + '_' + GRUPO;
 function planHoy() { return GRUPOS3.includes(GRUPO) ? LS.get(clavePlan(), null) : null; }
 function planAplica() { return !!(DATA && DATA.ia && !FECHA && GRUPOS3.includes(GRUPO) && ajuste('iaPlan', true)); }
 async function pedirPlan() {
-  if (!planAplica() || PLAN_CARGANDO || planHoy() || PLAN_FALLO[clavePlan()] || !navigator.onLine) return;
+  if (!planAplica() || PLAN_CARGANDO || planHoy() || PLAN_FALLO[clavePlan()] || !navigator.onLine || pideReady()) return;
   const exs = (ordenGrupo(GRUPO).find(x => x.length) || []).filter(e => !state[e.name] || !state[e.name].done);
   if (!exs.length) return;
   const g = GRUPO, k = clavePlan();
   PLAN_CARGANDO = true;
   if (TAB === 'Entrenar') pintarEntrenar();
   try {
-    const r = await conLimite(apiPost('plan', [{ grupo: g, descarga: !!DATA.descargaCarrera, ejercicios: exs.map(e => ({
+    const r = await conLimite(apiPost('plan', [{ grupo: g, descarga: !!DATA.descargaCarrera, recuperacion: recuperacion(), ejercicios: exs.map(e => ({
       nombre: e.ejercicio, modalidad: e.modalidad || '', rango: e.min + '–' + e.max,
       ultima: e.anterior.length ? e.lastWhen + ': ' + resumenSets(e.anterior) + ' ' + e.unit : 'primera vez',
       rir_ultima: e.rirUlt === undefined ? null : e.rirUlt, regla: e.hint || '', sube: !!e.up })) }]), 45000);
@@ -946,8 +981,36 @@ async function pedirPlan() {
   PLAN_CARGANDO = false;
   if (TAB === 'Entrenar' && GRUPO === g) pintarEntrenar();
 }
+/* ----- Check-in: cómo vienes hoy (antes del plan del día) ----- */
+const READY = { sueno: ['Mal', 'Normal', 'Excelente'], energia: ['Baja', 'Media', 'A tope'], dolor: ['Adolorido', 'Normal', 'Fresco'] };
+const READY_TIT = { sueno: '😴 Sueño', energia: '⚡ Energía', dolor: '💪 Músculos' };
+let READY_TMP = {};
+function readyHoy() { return LS.get('gym_ready_' + hoy(), null); }
+function pideReady() {
+  return planAplica() && !planHoy() && !readyHoy() && !sesion().log.length && !Object.keys(state).some(k => !esPar(k) && state[k].sets.some(x => x.ok));
+}
+function tarjetaReady() {
+  return '<div class="card ready entra"><div class="row between"><div class="t1">¿Cómo vienes hoy?</div><button class="link" onclick="guardarReady(true)">Saltar</button></div>' +
+    '<div class="muted" style="font-size:13px">3 toques: tu coach ajusta el plan y el esfuerzo de hoy</div>' +
+    Object.keys(READY).map(k => '<div class="fila"><div class="muted">' + READY_TIT[k] + '</div><div class="pills">' +
+      READY[k].map(v => '<button class="' + (READY_TMP[k] === v ? 'on' : '') + '" onclick="elegirReady(\'' + k + '\',\'' + v + '\')">' + v + '</button>').join('') + '</div></div>').join('') + '</div>';
+}
+function elegirReady(k, v) {
+  READY_TMP[k] = v; hap('tecla');
+  if (Object.keys(READY).every(x => READY_TMP[x])) guardarReady(false); else pintarEntrenar();
+}
+function guardarReady(saltar) {
+  LS.set('gym_ready_' + hoy(), saltar ? { saltado: true } : Object.assign({}, READY_TMP));
+  READY_TMP = {};
+  const bajos = saltar ? 0 : ['Mal', 'Baja', 'Adolorido'].filter(v => Object.values(readyHoy()).includes(v)).length;
+  if (!saltar) toast(bajos >= 2 ? 'Día conservador: tu coach baja la exigencia' : bajos ? 'Anotado: hoy sin subir de peso' : '¡A tope! Tu coach busca subir donde toca');
+  pintarEntrenar();
+}
+function recuperacion() { const r = readyHoy(); return r && !r.saltado ? r : null; }
+
 function tarjetaFoco() {
   if (!planAplica()) return '';
+  if (pideReady()) return tarjetaReady();
   const p = planHoy();
   if (p && p.foco) return '<div class="foco' + (ANIM_PLAN ? ' entra' : '') + '"><span class="i">✨</span><div><b>Foco de hoy:</b> ' + esc(p.foco) + '</div></div>';
   if (PLAN_CARGANDO) return '<div class="foco"><span class="i">✨</span><div style="flex:1"><div class="muted" style="font-size:13px">Tu coach está preparando el plan de hoy…</div>' +
@@ -1399,6 +1462,7 @@ function payloadIA(name, i) {
       : null,
     regla_app: ex.hint || '',
     descarga: !!DATA.descargaCarrera,
+    recuperacion: esPar(name) ? null : recuperacion(),
     ejercicio_terminado: st.sets.every(x => x.ok)
   };
 }
@@ -1734,7 +1798,123 @@ function proximoGrupo() {
   const ult = sesion().log.map(l => l.name.split(':')[0]).filter(g => GRUPOS3.includes(g)).pop() || DATA.ultimoGrupo;
   return GRUPOS3[(GRUPOS3.indexOf(ult) + 1) % 3];
 }
-let TROTE = { km: '', min: '', tipo: null };
+let TROTE = { km: '', min: '', fc: '', cad: '', tipo: null, ia: null, leyendo: false };
+/* Calibración con tu prueba de 5K del 16/10 (Samsung Health): 29:44 a 5:55/km, FC prom. 182, cadencia 173.
+   Tus zonas (FC máx. ~197): Z1 98–118 · Z2 119–137 · Z3 138–157 · Z4 158–177 · Z5 178–197.
+   "Fácil" = FC promedio ≤ 150 (≈76 % de tu máxima, mitad baja de Z3). Sin pulso: ritmo de 6:50/km o más lento
+   (tu ritmo de 5K + 55 s). Calidad y Carrera cuentan como intensas aunque el promedio salga lento (incluyen caminatas). */
+const FC_FACIL = 150, RITMO_FACIL_S = 410;
+function intensidad(t) {
+  if (t.fc) return t.fc <= FC_FACIL ? 'facil' : 'intenso';
+  if (t.tipo === 'Calidad' || t.tipo === 'Carrera') return 'intenso';
+  if (t.min && t.km) return t.min * 60 / t.km >= RITMO_FACIL_S ? 'facil' : 'intenso';
+  return t.tipo === 'Fácil' || t.tipo === 'Larga' ? 'facil' : null;
+}
+// Polarización de los últimos 7 días: km fáciles contra km intensos (incluye lo que aún no se sube)
+function polarizacion() {
+  const pend = trotesPendientes().filter(t => difDias(claveDia(new Date(t.ts)), hoy()) < 7)
+    .map(t => ({ d: ddmm(claveDia(new Date(t.ts))), km: Number(t.km), min: t.min, fc: t.fc || null, tipo: t.tipo }));
+  const lista = (DATA.trotes.ult7 || []).concat(pend);
+  let facil = 0, intenso = 0;
+  const lentos = [];
+  lista.forEach(t => {
+    const i = intensidad(t);
+    if (i === 'facil') facil += t.km; else if (i === 'intenso') intenso += t.km;
+    if ((t.tipo === 'Fácil' || t.tipo === 'Larga') && i === 'intenso') lentos.push(t);
+  });
+  const total = facil + intenso;
+  return { facil: facil, intenso: intenso, total: total, pct: total ? Math.round(facil / total * 100) : null, lentos: lentos, n: lista.length };
+}
+function tarjetaPolar() {
+  const p = polarizacion();
+  if (!p.total) return '';
+  let msg, cls = 'tip';
+  if (p.lentos.length) {
+    const t = p.lentos[p.lentos.length - 1];
+    msg = 'Estás corriendo demasiado rápido tus días fáciles: el ' + t.d + ' fuiste ' + (t.fc ? 'a ' + t.fc + ' ppm' : 'a ' + mmss(t.min * 60 / t.km) + '/km') +
+      '. Fácil = menos de ' + FC_FACIL + ' ppm (unos ' + ((DATA.plan && DATA.plan.ritmos && DATA.plan.ritmos.facil) || '7:15–8:00') + '/km con este calor). Recuerda el entrenamiento polarizado.';
+    cls = 'tip acc';
+  } else if (p.pct < 75) {
+    msg = 'Semana intensa: solo ' + p.pct + ' % de tus km fueron fáciles. Está bien si hubo prueba o calidad; los próximos trotes, fáciles (menos de ' + FC_FACIL + ' ppm).';
+    cls = 'tip acc';
+  } else msg = 'Bien polarizado: ' + p.pct + ' % fácil. Así se construye la base sin acumular fatiga.';
+  return '<div class="card"><div class="row between"><div class="t1">Fácil vs. intenso · 7 días</div><span class="num muted">' + (Math.round(p.total * 10) / 10) + ' km</span></div>' +
+    '<div class="polar"><div class="f" style="width:' + (p.facil / p.total * 100) + '%"></div><div class="i" style="width:' + (p.intenso / p.total * 100) + '%"></div><div class="meta"></div></div>' +
+    '<div class="leyenda"><span><i style="background:var(--ok)"></i>Fácil ' + p.pct + ' %</span><span><i style="background:var(--acc)"></i>Intenso ' + (100 - p.pct) + ' %</span><span>| meta: 80 / 20</span></div>' +
+    '<div class="' + cls + '" style="margin:10px 0 0">' + esc(msg) + '</div></div>';
+}
+// Hidratación al guardar: temperatura actual de Hermosillo (Open-Meteo, gratis y sin clave) + duración + intensidad
+async function climaHermosillo() {
+  try {
+    const r = await conLimite(fetch('https://api.open-meteo.com/v1/forecast?latitude=29.07&longitude=-110.96&current=temperature_2m,relative_humidity_2m,apparent_temperature&timezone=America%2FHermosillo'), 4000);
+    const j = await r.json();
+    return { temp: Math.round(j.current.apparent_temperature ?? j.current.temperature_2m), hum: j.current.relative_humidity_2m };
+  } catch (e) {
+    const mes = new Date().getMonth();   // sin señal: promedio de Hermosillo por mes
+    return { temp: [19, 21, 24, 28, 32, 36, 36, 35, 34, 30, 24, 19][mes], hum: null, aprox: true };
+  }
+}
+function consejoHidratacion(t, clima) {
+  const min = Number(t.min) || Number(t.km) * 7;
+  const tasa = clima.temp >= 33 ? 1.4 : clima.temp >= 27 ? 1.1 : clima.temp >= 20 ? 0.8 : 0.6;   // litros de sudor por hora
+  const perdida = Math.round(tasa * (intensidad(t) === 'intenso' ? 1.15 : 1) * min / 60 * 1000 / 50) * 50;
+  const tomar = Math.round(perdida * 1.25 / 50) * 50, tomarMax = Math.round(perdida * 1.5 / 50) * 50;
+  const electro = min >= 60 || clima.temp >= 30 || perdida >= 900;
+  return 'Trote guardado. Perdiste ~' + perdida + ' ml de sudor (' + clima.temp + ' °C' + (clima.aprox ? ', promedio del mes' : ' en Hermosillo') + '). ' +
+    'Toma ' + tomar + '–' + tomarMax + ' ml en la próxima hora' +
+    (electro ? ' y repón electrolitos (suero oral o una pizca de sal con limón): el clima de Hermosillo te drena más rápido.' : '; con esta duración basta con agua.');
+}
+// Captura de Samsung Health → la IA llena km, minutos, pulso y cadencia
+function elegirCapturas() {
+  let inp = $('capInput');
+  if (!inp) {
+    inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true; inp.id = 'capInput'; inp.style.display = 'none';
+    inp.onchange = () => { leerCapturas(Array.from(inp.files || [])); inp.value = ''; };
+    document.body.appendChild(inp);
+  }
+  inp.click();
+}
+// Achica la imagen (lado mayor 1600 px, JPEG 0.75): se lee bien y pesa ~200 KB
+function comprimir(file) {
+  return new Promise((ok, no) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url);
+      ok({ mime: 'image/jpeg', data: cv.toDataURL('image/jpeg', 0.75).split(',')[1] });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); no(new Error('No pude abrir la imagen')); };
+    img.src = url;
+  });
+}
+async function leerCapturas(files) {
+  if (!files.length) return;
+  if (!navigator.onLine) return toast('Necesitas señal para leer la captura');
+  TROTE.leyendo = true; TROTE.ia = null; pintarEntrenar();
+  try {
+    const imgs = await Promise.all(files.slice(0, 4).map(comprimir));
+    const r = await conLimite(apiPost('troteIA', [imgs, { tipo_elegido: TROTE.tipo }]), 60000);
+    ['km', 'min', 'fc', 'cad'].forEach(k => { if (r[k] !== null && r[k] !== undefined) TROTE[k] = r[k]; });
+    if (r.tipo && r.tipo !== 'Libre') TROTE.tipo = r.tipo;
+    TROTE.ia = r; hap('ok');
+  } catch (e) { toast('No pude leer la captura: ' + (e.message === 'tiempo' ? 'tardó demasiado' : e.message).slice(0, 80)); }
+  TROTE.leyendo = false; pintarEntrenar();
+}
+function tarjetaLectura() {
+  if (TROTE.leyendo) return '<div class="foco"><span class="i">✨</span><div style="flex:1"><div class="muted" style="font-size:13px">Leyendo tu captura…</div><div class="brillo linea-esq" style="width:85%"></div><div class="brillo linea-esq" style="width:55%"></div></div></div>';
+  const r = TROTE.ia;
+  if (!r) return '';
+  const z = r.zonas || {}, zs = ['z1', 'z2', 'z3', 'z4', 'z5'].map(k => Number(z[k]) || 0), zt = zs.reduce((a, b) => a + b, 0);
+  return '<div class="foco entra" style="display:block"><b>✨ Leído de tu captura</b>' +
+    '<div class="datos">' + [[r.km, 'km'], [r.min ? mmss(r.min * 60) : null, 'tiempo'], [r.fc, 'ppm prom.'], [r.cad, 'cadencia'], [r.desnivel !== null && r.desnivel !== undefined ? r.desnivel + ' m' : null, 'desnivel'], [r.temp !== null && r.temp !== undefined ? r.temp + ' °C' : null, 'clima']]
+      .filter(x => x[0] !== null && x[0] !== undefined).map(x => '<div><b class="num">' + esc(String(x[0])) + '</b><span>' + x[1] + '</span></div>').join('') + '</div>' +
+    (zt ? '<div class="muted" style="font-size:12px">Tiempo por zona (Z1 → Z5)</div><div class="zonas">' + zs.map(v => '<div style="width:' + (v / zt * 100) + '%"></div>').join('') + '</div>' : '') +
+    (r.vueltas && r.vueltas.length ? '<div class="muted" style="font-size:12.5px;margin-top:6px">Vueltas: ' + r.vueltas.map(v => esc(v.ritmo)).join(' → ') + '/km</div>' : '') +
+    (r.analisis ? '<div style="margin-top:8px;font-size:14px">' + esc(r.analisis) + '</div>' : '') +
+    '<div class="muted" style="font-size:12px;margin-top:6px">Ya llené el registro de abajo: revisa y toca Guardar.</div></div>';
+}
 function trotesPendientes() { return cola().filter(op => op.action === 'saveTrote').map(op => op.args[0]); }
 // Sesiones del plan de esta semana, marcando también lo que hiciste y aún no se sube
 function sesionesPlan() {
@@ -1751,7 +1931,7 @@ function sesionesPlan() {
 }
 function vistaTrote() {
   const pend = trotesPendientes();
-  const lista = pend.map(t => ({ d: ddmm(claveDia(new Date(t.ts))), km: t.km, min: t.min, uid: t.uid, tipo: t.tipo, pend: true })).concat(DATA.trotes.ultimos);
+  const lista = pend.map(t => ({ d: ddmm(claveDia(new Date(t.ts))), km: t.km, min: t.min, fc: t.fc, uid: t.uid, tipo: t.tipo, pend: true })).concat(DATA.trotes.ultimos);
   const km7 = DATA.trotes.km7 + pend.filter(t => difDias(claveDia(new Date(t.ts)), hoy()) < 7).reduce((a, t) => a + Number(t.km), 0);
   const p = DATA.plan, ses = sesionesPlan();
   if (TROTE.tipo === null) { const sig = ses && ses.find(s => !s.hecho); TROTE.tipo = sig ? sig.tipo : 'Libre'; }
@@ -1770,15 +1950,22 @@ function vistaTrote() {
     h += '</div>';
   }
   const ritmo = TROTE.km && TROTE.min ? mmss(TROTE.min * 60 / TROTE.km) + ' min/km' : '—';
-  h += '<h2>Registrar trote' + (FECHA ? ' · ' + diaCorto(FECHA) : '') + '</h2><div class="card"><div class="row" style="gap:10px">' +
+  const hid = LS.get('gym_hidrata_' + hoy(), null);
+  if (hid && !FECHA) h += '<div class="tip" style="margin:0 0 12px">💧 ' + esc(hid) + '</div>';
+  h += '<h2>Registrar trote' + (FECHA ? ' · ' + diaCorto(FECHA) : '') + '</h2>' +
+    (DATA.ia ? '<button class="cap" onclick="elegirCapturas()"' + (TROTE.leyendo ? ' disabled' : '') + '>📷 Leer captura de Samsung Health</button>' : '') + tarjetaLectura() +
+    '<div class="card"><div class="row" style="gap:10px">' +
     '<div style="flex:1"><div class="muted">Kilómetros</div><button class="val num' + (TROTE.km === '' ? ' vacio' : '') + '" style="margin-top:4px" onclick="tecladoTrote(\'km\')">' + (TROTE.km === '' ? 'km' : TROTE.km) + '</button></div>' +
-    '<div style="flex:1"><div class="muted">Minutos</div><button class="val num' + (TROTE.min === '' ? ' vacio' : '') + '" style="margin-top:4px" onclick="tecladoTrote(\'min\')">' + (TROTE.min === '' ? 'min' : TROTE.min) + '</button></div></div>' +
-    '<div class="muted" style="margin:10px 0 4px">Ritmo: <b class="num" style="color:var(--text)">' + ritmo + '</b></div>' +
+    '<div style="flex:1"><div class="muted">Minutos</div><button class="val num' + (TROTE.min === '' ? ' vacio' : '') + '" style="margin-top:4px" onclick="tecladoTrote(\'min\')">' + (TROTE.min === '' ? 'min' : Number(TROTE.min) % 1 ? mmss(TROTE.min * 60) : TROTE.min) + '</button></div>' +
+    '<div style="flex:1"><div class="muted">FC prom.</div><button class="val num' + (TROTE.fc === '' ? ' vacio' : '') + '" style="margin-top:4px" onclick="tecladoTrote(\'fc\')">' + (TROTE.fc === '' ? 'ppm' : TROTE.fc) + '</button></div></div>' +
+    '<div class="muted" style="margin:10px 0 4px">Ritmo: <b class="num" style="color:var(--text)">' + ritmo + '</b>' +
+    (TROTE.fc !== '' ? ' · ' + (Number(TROTE.fc) <= FC_FACIL ? '<b style="color:var(--ok)">zona fácil</b>' : '<b style="color:var(--acc)">intenso</b>') : '') + '</div>' +
     '<div class="pills">' + TIPOS_TROTE.map(t => '<button class="' + (TROTE.tipo === t ? 'on' : '') + '" onclick="TROTE.tipo=\'' + t + '\';pintarEntrenar()">' + t + '</button>').join('') + '</div>' +
     ((TROTE.tipo === 'Larga' || TROTE.tipo === 'Calidad') && proximoGrupo() === 'Legs' && !FECHA
       ? '<div class="tip acc" style="margin:4px 0 8px">⚠️ Tu siguiente día de gym es Legs. Si es mañana, hoy mejor una salida fácil: la larga o la de calidad te dejan las piernas cansadas para Legs.</div>' : '') +
     '<input class="buscar" id="troteNotas" placeholder="Notas (opcional)" style="margin:4px 0 10px">' +
     '<button class="btn block" onclick="guardarTrote()">Guardar trote</button></div>';
+  h += tarjetaPolar();
   // Récords de trote (incluye lo que no se ha subido)
   let mejor = DATA.trotes.mejorRitmo ? Object.assign({}, DATA.trotes.mejorRitmo) : null, larga = DATA.trotes.masLarga ? Object.assign({}, DATA.trotes.masLarga) : null;
   pend.forEach(t => {
@@ -1791,14 +1978,15 @@ function vistaTrote() {
   if (DATA.trotes.semanas && DATA.trotes.semanas.some(s => s.km)) h += '<div class="card chart"><div class="row between"><div class="t1">Km por semana</div><span class="muted">Últimos 7 días: <b class="num" style="color:var(--text)">' + Math.round(km7 * 10) / 10 + '</b></span></div>' + barras(DATA.trotes.semanas) + '</div>';
   if (lista.length) h += '<h2>Últimas salidas</h2><div class="card">' + lista.slice(0, 6).map(t =>
     '<div class="rec"><div class="medal" style="background:var(--pri-weak);color:var(--pri)">' + ICO.pausa + '</div><div style="flex:1"><div class="t1 num" style="font-size:15px">' + t.km + ' km' +
-    (t.min ? ' · ' + t.min + ' min · ' + mmss(t.min * 60 / t.km) + '/km' : '') + '</div><div class="muted">' + t.d + (t.tipo ? ' · ' + esc(t.tipo) : '') + (t.pend ? ' · sin subir' : '') + '</div></div>' +
+    (t.min ? ' · ' + mmss(t.min * 60) + ' · ' + mmss(t.min * 60 / t.km) + '/km' : '') + '</div><div class="muted">' + t.d + (t.tipo ? ' · ' + esc(t.tipo) : '') +
+    (t.fc ? ' · ' + t.fc + ' ppm' + (intensidad(t) === 'facil' ? ' (fácil)' : ' (intenso)') : '') + (t.pend ? ' · sin subir' : '') + '</div></div>' +
     (t.uid ? '<button class="btn ghost sm" onclick="borrarTrote(\'' + jsq(t.uid) + '\')">Borrar</button>' : '') + '</div>').join('') + '</div>';
   return h;
 }
 function tecladoTrote(f) {
   KP = { trote: f, val: TROTE[f] === '' ? '' : String(TROTE[f]), nuevo: true, f: f === 'km' ? 'w' : 'r' };
-  const quick = f === 'km' ? [-1, -0.5, 0.5, 1] : [-5, -1, 1, 5];
-  $('kpSheet').innerHTML = '<div class="row between"><div class="t1">Trote · ' + (f === 'km' ? 'kilómetros' : 'minutos') + '</div><button class="btn ghost sm" onclick="cerrarTeclado()">✕</button></div>' +
+  const quick = f === 'km' ? [-1, -0.5, 0.5, 1] : f === 'fc' ? [-10, -1, 1, 10] : [-5, -1, 1, 5];
+  $('kpSheet').innerHTML = '<div class="row between"><div class="t1">Trote · ' + (f === 'km' ? 'kilómetros' : f === 'fc' ? 'pulso promedio (ppm)' : 'minutos') + '</div><button class="btn ghost sm" onclick="cerrarTeclado()">✕</button></div>' +
     '<div class="disp num" id="kpDisp"></div><div class="quick" style="grid-template-columns:repeat(4,1fr)">' +
     quick.map(v => '<button onclick="kpSumar(' + v + ')">' + (v > 0 ? '+' : '−') + Math.abs(v) + '</button>').join('') + '</div>' + teclas() +
     '<div class="acts"><button class="btn" onclick="kpTrote()">Listo</button></div>';
@@ -1807,11 +1995,15 @@ function tecladoTrote(f) {
 function kpTrote() { TROTE[KP.trote] = KP.val === '' ? '' : Number(KP.val); cerrarTeclado(); pintarEntrenar(); }
 function guardarTrote() {
   if (!TROTE.km) return toast('Pon los kilómetros');
-  const t = { km: Number(TROTE.km), min: TROTE.min ? Number(TROTE.min) : '', notas: ($('troteNotas') || {}).value || '',
+  const nota = ($('troteNotas') || {}).value || '';
+  const t = { km: Number(TROTE.km), min: TROTE.min ? Number(TROTE.min) : '', fc: TROTE.fc ? Number(TROTE.fc) : '', cad: TROTE.cad ? Number(TROTE.cad) : '',
+              notas: (nota + (TROTE.ia && TROTE.ia.analisis ? (nota ? ' · ' : '') + 'IA: ' + TROTE.ia.analisis : '')).slice(0, 480),
               tipo: TROTE.tipo === 'Libre' ? '' : TROTE.tipo, ts: tsReg(), uid: uid() };
   encolar('saveTrote', [t]);
-  TROTE = { km: '', min: '', tipo: null };
+  TROTE = { km: '', min: '', fc: '', cad: '', tipo: null, ia: null, leyendo: false };
   hap('ok'); toast('Trote guardado ✓'); pintarEntrenar();
+  // Consejo de hidratación con el clima real del momento (solo para salidas de hoy)
+  if (!FECHA) climaHermosillo().then(c => { const m = consejoHidratacion(t, c); LS.set('gym_hidrata_' + hoy(), m); toast('💧 ' + m.slice(0, 110) + '…'); if (TAB === 'Entrenar' && GRUPO === 'Trote') pintarEntrenar(); });
 }
 function borrarTrote(id) {
   const q = cola(), pend = q.find(op => op.action === 'saveTrote' && op.args[0].uid === id);
@@ -1915,7 +2107,7 @@ function tarjetaComidaIA() {
   const c = COMIDA_IA || {};
   let h = '<div class="card iacard"><div class="t1" style="margin-bottom:6px">✨ Dime qué comiste</div>' +
     '<textarea id="iaComida" maxlength="600" placeholder="Ej. 3 tacos de asada y una coca · o: la etiqueta dice 24 g por porción y me comí 2" oninput="(COMIDA_IA=COMIDA_IA||{}).texto=this.value">' + esc(c.texto || '') + '</textarea>' +
-    '<button class="btn block" style="margin-top:8px"' + (c.cargando ? ' disabled' : '') + ' onclick="calcularComida()">' + (c.cargando ? 'Calculando…' : 'Calcular proteína') + '</button>';
+    '<div class="fila-ia">' + botonMic('iaComida', 'calcularComida') + '<button class="btn"' + (c.cargando ? ' disabled' : '') + ' onclick="calcularComida()">' + (c.cargando ? 'Calculando…' : 'Calcular proteína') + '</button></div>';
   if (c.error) h += '<div class="muted" style="margin-top:8px;color:var(--acc)">' + esc(c.error) + '</div>';
   if (c.items && c.items.length) {
     const tot = c.items.filter(x => x.on).reduce((a, x) => a + x.g, 0);
@@ -1970,6 +2162,54 @@ function quitarFav(t) {
 // Promesa con tiempo máximo
 function conLimite(pr, ms) { return Promise.race([pr, new Promise((_, no) => setTimeout(() => no(new Error('tiempo')), ms))]); }
 
+/* ----- Dictado por voz: en el APK usa el reconocedor de Android; en Chrome, el del navegador ----- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const ICO_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>';
+let VOZ = null;   // { id, rec } mientras escucha
+function botonMic(idTexto, alTerminar) {
+  if (!NATIVO && !SR) return '';
+  return '<button class="mic' + (VOZ && VOZ.id === idTexto ? ' oye' : '') + '" id="mic-' + idTexto + '" onclick="dictar(\'' + idTexto + '\',\'' + alTerminar + '\')" aria-label="Dictar por voz">' + ICO_MIC + '</button>';
+}
+function marcarMic(id, on) { const b = $('mic-' + id); if (b) b.classList.toggle('oye', on); }
+async function dictar(id, alTerminar) {
+  const ta = $(id);
+  if (!ta) return;
+  if (VOZ) { const v = VOZ; VOZ = null; marcarMic(v.id, false); try { v.rec ? v.rec.stop() : nativo('SpeechRecognition', 'stop'); } catch (e) {} return; }
+  const base = ta.value.trim();
+  const terminar = texto => {
+    VOZ = null; marcarMic(id, false);
+    if (!texto) return toast('No te escuché; intenta otra vez');
+    const el = $(id); if (!el) return;
+    el.value = (base ? base + ' ' : '') + texto; el.dispatchEvent(new Event('input'));
+    hap('ok');
+    if (alTerminar && typeof window[alTerminar] === 'function') setTimeout(() => window[alTerminar](), 250);
+  };
+  if (NATIVO) {
+    VOZ = { id: id }; marcarMic(id, true); hap('tecla');
+    try {
+      await window.Capacitor.nativePromise('SpeechRecognition', 'requestPermissions', {});
+      const r = await window.Capacitor.nativePromise('SpeechRecognition', 'start', { language: 'es-MX', maxResults: 1, partialResults: false, popup: false });
+      if (VOZ && VOZ.id === id) terminar(r && r.matches && r.matches[0]);
+    } catch (e) {
+      VOZ = null; marcarMic(id, false);
+      toast(/not implemented|no implementado/i.test(String(e && e.message)) ? 'Actualiza el APK para dictar; mientras, usa el micrófono de tu teclado' : 'No pude escucharte: ' + String(e && e.message || e).slice(0, 60));
+    }
+    return;
+  }
+  const rec = new SR();
+  rec.lang = 'es-MX'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+  let final = '';
+  rec.onresult = ev => {
+    let parcial = '';
+    for (let i = ev.resultIndex; i < ev.results.length; i++) { const t = ev.results[i][0].transcript; if (ev.results[i].isFinal) final += t; else parcial += t; }
+    const el = $(id); if (el) el.value = (base ? base + ' ' : '') + (final + parcial).trim();   // se ve en vivo
+  };
+  rec.onerror = ev => { if (ev.error === 'not-allowed') toast('Da permiso de micrófono para dictar'); };
+  rec.onend = () => { if (VOZ && VOZ.id === id) terminar(final.trim()); };
+  VOZ = { id: id, rec: rec }; marcarMic(id, true); hap('tecla');
+  try { rec.start(); } catch (e) { VOZ = null; marcarMic(id, false); toast('No pude usar el micrófono'); }
+}
+
 /* ===================== COACH (chat con la IA y el contexto de la app) ===================== */
 let CHAT_CARGANDO = false, MEM_ABIERTA = false;
 async function borrarMemoria(i) {
@@ -2010,7 +2250,7 @@ function pintarCoach() {
     (m.aprendio && m.aprendio.length ? '<span class="aprendio">🧠 Lo anoté: ' + esc(m.aprendio.join(' · ')) + '</span>' : '') +
     (m.err ? '<br><button class="link" onclick="reintentarChat()">Reintentar</button>' : '') + '</div>').join('') +
     (CHAT_CARGANDO ? '<div class="msg coach pensando" aria-label="Pensando"><span></span><span></span><span></span></div>' : '') + '</div>';
-  h += '<div class="chatin"><textarea id="chatTxt" rows="1" maxlength="1500" placeholder="Escribe tu pregunta…"></textarea>' +
+  h += '<div class="chatin">' + botonMic('chatTxt', 'preguntar') + '<textarea id="chatTxt" rows="1" maxlength="1500" placeholder="Escribe o dicta tu pregunta…"></textarea>' +
     '<button class="btn"' + (CHAT_CARGANDO ? ' disabled' : '') + ' onclick="preguntar()">Enviar</button></div>' +
     '<p class="muted" style="font-size:12px;margin-top:8px">Respuestas de IA (Gemini): pueden equivocarse. Si tienes dolor o una lesión, consulta a un médico.</p>';
   $('vCoach').innerHTML = h;
@@ -2196,23 +2436,55 @@ function tarjetaFuerza() {
     '<div class="muted" style="margin-top:4px">Mejor: <b class="num" style="color:var(--text)">' + mejor.toFixed(1) + ' lb</b> · ' + pts.length + ' sesiones</div></div>';
   return h;
 }
+/* ----- Mapa muscular: color por series efectivas de 7 días (secundarios cuentan ½) ----- */
+// 0–4 gris (falta trabajo) · 5–9 ámbar (casi) · 10–20 verde (rango óptimo) · más de 20 rojo (alto: vigila la recuperación)
+const zonaM = n => n > 20 ? 3 : n >= 10 ? 2 : n >= 5 ? 1 : 0;
+const ZONA_TXT = ['Falta trabajo', 'Casi: te faltan pocas', 'Rango óptimo', 'Alto: vigila la recuperación'];
+let MUS_SEL = null;
+function svgCuerpo(series, espalda) {
+  // m = músculo; t = figura SVG; a = atributos de forma
+  const p = (m, t, a) => '<' + t + ' ' + a + ' class="mz' + zonaM(series[m] || 0) + (MUS_SEL === m ? ' sel' : '') + '" data-m="' + m + '" onclick="MUS_SEL=\'' + m + '\';pintarProgreso()"><title>' + m + '</title></' + t + '>';
+  const par = (m, t, a1, a2) => p(m, t, a1) + p(m, t, a2);
+  let h = '<svg viewBox="0 0 120 252" role="img" aria-label="' + (espalda ? 'Espalda' : 'Frente') + '">' +
+    '<circle class="base" cx="60" cy="18" r="11"/><rect class="base" x="55" y="28" width="10" height="8" rx="3"/>' +
+    '<ellipse class="base" cx="28" cy="93" rx="5" ry="13"/><ellipse class="base" cx="92" cy="93" rx="5" ry="13"/>' +
+    '<circle class="base" cx="26" cy="110" r="4.5"/><circle class="base" cx="94" cy="110" r="4.5"/>' +
+    '<rect class="base" x="44" y="92" width="32" height="14" rx="6"/>' +
+    '<circle class="base" cx="50" cy="157" r="5.5"/><circle class="base" cx="70" cy="157" r="5.5"/>' +
+    '<ellipse class="base" cx="49" cy="236" rx="7" ry="4"/><ellipse class="base" cx="71" cy="236" rx="7" ry="4"/>' +
+    par('Hombro', 'ellipse', 'cx="37" cy="45" rx="10" ry="8.5"', 'cx="83" cy="45" rx="10" ry="8.5"');
+  if (!espalda) {
+    h += par('Pecho', 'rect', 'x="44" y="38" width="15.5" height="21" rx="6"', 'x="60.5" y="38" width="15.5" height="21" rx="6"') +
+      par('Bíceps', 'ellipse', 'cx="30" cy="68" rx="6.5" ry="13"', 'cx="90" cy="68" rx="6.5" ry="13"') +
+      p('Core', 'rect', 'x="47" y="61" width="26" height="31" rx="7"') +
+      par('Cuádriceps', 'ellipse', 'cx="50" cy="130" rx="9.5" ry="24"', 'cx="70" cy="130" rx="9.5" ry="24"') +
+      '<ellipse class="base" cx="49.5" cy="196" rx="6" ry="30"/><ellipse class="base" cx="70.5" cy="196" rx="6" ry="30"/>';
+  } else {
+    h += p('Espalda', 'path', 'd="M46 36 L74 36 L81 56 L73 91 L47 91 L39 56 Z"') +
+      par('Tríceps', 'ellipse', 'cx="30" cy="68" rx="6.5" ry="13"', 'cx="90" cy="68" rx="6.5" ry="13"') +
+      par('Femoral y glúteo', 'ellipse', 'cx="51" cy="104" rx="10" ry="10"', 'cx="69" cy="104" rx="10" ry="10"') +
+      par('Femoral y glúteo', 'ellipse', 'cx="50" cy="134" rx="8.5" ry="19"', 'cx="70" cy="134" rx="8.5" ry="19"') +
+      par('Pantorrilla', 'ellipse', 'cx="49.5" cy="186" rx="7.5" ry="19"', 'cx="70.5" cy="186" rx="7.5" ry="19"') +
+      '<ellipse class="base" cx="49.5" cy="217" rx="4.5" ry="13"/><ellipse class="base" cx="70.5" cy="217" rx="4.5" ry="13"/>';
+  }
+  return h + '<text x="60" y="250">' + (espalda ? 'ESPALDA' : 'FRENTE') + '</text></svg>';
+}
 function tarjetaMusculos(ms) {
-  const con = ms.filter(x => x.series7 > 0 || x.pct !== null || x.ultimo).sort((a, b) => a.series7 - b.series7);
-  const sin = ms.filter(x => !con.includes(x));
-  let h = '<h2>Tus músculos</h2><div class="card"><div class="muted" style="margin-bottom:4px">Series efectivas de los últimos 7 días (sin calentamientos; los secundarios cuentan media serie). Rango útil: 10 a 20 por músculo.</div>';
-  con.forEach(x => {
-    const pct = x.pct === null ? '<span class="muted">—</span>'
-      : Math.abs(x.pct) < 0.5 ? '<span class="muted">fuerza igual</span>'
-      : '<b class="num ' + (x.pct > 0 ? 'up' : 'down') + '">' + (x.pct > 0 ? '+' : '') + x.pct.toFixed(1) + '% fuerza</b>';
-    h += '<div class="mus"><div class="row between"><div class="t1" style="font-size:15px">' + esc(x.m) + '</div>' + pct + '</div>' +
-      '<div class="mbar"><div class="' + (x.series7 >= 10 ? 'ok' : '') + '" style="width:' + Math.min(100, Math.round(x.series7 / 20 * 100)) + '%"></div><i></i></div>' +
-      '<div class="row between muted" style="margin-top:4px"><span class="num">' + x.series7 + ' series' + (x.series7 > 20 ? ' · arriba de 20: bien si te recuperas' : '') + '</span><span>' + (x.ultimo ? 'Última vez ' + x.ultimo : '') + '</span></div></div>';
-  });
-  if (!con.length) h += '<div class="muted" style="padding:8px 0">Aquí verás tu progreso cuando registres tus primeros entrenamientos.</div>';
-  if (sin.length) h += '<div class="muted" style="padding-top:10px;border-top:1px solid var(--line)">Sin registros aún: ' + sin.map(x => x.m).join(', ') + '</div>';
+  const series = {}; ms.forEach(x => { series[x.m] = x.series7 || 0; });
+  const col = ['var(--muted)', 'var(--acc)', 'var(--ok)', 'var(--bad)'];
+  const sel = MUS_SEL ? ms.find(x => x.m === MUS_SEL) : null;
+  let h = '<h2>Tus músculos</h2><div class="card"><div class="muted" style="margin-bottom:2px">Series efectivas de los últimos 7 días. Toca un músculo.</div>' +
+    '<div class="cuerpo">' + svgCuerpo(series, false) + svgCuerpo(series, true) + '</div>' +
+    '<div class="leyenda">' + ['0–4', '5–9', '10–20', '+20'].map((t, i) => '<span><i style="background:' + col[i] + (i === 0 ? ';opacity:.4' : '') + '"></i>' + t + '</span>').join('') + '</div>';
+  if (sel) {
+    const pct = sel.pct === null ? '' : Math.abs(sel.pct) < 0.5 ? ' · fuerza igual' : ' · ' + (sel.pct > 0 ? '+' : '') + sel.pct.toFixed(1) + '% fuerza';
+    h += '<div class="msel entra"><b>' + esc(sel.m) + '</b> · <span class="num">' + String(sel.series7).replace('.5', '½') + ' series</span>' + pct +
+      '<div class="muted" style="font-size:13px;margin-top:2px">' + ZONA_TXT[zonaM(sel.series7)] + (sel.ultimo ? ' · última vez ' + sel.ultimo : '') + '</div></div>';
+  }
+  h += '<div class="mchips">' + ms.slice().sort((a, b) => a.series7 - b.series7).map(x => '<button onclick="MUS_SEL=\'' + jsq(x.m) + '\';pintarProgreso()"><i style="background:' + col[zonaM(x.series7)] + '"></i>' +
+    esc(x.m) + ' <b class="num">' + String(x.series7).replace('.5', '½') + '</b></button>').join('') + '</div>';
   return h + '</div>';
 }
-
 /* ----- Fotos de progreso (una al mes, la imagen se guarda en tu Drive) ----- */
 let FOTOS = LS.get('gym_fotos', null), cargandoFotos = false;
 function fotosConPendientes() {
