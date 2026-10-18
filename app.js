@@ -36,7 +36,8 @@ const HAPTICOS = {
   serie: [['impact', { style: 'HEAVY' }], 35],
   pr:    [['notification', { type: 'SUCCESS' }], [40, 60, 40, 60, 120]],
   fin:   [['vibrate', { duration: 600 }], [300, 150, 300]],
-  error: [['notification', { type: 'ERROR' }], [60, 40, 60]]
+  error: [['notification', { type: 'ERROR' }], [60, 40, 60]],
+  atencion: [['notification', { type: 'WARNING' }], [80, 80, 80]],
 };
 function hap(tipo) {
   const h = HAPTICOS[tipo] || HAPTICOS.ok;
@@ -232,6 +233,9 @@ const CSS_V53 = `
   .msg .aprendio { display: block; margin-top: 6px; font-size: 12.5px; color: var(--muted); }
   .debrief .sec2 { margin: 12px 0 0; }
   .debrief .sec2 b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 3px; }
+  .discos { margin: -4px 2px 10px; font-size: 13px; color: var(--muted); }
+  .saltar { text-align: right; margin: -6px 2px 8px; font-size: 13px; }
+  .saltar .link { color: var(--muted); }
   .mapa { display: flex; justify-content: space-between; gap: 10px; align-items: center; background: var(--card2); border-radius: 12px; padding: 9px 12px; margin: -4px 0 12px; font-size: 13.5px; }
   .cquien { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--card2); padding: 4px; border-radius: 12px; margin: 8px 0 10px; }
   .cquien button { border: 0; background: transparent; border-radius: 9px; padding: 9px 4px; font-weight: 700; font-size: 13.5px; color: var(--muted); }
@@ -253,14 +257,21 @@ const CSS_V53 = `
   .ready .fila { margin-top: 10px; } .ready .fila .muted { font-size: 13px; margin-bottom: 4px; }
   .ready .pills { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0; }
   .ready .pills button { padding: 10px 4px; }
-  .cuerpo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 6px 0 2px; }
-  .cuerpo svg { width: 100%; max-height: 300px; }
-  .cuerpo .base { fill: var(--card2); stroke: var(--line); stroke-width: 1; }
-  .cuerpo [data-m] { stroke: var(--card); stroke-width: 1.2; cursor: pointer; transition: opacity .2s; }
-  .cuerpo [data-m]:active { opacity: .7; }
-  .mz0 { fill: var(--card2); stroke: var(--muted) !important; stroke-dasharray: 3 2; } .mz1 { fill: var(--acc); fill-opacity: .85; } .mz2 { fill: var(--ok); } .mz3 { fill: var(--bad); }
-  .cuerpo .sel { stroke: var(--text) !important; stroke-width: 2.2 !important; stroke-dasharray: none; }
-  .cuerpo text { fill: var(--muted); font-size: 9px; text-anchor: middle; font-weight: 700; letter-spacing: .06em; }
+  .cuerpo { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 6px 0 2px; }
+  .cuerpo svg { width: 100%; max-height: 380px; }
+  .cuerpo { --sil: #ECE8F4; --silb: #CFC8DC; --nzc: #DDD7E8; --z0: #C4BCD4; }
+  @media (prefers-color-scheme: dark) { .cuerpo { --sil: #262230; --silb: #3A3546; --nzc: #322D3D; --z0: #4A4458; } }
+  .cuerpo .sil { fill: var(--sil); } .cuerpo .sil.borde { stroke: var(--silb); stroke-width: 2; }
+  .cuerpo .nz { fill: var(--nzc); stroke: var(--card); stroke-width: 1.1; }
+  .cuerpo [data-m] { stroke: var(--card); stroke-width: 1.1; stroke-linejoin: round; cursor: pointer; transition: fill .45s ease, fill-opacity .45s ease; }
+  .cuerpo [data-m]:active { opacity: .75; }
+  .cuerpo .fib { fill: none; stroke: var(--card); stroke-width: .7; opacity: .55; pointer-events: none; }
+  .mz0 { fill: var(--z0); } .mz1 { fill: var(--acc); fill-opacity: .9; } .mz2 { fill: var(--ok); fill-opacity: .9; } .mz3 { fill: var(--bad); }
+  .cuerpo .sel { stroke: var(--text) !important; stroke-width: 2 !important; }
+  .cuerpo text { fill: var(--muted); font-size: 10px; text-anchor: middle; font-weight: 700; letter-spacing: .06em; }
+  .semana { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
+  .semana .dia { font-weight: 700; font-size: 14px; min-height: 18px; }
+  .semana .btn { white-space: nowrap; flex-shrink: 0; }
   .msel { background: var(--card2); border-radius: 12px; padding: 10px 12px; margin-top: 8px; font-size: 14px; }
   .mchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .mchips button { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 99px; padding: 5px 10px; font-size: 12.5px; }
@@ -439,7 +450,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v6.0';
+const VERSION_APP = 'v6.1';
 // Tu link de configuración (lleva tu clave): para configurar el APK sin escribir nada
 function copiarLinkConfig() {
   const link = location.origin + location.pathname + '?api=' + encodeURIComponent(API) + '&key=' + encodeURIComponent(KEY);
@@ -564,11 +575,26 @@ function baseVista(name) {
   return ks.find(k => exDe(k).group === GRUPO) || ks[0] || real;
 }
 function quitarMapa(base) { const m = mapaPar(); delete m[base]; guardarMapaPar(m); ANIM_ABRE = base; pintarEntrenar(); }
+// En pareja cada quien es independiente: la tarjeta pasa a "Completados" solo cuando cada uno terminó
+// o se marcó que hoy no lo hace (no se asume que el otro lo hará o no).
+function saltosPar() { return LS.get('gym_parskip_' + hoy(), {}); }
+function saltado(base, lado) { return !!(saltosPar()[base] || {})[lado]; }
+function saltarLado(base, lado) {
+  const m = saltosPar(); m[base] = Object.assign({}, m[base]); m[base][lado] = !m[base][lado]; LS.set('gym_parskip_' + hoy(), m);
+  hap('tecla');
+  if (m[base][lado] && OPEN === base) OPEN = siguiente(GRUPO, base);
+  conTransicion(pintarEntrenar);
+}
+function ladoListo(base, lado) { const st = state[lado === 'par' ? parKey(base) : base]; return !st || st.done || saltado(base, lado); }
 function cardDone(base) {
   const yo = state[base], pa = parOn() ? state[parKey(base)] : null;
   if (!pa) return yo.done;
-  const listo = s => s.done || !s.sets.some(x => x.ok);
-  return (yo.done || pa.done) && listo(yo) && listo(pa) && (OPEN !== base || (yo.done && pa.done));
+  return ladoListo(base, 'yo') && ladoListo(base, 'par');
+}
+// Pestaña que se ve al abrir: la que elegiste; si no, la de quien todavía tiene series por hacer
+function ladoVisible(base) {
+  if (QUIEN[base]) return QUIEN[base];
+  return ladoListo(base, 'yo') && !ladoListo(base, 'par') ? 'par' : 'yo';
 }
 function verLado(base, lado) { QUIEN[base] = lado; ANIM_ABRE = base; hap('tecla'); pintarEntrenar(); }
 function nuevoEstado(ex, done, id) {
@@ -1065,12 +1091,12 @@ function notaDeHoy(k) {
 // Vista en pareja: el encabezado resume a los dos; el cuerpo es el de la pestaña elegida
 function tarjetaPareja(ex) {
   const base = ex.name, pk = parKey(base), yo = state[base], pa = state[pk], mapeado = pk !== 'P|' + base;
-  const lado = QUIEN[base] === 'par' ? 'par' : 'yo', k = lado === 'par' ? pk : base, st = state[k], exV = exDe(k);
+  const lado = ladoVisible(base) === 'par' ? 'par' : 'yo', k = lado === 'par' ? pk : base, st = state[k], exV = exDe(k);
   const hecho = cardDone(base), abierto = OPEN === base || (companero(base) && OPEN === companero(base));
   const cuenta = x => { const t = x.sets.filter(s => s.t !== 'C'); return { h: t.filter(s => s.ok).length, t: t.length }; };
   const cy = cuenta(yo), cp = cuenta(pa);
-  const prog = (x, c) => x.done ? '✓' : c.h + '/' + c.t;
-  const meta = badgeMod(ex) + 'Tú ' + prog(yo, cy) + ' · ' + esc(PAR.nombre) + (mapeado && exDe(pk) ? ' (' + esc(exDe(pk).ejercicio.split(' (')[0]) + ')' : '') + ' ' + prog(pa, cp);
+  const prog = (x, c, l) => x.done ? '✓' : saltado(base, l) ? 'no hoy' : c.h + '/' + c.t;
+  const meta = badgeMod(ex) + 'Tú ' + prog(yo, cy, 'yo') + ' · ' + esc(PAR.nombre) + (mapeado && exDe(pk) ? ' (' + esc(exDe(pk).ejercicio.split(' (')[0]) + ')' : '') + ' ' + prog(pa, cp, 'par');
   const enCurso = !hecho && (cy.h + cp.h > 0 || yo.done || pa.done);
   const ico = hecho ? ICO.check : anillo(cy.h + cp.h + (yo.done ? cy.t - cy.h : 0) + (pa.done ? cp.t - cp.h : 0), cy.t + cp.t, false);
   const n = jsq(base);
@@ -1081,8 +1107,12 @@ function tarjetaPareja(ex) {
     (abierto && exV && !st.done ? '<button class="menubtn" onclick="event.stopPropagation();menuEjercicio(\'' + jsq(k) + '\')" aria-label="Más opciones">⋮</button>' : '') + '</div>';
   if (!abierto) return h + '</div>';
   h += '<div class="ex-body' + (ANIM_ABRE === base ? ' entra' : '') + '"><div class="quien">' +
-    '<button class="' + (lado === 'yo' ? 'on' : '') + '" onclick="verLado(\'' + n + '\',\'yo\')">Tú · ' + prog(yo, cy) + '</button>' +
-    '<button class="' + (lado === 'par' ? 'on' : '') + '" onclick="verLado(\'' + n + '\',\'par\')">' + esc(PAR.nombre) + ' · ' + prog(pa, cp) + '</button></div>';
+    '<button class="' + (lado === 'yo' ? 'on' : '') + '" onclick="verLado(\'' + n + '\',\'yo\')">Tú · ' + prog(yo, cy, 'yo') + '</button>' +
+    '<button class="' + (lado === 'par' ? 'on' : '') + '" onclick="verLado(\'' + n + '\',\'par\')">' + esc(PAR.nombre) + ' · ' + prog(pa, cp, 'par') + '</button></div>';
+  // Cada quien puede no hacer este ejercicio: así no se registra nada a su nombre y la tarjeta se puede completar
+  const quienTxt = lado === 'par' ? esc(PAR.nombre) : 'Yo';
+  if (saltado(base, lado)) return h + '<div class="mapa"><span>' + quienTxt + ' no lo hace hoy</span><button class="link" onclick="saltarLado(\'' + n + '\',\'' + lado + '\')">Sí lo hace</button></div></div></div>';
+  if (st && !st.done && !st.sets.some(x => x.ok)) h += '<div class="saltar"><button class="link" onclick="saltarLado(\'' + n + '\',\'' + lado + '\')">' + quienTxt + ' no lo hace hoy</button></div>';
   if (lado === 'par' && mapeado && exV) h += '<div class="mapa"><span>' + esc(PAR.nombre) + ' hace <b>' + esc(exV.ejercicio) + '</b></span>' +
     '<button class="link" onclick="quitarMapa(\'' + n + '\')">Que haga ' + esc(ex.ejercicio.split(' (')[0]) + '</button></div>';
   if (!exV) h += '<div class="tip">Este ejercicio no está en el catálogo de ' + esc(PAR.nombre) + '.</div>';
@@ -1152,12 +1182,25 @@ function filaEsfuerzo(n, st, s) {
   return '<div class="rirx' + (final && !s.e ? ' pide' : '') + '"><div class="q">' + (final ? (s.e ? 'Última serie: ' : '¿Cómo terminó? Toca uno y se guarda') : '¿Cómo terminó esta serie?') + '</div><div class="pills">' +
     Object.keys(RPE).map(v => '<button class="' + (s.e === v ? 'on' : '') + '" onclick="setRir(\'' + n + '\',\'' + v + '\')">' + CORTO_E[v] + '</button>').join('') + '</div></div>';
 }
+// Barra y máquinas de discos: qué discos poner o quitar por lado para el peso sugerido
+function cambioDiscos(ex, de, a, unit) {
+  if (!ex || ex.mult !== 2 || a === null || a === undefined || Number(a) === Number(de)) return '';
+  const pa = platos(Number(a), unit), pd = platos(Number(de) || 0, unit);
+  if (!pa) return '';
+  const resta = (x, y) => { const c = y.slice(); return x.filter(v => { const k = c.indexOf(v); if (k > -1) { c.splice(k, 1); return false; } return true; }); };
+  const poner = pd ? resta(pa, pd) : pa, quitar = pd ? resta(pd, pa) : [];
+  const fmt = l => l.join(' + ');
+  return 'Por lado: ' + (pa.length ? fmt(pa) : 'sin discos') + (pd && (poner.length || quitar.length) ? ' · ' +
+    [quitar.length ? 'quita ' + fmt(quitar) : '', poner.length ? 'pon ' + fmt(poner) : ''].filter(Boolean).join(' y ') : '');
+}
 function tipIA(n, st) {
   if (!st.ia || !st.ia.mensaje) return '';
   const p = st.ia.motor ? st.ia.motor.paso : null;
+  const sAct = st.sets[st.ia.i], disc = sAct ? cambioDiscos(exDe(n), sAct.w, st.ia.peso, st.unit) : '';
   return '<div class="ia' + (ANIM_IA === n ? ' entra' : '') + '"><span>' + (st.ia.fuente === 'ia' ? '✨ ' : '💡 ') + esc(st.ia.mensaje) +
     (st.ia.afinando ? ' <i class="muted" style="font-size:12px">· tu coach lo revisa…</i>' : '') + '</span>' +
     (st.ia.usar ? '<button class="btn sm" onclick="usarIA(\'' + n + '\')">Usar</button>' : '') + '</div>' +
+    (disc ? '<div class="discos">🏋️ ' + esc(disc) + '</div>' : '') +
     (st.ia.pasoDudoso && p ? '<div class="pasoq"><span>¿De cuánto en cuánto sube este equipo? (' + esc(st.unit) + ')</span><div>' +
       (st.unit === 'kg' ? [1.25, 2.5, 5, 10] : [2.5, 5, 10, 15]).map(v => '<button class="' + (v === p ? 'on' : '') + '" onclick="fijarPaso(\'' + n + '\',' + v + ')">' + v + '</button>').join('') + '</div></div>' : '');
 }
@@ -1219,12 +1262,7 @@ function setRir(name, v) {
   if (s.e && st.sets.every(x => x.ok) && !st.done) { cambio(name, false); return setTimeout(() => guardar(name, true), 250); }
   cambio(name);
   if (s.e && s.t !== 'C') { clearTimeout(IA_TIMER[name]); consejoIA(name, k); }
-  // En pareja se turnan: al calificar tu serie pasa a la pestaña del otro si va atrás
-  if (s.e && parOn()) {
-    const base = baseVista(name), otro = esPar(name) ? base : parKey(base), so = state[otro];
-    const hechas = x => x.sets.filter(y => y.ok && y.t !== 'C').length;
-    if (so && !so.done && so.sets.some(y => !y.ok) && hechas(so) <= hechas(st)) setTimeout(() => { QUIEN[base] = esPar(name) ? 'yo' : 'par'; pintarEntrenar(); }, 350);
-  }
+  // En pareja ya no se cambia de pestaña solo: el otro puede estar en otro ejercicio o no hacer este
 }
 // Ejercicios con todas las series marcadas pero sin guardar: se guardan al irte a otro o al terminar la sesión
 function guardarPendientes(excepto) {
@@ -1436,13 +1474,19 @@ function iniciarSesion() {
   if (!s.start || s.ended) { s.start = Date.now(); s.ended = false; if (!s.log) s.log = []; guardarSesion(s); }
   pedirPantalla();
 }
+let CERO_OK = '', ULT_SERIE = '';
 function marcar(name, i) {
   desbloquearAudio();
   const st = state[name], s = st.sets[i], ex = exDe(name);
   if (!s.ok && vacio(s.r)) return toast('Pon las repeticiones de esta serie');
   if (!s.ok && vacio(s.w) && !ex.sinPeso) return toast('Pon el peso de esta serie');
+  // 0 en una máquina con peso casi siempre es un error (o una serie que no era tuya): pide confirmar
+  if (!s.ok && Number(s.w) === 0 && !ex.sinPeso && ex.inc > 0 && !ex.barra && ex.modalidad !== 'Corporal' && CERO_OK !== name + '#' + i) {
+    CERO_OK = name + '#' + i; setTimeout(() => { if (CERO_OK === name + '#' + i) CERO_OK = ''; }, 5000);
+    hap('atencion'); return toast((esPar(name) ? quienDe(name) : '') + '¿0 ' + state[name].unit + '? Pon el peso, o toca ✓ otra vez si de verdad fue sin peso');
+  }
   s.ok = !s.ok;
-  if (s.ok) { hap('serie'); iniciarSesion(); ANIM_SET = name + '#' + i; }
+  if (s.ok) { hap('serie'); iniciarSesion(); ANIM_SET = name + '#' + i; ULT_SERIE = name; }
   cambio(name);
   if (!s.ok) return;
   // Última serie: la tarjeta se queda abierta para que marques cómo terminó; al tocar el esfuerzo se guarda
@@ -1593,6 +1637,8 @@ function usarIA(name) {
   pend.forEach((x, k) => { x.w = ia.peso; if (k === 0) x.r = ia.reps; });
   st.ia.usar = false; hap('ok');
   cambio(name);
+  const r = LS.get('gym_rest', null);
+  if (r && !r.fired) programarAviso(r);   // el aviso del descanso ya dice el peso nuevo
 }
 // Paso de la máquina: se confirma una vez y queda en el Catálogo (columna P)
 function fijarPaso(name, p) {
@@ -1648,7 +1694,10 @@ function guardar(name, auto, silencioso) {
   // En pareja: al guardar uno, la tarjeta sigue abierta en la pestaña del otro si le falta
   if (parOn()) {
     const base = baseVista(name), otro = esPar(name) ? base : parKey(base);
-    if (state[otro] && !state[otro].done) { QUIEN[base] = esPar(name) ? 'yo' : 'par'; OPEN = base; conTransicion(pintarEntrenar); irA(base); return; }
+    const so = state[otro], ladoOtro = esPar(name) ? 'yo' : 'par';
+    // Solo se queda abierta en la pestaña del otro si él ya va a la mitad de este ejercicio
+    if (so && !so.done && !saltado(base, ladoOtro) && so.sets.some(x => x.ok)) { QUIEN[base] = ladoOtro; OPEN = base; conTransicion(pintarEntrenar); irA(base); return; }
+    delete QUIEN[base];
     name = base;
   }
   if (auto && p && !state[p].done) OPEN = p;
@@ -1837,7 +1886,7 @@ function beep() {
 function avisoReloj(dur) {
   if (!ajuste('reloj', false) || !('Notification' in window) || Notification.permission !== 'granted') return;
   navigator.serviceWorker.ready.then(reg => reg.showNotification('¡Siguiente serie!', {
-    body: 'Terminó tu descanso de ' + mmss(dur), tag: 'descanso', renotify: true,
+    body: proxSerieTexto() || 'Terminó tu descanso de ' + mmss(dur), tag: 'descanso', renotify: true,
     vibrate: [300, 150, 300], icon: 'icon-192.png', badge: 'icon-192.png'
   })).catch(() => {});
 }
@@ -1863,10 +1912,30 @@ function iniciarRest(seg) {
 // No hace falta mantener vivo tickRest(): el descanso se guarda como hora de fin y al volver se recalcula.
 const AVISO_ID = 7;
 let canalListo = false;
+// "Te toca" para el aviso del descanso (pantalla bloqueada y reloj): la siguiente serie del ejercicio que acabas de marcar
+// y, en pareja, la del otro si va a la mitad del mismo ejercicio.
+function proxSerieTexto() {
+  const n = ULT_SERIE, st = state[n];
+  if (!st || FECHA) return '';
+  const una = (k, quien) => {
+    const x = state[k], e = exDe(k);
+    if (!x || !e || x.done) return '';
+    const s = x.sets.find(y => !y.ok && y.t !== 'C');
+    if (!s || vacio(s.r)) return '';
+    const sug = x.ia && x.ia.usar && x.ia.peso !== null ? x.ia : null;
+    const w = sug ? sug.peso : s.w, r = sug ? sug.reps : s.r;
+    return quien + (vacio(w) || (Number(w) === 0 && e.sinPeso) ? '' : w + ' ' + x.unit + ' × ') + r + (sug ? ' (consejo)' : '');
+  };
+  const ej = (exDe(n) || {}).ejercicio || '';
+  if (!parOn()) { const t = una(n, ''); return t ? 'Te toca ' + ej.split(' (')[0] + ': ' + t : ''; }
+  const base = baseVista(n), otro = esPar(n) ? base : parKey(base);
+  const partes = [una(esPar(n) ? n : base, esPar(n) ? PAR.nombre + ' ' : 'Tú '), state[otro] && state[otro].sets.some(y => y.ok) ? una(otro, esPar(n) ? 'Tú ' : PAR.nombre + ' ') : ''].filter(Boolean);
+  return partes.length ? ej.split(' (')[0] + ' · ' + partes.join(' · ') : '';
+}
 function programarAviso(r) {
   if (!NATIVO || !r || !ajuste('reloj', true)) return;
   const agendar = () => nativo('LocalNotifications', 'schedule', { notifications: [{
-    id: AVISO_ID, title: '¡Siguiente serie!', body: 'Terminó tu descanso de ' + mmss(r.dur), channelId: 'descanso',
+    id: AVISO_ID, title: '¡Siguiente serie!', body: proxSerieTexto() || 'Terminó tu descanso de ' + mmss(r.dur), channelId: 'descanso',
     schedule: { at: new Date(r.end), allowWhileIdle: true } }] });
   nativo('LocalNotifications', 'cancel', { notifications: [{ id: AVISO_ID }] }).then(() => {
     if (canalListo) return agendar();
@@ -2553,45 +2622,102 @@ function tarjetaFuerza() {
 const zonaZ = n => n > 20 ? 3 : n >= 8 ? 2 : n >= 4 ? 1 : 0;
 const ZONA_TXT = ['Falta trabajo', 'Poco: súmale series', 'Bien trabajada', 'Alto: vigila la recuperación'];
 let MUS_SEL = null;
-function svgCuerpo(z, espalda) {
-  const p = (m, t, a) => '<' + t + ' ' + a + ' class="mz' + zonaZ(z[m] || 0) + (MUS_SEL === m ? ' sel' : '') + '" data-m="' + m + '" onclick="MUS_SEL=\'' + m + '\';pintarProgreso()"><title>' + m + '</title></' + t + '>';
-  const par = (m, t, a1, a2) => p(m, t, a1) + p(m, t, a2);
-  let h = '<svg viewBox="0 0 120 252" role="img" aria-label="' + (espalda ? 'Espalda' : 'Frente') + '">' +
-    '<circle class="base" cx="60" cy="18" r="11"/><rect class="base" x="55" y="28" width="10" height="7" rx="3"/>' +
-    '<circle class="base" cx="26" cy="110" r="4.5"/><circle class="base" cx="94" cy="110" r="4.5"/>' +
-    '<circle class="base" cx="50" cy="157" r="5.5"/><circle class="base" cx="70" cy="157" r="5.5"/>' +
-    '<ellipse class="base" cx="49" cy="236" rx="7" ry="4"/><ellipse class="base" cx="71" cy="236" rx="7" ry="4"/>' +
-    par('Antebrazo', 'ellipse', 'cx="28" cy="93" rx="5" ry="13"', 'cx="92" cy="93" rx="5" ry="13"');
-  if (!espalda) {
-    h += par('Deltoide lateral', 'ellipse', 'cx="31" cy="47" rx="5" ry="8"', 'cx="89" cy="47" rx="5" ry="8"') +
-      par('Deltoide frontal', 'ellipse', 'cx="39" cy="44" rx="6" ry="7.5"', 'cx="81" cy="44" rx="6" ry="7.5"') +
-      par('Pecho superior', 'rect', 'x="45" y="37" width="14.5" height="10" rx="4"', 'x="60.5" y="37" width="14.5" height="10" rx="4"') +
-      par('Pecho medio', 'rect', 'x="45" y="48" width="14.5" height="11" rx="4"', 'x="60.5" y="48" width="14.5" height="11" rx="4"') +
-      par('Bíceps', 'ellipse', 'cx="30" cy="68" rx="6.5" ry="12.5"', 'cx="90" cy="68" rx="6.5" ry="12.5"') +
-      p('Abdomen', 'rect', 'x="51" y="61" width="18" height="31" rx="5"') +
-      par('Oblicuos', 'rect', 'x="45" y="63" width="5" height="27" rx="2.5"', 'x="70" y="63" width="5" height="27" rx="2.5"') +
-      '<rect class="base" x="45" y="93" width="30" height="12" rx="5"/>' +
-      par('Cuádriceps', 'ellipse', 'cx="48.5" cy="129" rx="8" ry="23"', 'cx="71.5" cy="129" rx="8" ry="23"') +
-      par('Aductores', 'ellipse', 'cx="56.5" cy="119" rx="3.2" ry="12"', 'cx="63.5" cy="119" rx="3.2" ry="12"') +
-      '<ellipse class="base" cx="49.5" cy="196" rx="6" ry="30"/><ellipse class="base" cx="70.5" cy="196" rx="6" ry="30"/>';
-  } else {
-    h += p('Trapecio', 'path', 'd="M49 33 L71 33 L80 42 L60 49 L40 42 Z"') +
-      par('Deltoide lateral', 'ellipse', 'cx="31" cy="48" rx="4.5" ry="7.5"', 'cx="89" cy="48" rx="4.5" ry="7.5"') +
-      par('Deltoide posterior', 'ellipse', 'cx="38.5" cy="46" rx="6.5" ry="7.5"', 'cx="81.5" cy="46" rx="6.5" ry="7.5"') +
-      p('Espalda media', 'path', 'd="M50 50 L70 50 L70 70 L50 70 Z"') +
-      par('Dorsal', 'path', 'd="M42 52 L49 51 L49 84 L45 87 L40 64 Z"', 'd="M78 52 L71 51 L71 84 L75 87 L80 64 Z"') +
-      p('Lumbar', 'rect', 'x="51" y="72" width="18" height="18" rx="4"') +
-      par('Tríceps', 'ellipse', 'cx="30" cy="68" rx="6.5" ry="12.5"', 'cx="90" cy="68" rx="6.5" ry="12.5"') +
-      par('Glúteo medio', 'ellipse', 'cx="44" cy="97" rx="4.5" ry="6"', 'cx="76" cy="97" rx="4.5" ry="6"') +
-      par('Glúteo', 'ellipse', 'cx="52.5" cy="104" rx="8.5" ry="10"', 'cx="67.5" cy="104" rx="8.5" ry="10"') +
-      par('Isquiosurales', 'ellipse', 'cx="50" cy="134" rx="8.5" ry="19"', 'cx="70" cy="134" rx="8.5" ry="19"') +
-      par('Pantorrilla', 'ellipse', 'cx="49.5" cy="186" rx="7.5" ry="19"', 'cx="70.5" cy="186" rx="7.5" ry="19"') +
-      '<ellipse class="base" cx="49.5" cy="217" rx="4.5" ry="13"/><ellipse class="base" cx="70.5" cy="217" rx="4.5" ry="13"/>';
+// Mapa muscular anatómico (dibujo propio). Se define la mitad izquierda (x < 100) de cada figura y la derecha es su espejo.
+// Cada pieza: [zona que cuenta series | '' = anatomía que no se cuenta, path SVG].
+const ANAT = {
+  sil: 'M100,9 C88,9 82,18 82,31 C82,43 86,51 91,56 L90,64 C84,70 76,74 66,77 C54,78 45,88 43,104 C42,118 42,134 42,150 C41,158 40,164 39,168 C35,180 32,196 30,212 C29,222 29,229 30,234 C26,240 23,250 24,258 C25,266 28,272 32,274 C34,272 34,267 34,263 L36,266 C38,268 40,266 39,260 C39,252 40,244 41,236 C44,224 48,206 52,190 C55,180 57,172 58,164 C60,150 61,136 63,124 C65,140 66,158 68,176 C70,190 68,200 66,206 C62,216 60,226 59,236 C56,260 56,286 60,308 C62,320 64,330 66,340 C63,354 62,368 64,382 C66,396 70,408 72,418 C70,424 66,430 66,434 C68,438 78,438 84,436 C88,434 88,428 87,420 C87,410 88,398 90,384 C92,370 92,354 91,340 C92,330 93,318 94,306 C96,290 98,270 98,252 L100,250 Z',
+  frente: [
+    ['', 'M91,56 C92,62 93,68 96,74 L100,76 L100,58 C97,58 94,57 91,56 Z'],
+    ['Trapecio', 'M91,60 C86,67 78,72 66,78 L77,80 C84,77 90,74 94,71 Z'],
+    ['Deltoide lateral', 'M66,78 C54,78 46,88 44,104 C43,114 45,122 48,126 C50,114 52,101 57,91 C60,85 63,81 66,78 Z'],
+    ['Deltoide frontal', 'M67,79 C61,84 57,91 54,101 C52,110 50,119 49,126 C55,123 59,117 62,109 C65,100 69,91 74,83 Z'],
+    ['Pecho superior', 'M99,81 C91,79 81,80 75,83 C70,89 67,96 65,104 C74,99 86,95 99,97 Z'],
+    ['Pecho medio', 'M99,98.5 C86,97 74,101 65,105.5 C63,111 65,119 71,124 C79,130 90,132 99,129 Z'],
+    ['', 'M70,126 C67,131 66,137 67,143 L74,141 C74,135 73,130 70,126 Z'],
+    ['', 'M70,141 C68,145 68,150 69,155 L76,152 C75,148 74,144 70,141 Z'],
+    ['Oblicuos', 'M85,133 C78,132 74,138 72,146 C70,158 69,172 70,186 C71,198 77,207 86,213 C86,196 85,176 85,156 Z'],
+    ['Abdomen', 'M87,133 L99,133 L99,150 L87,150 C86,144 86,139 87,133 Z'],
+    ['Abdomen', 'M87,152 L99,152 L99,169 L87,169 C86,163 86,158 87,152 Z'],
+    ['Abdomen', 'M87.5,171 L99,171 L99,188 L88,188 C87,182 87,177 87.5,171 Z'],
+    ['Abdomen', 'M88,190 L99,190 L99,232 L97,232 C91,220 88,206 88,190 Z'],
+    ['Bíceps', 'M55,113 C49,119 46,132 46,145 C46,155 48,162 52,166 C56,160 58,148 58,136 C58,126 58,118 55,113 Z'],
+    ['Tríceps', 'M47,122 C44,131 43,145 43,156 C44,161 46,164 49,166 C46,152 46,136 47,122 Z'],
+    ['Antebrazo', 'M47,166 C41,172 37,184 34,198 C32,207 31,215 31,223 C35,207 40,191 49,176 Z'],
+    ['Antebrazo', 'M51,169 C45,178 40,192 36,208 C34,217 33,225 33,232 L40,233 C42,222 45,207 49,193 C52,184 53,175 51,169 Z'],
+    ['Glúteo medio', 'M66,207 C62,215 60,225 60,236 C63,236 66,232 68,226 C70,218 69,211 66,207 Z'],
+    ['Cuádriceps', 'M61,238 C57,258 57,282 60,302 C62,314 65,323 68,329 C70,313 70,292 70,272 C70,257 67,245 61,238 Z'],
+    ['Cuádriceps', 'M72,230 C68,248 68,272 70,293 C72,309 76,320 80,327 C84,317 86,301 85,283 C84,263 80,244 72,230 Z'],
+    ['Cuádriceps', 'M86,288 C84,301 82,313 82,322 C85,330 90,332 92,326 C93,314 92,301 86,288 Z'],
+    ['', 'M69,222 C78,240 86,262 90,290 C91,296 92,301 92,305 L94.5,302 C92.5,280 86,254 73,225 Z'],
+    ['Aductores', 'M92,243 C87,253 85,268 86,288 C89,282 94,272 97.5,261 C98.5,253 98,247 96,243 Z'],
+    ['', 'M80,330 C75,330 72,335 73,341 C74,346 78,348 82,347 C86,345 87,340 86,335 C85,332 83,330 80,330 Z'],
+    ['', 'M70,348 C67,362 68,381 71,399 C73,407 76,413 79,417 C80,401 80,381 79,361 C78,352 75,348 70,348 Z'],
+    ['Pantorrilla', 'M84,346 C89,354 92,368 91,383 C90,392 87,398 84,401 C81,389 81,369 82,354 Z'],
+    ['Pantorrilla', 'M67,349 C63,359 62,374 65,387 C67,380 68,366 67,349 Z']
+  ],
+  espalda: [
+    ['Trapecio', 'M100,56 C95,60 92,65 90,69 C84,74 76,77 66,79 C74,84 82,91 87,100 C92,113 96,131 100,152 Z'],
+    ['Deltoide lateral', 'M66,78 C54,78 46,88 44,104 C43,114 45,122 48,126 C50,117 52,108 55,100 C57,92 61,84 66,78 Z'],
+    ['Deltoide posterior', 'M67,80 C62,84 58,91 56,99 C55,106 55,112 57,116 C63,109 69,100 75,89 C73,85 70,82 67,80 Z'],
+    ['Espalda media', 'M76,90 C70,98 64,106 61,113 C63,119 69,123 76,124 C82,122 86,116 87,108 C85,100 81,94 76,90 Z'],
+    ['Espalda media', 'M61,115 C59,121 60,126 64,129 C70,129 74,127 77,125 C71,124 65,120 61,115 Z'],
+    ['Dorsal', 'M62,124 C60,136 62,152 66,168 C70,183 76,196 84,204 C90,207 96,201 98,187 C98,172 97,161 96,153 C91,139 84,130 77,127 C71,127 66,126 62,124 Z'],
+    ['Lumbar', 'M99,160 C95,164 93,176 92,190 C91,204 92,214 94,222 L99,224 Z'],
+    ['Oblicuos', 'M66,170 C66,184 68,197 72,207 C76,211 80,211 84,207 C78,199 72,187 68,172 Z'],
+    ['Tríceps', 'M55,113 C49,119 45,130 44,144 C43,154 45,162 49,166 C53,166 56,160 57,150 C58,138 58,124 55,113 Z'],
+    ['Antebrazo', 'M47,166 C41,172 37,184 34,198 C32,207 31,215 31,223 C35,207 40,191 49,176 Z'],
+    ['Antebrazo', 'M51,169 C45,178 40,192 36,208 C34,217 33,225 33,232 L40,233 C42,222 45,207 49,193 C52,184 53,175 51,169 Z'],
+    ['Glúteo medio', 'M68,207 C64,213 62,220 62,228 C68,226 76,222 84,216 C80,211 74,207 68,207 Z'],
+    ['Glúteo', 'M63,228 C60,238 60,252 64,262 C70,270 80,274 90,272 C96,270 99,264 99,256 L99,232 C92,224 82,221 72,222 C68,223 65,225 63,228 Z'],
+    ['Isquiosurales', 'M63,272 C61,290 63,307 67,322 C69,328 71,332 74,335 C76,317 78,299 78,283 C75,277 69,273 63,272 Z'],
+    ['Isquiosurales', 'M80,277 C80,295 82,313 84,329 C86,333 88,335 90,333 C92,313 93,295 93,279 C89,277 84,276 80,277 Z'],
+    ['Aductores', 'M95,272 C97,286 97,300 95,313 C93,300 93,287 95,272 Z'],
+    ['', 'M74,337 C72,340 72,344 74,346 L88,346 C90,343 90,339 88,336 Z'],
+    ['Pantorrilla', 'M68,346 C64,356 63,369 66,381 C68,389 72,393 76,393 C78,381 78,365 76,351 C74,347 72,346 68,346 Z'],
+    ['Pantorrilla', 'M80,344 C86,348 90,358 90,372 C90,384 88,393 84,399 C80,395 78,385 78,371 C78,359 78,349 80,344 Z'],
+    ['Pantorrilla', 'M69,390 C71,401 73,410 76,416 L84,416 C86,408 87,401 87,396 C83,401 77,401 72,395 Z']
+  ],
+  // Líneas de detalle (fibras y separaciones), sin color propio
+  fibras: {
+    frente: ['M98,90 C88,88 78,89 70,93', 'M98,112 C88,111 78,113 69,116', 'M99,151 L87,151', 'M60,92 C56,100 52,110 50,120', 'M64,250 C64,270 65,290 67,310', 'M76,250 C76,272 78,292 80,312'],
+    espalda: ['M100,70 C94,76 88,82 80,86', 'M90,104 C86,112 82,118 78,122', 'M70,140 C74,160 80,180 88,196', 'M50,128 C48,140 48,152 49,162', 'M80,240 C84,250 88,258 92,264', 'M72,300 C72,312 73,322 74,330', 'M86,300 C86,314 87,324 88,330']
   }
-  return h + '<text x="60" y="250">' + (espalda ? 'ESPALDA' : 'FRENTE') + '</text></svg>';
+};
+function svgCuerpo(z, espalda) {
+  const lado = espalda ? 'espalda' : 'frente';
+  const pieza = (m, d) => m ? '<path class="mz' + zonaZ(z[m] || 0) + (MUS_SEL === m ? ' sel' : '') + '" data-m="' + m + '" d="' + d + '" onclick="MUS_SEL=\'' + m + '\';pintarProgreso()"><title>' + m + '</title></path>'
+    : '<path class="nz" d="' + d + '"/>';
+  const mitad = ANAT[lado].map(x => pieza(x[0], x[1])).join('') + ANAT.fibras[lado].map(d => '<path class="fib" d="' + d + '"/>').join('');
+  const espejo = c => '<g' + (c ? ' transform="matrix(-1 0 0 1 200 0)"' : '') + '>';
+  // La silueta va dos veces: con borde abajo y sin borde encima, para que no se vea la costura del centro
+  const sil = cls => espejo(false) + '<path class="' + cls + '" d="' + ANAT.sil + '"/></g>' + espejo(true) + '<path class="' + cls + '" d="' + ANAT.sil + '"/></g>';
+  return '<svg viewBox="18 4 164 448" role="img" aria-label="' + (espalda ? 'Espalda' : 'Frente') + '">' + sil('sil borde') + sil('sil') +
+    espejo(false) + mitad + '</g>' + espejo(true) + mitad + '</g><text x="100" y="449">' + (espalda ? 'ESPALDA' : 'FRENTE') + '</text></svg>';
 }
 const ZONAS = ['Pecho superior', 'Pecho medio', 'Deltoide frontal', 'Deltoide lateral', 'Deltoide posterior', 'Trapecio', 'Dorsal', 'Espalda media', 'Lumbar',
   'Bíceps', 'Tríceps', 'Antebrazo', 'Abdomen', 'Oblicuos', 'Cuádriceps', 'Isquiosurales', 'Glúteo', 'Glúteo medio', 'Aductores', 'Pantorrilla'];
+// "▶ Tu semana": el mapa empieza en gris y se pinta día por día con lo que entrenaste
+let SEM_T = [];
+function verSemana() {
+  const dias = ((DATA.resumen || {}).zonasDias || []), piezas = [...document.querySelectorAll('.cuerpo [data-m]')], lbl = $('semDia'), btn = $('semBtn');
+  if (!dias.length || !piezas.length) return;
+  SEM_T.forEach(clearTimeout); SEM_T = [];
+  const pintar = acc => piezas.forEach(el => el.setAttribute('class', 'mz' + zonaZ(acc[el.dataset.m] || 0)));
+  const acc = {};
+  pintar(acc); if (btn) btn.disabled = true; if (lbl) lbl.textContent = 'Empieza la semana…';
+  dias.forEach((d, i) => SEM_T.push(setTimeout(() => {
+    let n = 0;
+    Object.keys(d.z).forEach(m => { acc[m] = (acc[m] || 0) + d.z[m]; n += d.z[m]; });
+    pintar(acc); hap('tecla');
+    const f = new Date(d.k + 'T12:00:00');
+    if (lbl) lbl.textContent = f.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric' }).replace(/^./, c => c.toUpperCase()) + ' · +' + String(Math.round(n * 2) / 2).replace('.5', '½') + ' series';
+  }, 700 + i * 1100)));
+  SEM_T.push(setTimeout(() => {
+    pintar((DATA.resumen || {}).zonas7 || acc);
+    piezas.forEach(el => { if (el.dataset.m === MUS_SEL) el.classList.add('sel'); });
+    if (lbl) lbl.textContent = 'Así quedó tu semana'; if (btn) btn.disabled = false;
+  }, 700 + dias.length * 1100 + 600));
+}
 function tarjetaMusculos(ms) {
   const z = (DATA.resumen && DATA.resumen.zonas7) || {};
   const col = ['var(--muted)', 'var(--acc)', 'var(--ok)', 'var(--bad)'];
@@ -2599,6 +2725,7 @@ function tarjetaMusculos(ms) {
   let h = '<h2>Tus músculos</h2><div class="card"><div class="muted" style="margin-bottom:2px">Series efectivas de 7 días por zona (el ejercicio principal cuenta 1; el de apoyo, ½). Toca una zona.</div>' +
     '<div class="cuerpo">' + svgCuerpo(z, false) + svgCuerpo(z, true) + '</div>' +
     '<div class="leyenda">' + ['0–3', '4–7', '8–20', '+20'].map((t, i) => '<span><i style="background:' + col[i] + (i === 0 ? ';opacity:.4' : '') + '"></i>' + t + '</span>').join('') + '</div>';
+  if (((DATA.resumen || {}).zonasDias || []).length) h += '<div class="semana"><span class="dia" id="semDia"></span><button class="btn ghost sm" id="semBtn" onclick="verSemana()">▶ Tu semana</button></div>';
   if (MUS_SEL) {
     const v = z[MUS_SEL] || 0, falta = Math.max(0, 8 - v);
     const quien = DATA.exercises.filter(e => (e.zonas || []).some(x => x.z === MUS_SEL && x.w >= 1)).map(e => e.ejercicio.split(' (')[0]).filter((x, i, a) => a.indexOf(x) === i);
