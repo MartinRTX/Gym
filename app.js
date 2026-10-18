@@ -122,6 +122,10 @@ const CSS_V53 = `
   .ia { display: flex; gap: 8px; align-items: flex-start; background: var(--card2); border-left: 3px solid var(--pri); border-radius: 10px; padding: 9px 12px; margin: 0 0 10px; font-size: 14px; }
   .ia .btn { flex: none; margin-left: auto; }
   .ia.cargando { color: var(--muted); }
+  .pasoq { background: var(--card2); border-radius: 12px; padding: 9px 12px; margin: -4px 0 10px; font-size: 13px; color: var(--muted); }
+  .pasoq div { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+  .pasoq button { border: 1.5px solid var(--line); background: var(--card); color: var(--text); border-radius: 10px; padding: 8px 0; font-weight: 700; }
+  .pasoq button.on { border-color: var(--pri); color: var(--pri); }
   /* v5.6: esfuerzo por serie, comida con IA, chat con el coach */
   .set .e { font-size: 10px; font-weight: 800; color: inherit; opacity: .85; display: block; line-height: 1; margin-top: 2px; }
   .iacard textarea, .chatin textarea { width: 100%; min-height: 64px; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px;
@@ -435,7 +439,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v5.9';
+const VERSION_APP = 'v6.0';
 // Tu link de configuración (lleva tu clave): para configurar el APK sin escribir nada
 function copiarLinkConfig() {
   const link = location.origin + location.pathname + '?api=' + encodeURIComponent(API) + '&key=' + encodeURIComponent(KEY);
@@ -958,6 +962,14 @@ async function resumenCoach(s) {
 let PLAN_CARGANDO = false;
 const PLAN_FALLO = {};
 const clavePlan = () => 'gym_plan_' + hoy() + '_' + GRUPO;
+// Los únicos pesos que el plan puede proponer: el de la última vez y un paso arriba o abajo (los que existen en ese equipo)
+function pesosValidos(e) {
+  const t = (e.anterior || []).filter(a => a.t !== 'C' && Number(a.w) > 0);
+  const sug = (e.sets || []).filter(x => x.t !== 'C' && Number(x.w) > 0).map(x => Number(x.w));
+  if (!t.length && !sug.length) return [];
+  const w0 = t.length ? Math.max.apply(null, t.map(a => Number(a.w))) : sug[0], p = Math.abs(e.paso || e.step || 2.5);
+  return [alPaso(w0 - p, p), w0, alPaso(w0 + p, p)].concat(sug).filter((x, i, a) => x > 0 && a.indexOf(x) === i).sort((a, b) => a - b);
+}
 function planHoy() { return GRUPOS3.includes(GRUPO) ? LS.get(clavePlan(), null) : null; }
 function planAplica() { return !!(DATA && DATA.ia && !FECHA && GRUPOS3.includes(GRUPO) && ajuste('iaPlan', true)); }
 async function pedirPlan() {
@@ -971,7 +983,7 @@ async function pedirPlan() {
     const r = await conLimite(apiPost('plan', [{ grupo: g, descarga: !!DATA.descargaCarrera, recuperacion: recuperacion(), ejercicios: exs.map(e => ({
       nombre: e.ejercicio, modalidad: e.modalidad || '', rango: e.min + '–' + e.max,
       ultima: e.anterior.length ? e.lastWhen + ': ' + resumenSets(e.anterior) + ' ' + e.unit : 'primera vez',
-      rir_ultima: e.rirUlt === undefined ? null : e.rirUlt, regla: e.hint || '', sube: !!e.up })) }]), 45000);
+      rir_ultima: e.rirUlt === undefined ? null : e.rirUlt, regla: e.hint || '', sube: !!e.up, pesos_validos: pesosValidos(e) })) }]), 45000);
     const norm = x => String(x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
     const ej = {};
     exs.forEach(e => { const kk = Object.keys(r.ejercicios || {}).find(x => norm(x) === norm(e.ejercicio)); if (kk) ej[e.name] = r.ejercicios[kk]; });
@@ -1026,11 +1038,20 @@ function menuEjercicio(k) {
   h += item('▶', 'Técnica y video', ex.tecnica ? 'Cómo se hace, punto por punto' : 'Agrega un video o GIF', "verTecnica('" + n + "')");
   if (!st.sets.some(s => s.t === 'C') && esBasico(ex)) h += item('🔥', 'Agregar calentamiento', 'Series ligeras antes del peso de trabajo', "cerrarModal();agregarCalentamiento('" + n + "')");
   h += item('⚙️', ex.ajuste ? 'Editar ajuste de máquina' : 'Ajuste de máquina', ex.ajuste || 'Asiento, banco o agarre: te aparece siempre', "cerrarModal();editarAjuste('" + n + "')");
+  h += item('⚖️', 'Paso del equipo: ' + pasoEj(ex, st) + ' ' + st.unit + (ex.pasoFijo ? '' : ' (supuesto)'), 'El cambio de peso más chico que permite; toca para cambiarlo', "menuPaso('" + n + "')");
   h += item('📝', st.notas ? 'Editar nota de hoy' : 'Nota de hoy', st.notas || 'Solo de esta sesión: «hombro cargado», «dormí mal»', "notaDeHoy('" + n + "')");
   if (!esPar(k)) h += par ? item('⇆', 'Quitar superserie', 'Con ' + exDe(par).ejercicio, "cerrarModal();quitarSuper()")
                           : item('⇆', 'Superserie', 'Alterna con otro ejercicio y descansa al final del par', "elegirSuper('" + n + "')");
   h += item('⇄', 'Cambiar ejercicio', 'Máquina ocupada o molestia' + (parOn() ? ' (para los dos o solo uno)' : ''), "elegirCambio('" + jsq(base) + "')");
   $('sheet').innerHTML = h + '</div>';
+  abrirModal();
+}
+function menuPaso(k) {
+  const ex = exDe(k), st = state[k], p = pasoEj(ex, st);
+  $('sheet').innerHTML = '<div class="t2">¿De cuánto en cuánto sube?</div><div class="muted" style="margin:4px 0 10px">' + esc(ex.ejercicio) + ' · ' + esc(ex.howTo) +
+    '. Con esto ningún consejo te pedirá un peso que no existe en ese equipo.</div><div class="pills" style="display:grid;grid-template-columns:repeat(4,1fr)">' +
+    (st.unit === 'kg' ? [1, 1.25, 2.5, 5, 10, 2, 4, 20] : [1, 2.5, 5, 10, 15, 20, 7.5, 12.5]).map(v => '<button class="' + (v === p ? 'on' : '') + '" onclick="cerrarModal();fijarPaso(\'' + jsq(k) + '\',' + v + ')">' + v + ' ' + st.unit + '</button>').join('') +
+    '</div><div class="acts"><button class="btn ghost" onclick="cerrarModal()">Cancelar</button></div>';
   abrirModal();
 }
 function notaDeHoy(k) {
@@ -1132,9 +1153,13 @@ function filaEsfuerzo(n, st, s) {
     Object.keys(RPE).map(v => '<button class="' + (s.e === v ? 'on' : '') + '" onclick="setRir(\'' + n + '\',\'' + v + '\')">' + CORTO_E[v] + '</button>').join('') + '</div></div>';
 }
 function tipIA(n, st) {
-  if (!st.ia) return '';
-  return '<div class="ia' + (st.ia.cargando ? ' cargando' : '') + (ANIM_IA === n ? ' entra' : '') + '"><span>💡 ' + esc(st.ia.cargando ? 'Pensando tu siguiente serie…' : st.ia.mensaje) + '</span>' +
-    (st.ia.usar ? '<button class="btn sm" onclick="usarIA(\'' + n + '\')">Usar</button>' : '') + '</div>';
+  if (!st.ia || !st.ia.mensaje) return '';
+  const p = st.ia.motor ? st.ia.motor.paso : null;
+  return '<div class="ia' + (ANIM_IA === n ? ' entra' : '') + '"><span>' + (st.ia.fuente === 'ia' ? '✨ ' : '💡 ') + esc(st.ia.mensaje) +
+    (st.ia.afinando ? ' <i class="muted" style="font-size:12px">· tu coach lo revisa…</i>' : '') + '</span>' +
+    (st.ia.usar ? '<button class="btn sm" onclick="usarIA(\'' + n + '\')">Usar</button>' : '') + '</div>' +
+    (st.ia.pasoDudoso && p ? '<div class="pasoq"><span>¿De cuánto en cuánto sube este equipo? (' + esc(st.unit) + ')</span><div>' +
+      (st.unit === 'kg' ? [1.25, 2.5, 5, 10] : [2.5, 5, 10, 15]).map(v => '<button class="' + (v === p ? 'on' : '') + '" onclick="fijarPaso(\'' + n + '\',' + v + ')">' + v + '</button>').join('') + '</div></div>' : '');
 }
 
 // El siguiente ejercicio pendiente: primero en la sección del que acabas de hacer, luego en las demás
@@ -1426,7 +1451,7 @@ function marcar(name, i) {
     return;
   }
   // Coach IA: espera unos segundos por si marcas el esfuerzo de esta serie; si lo marcas, pregunta al momento
-  if (s.t !== 'C') { clearTimeout(IA_TIMER[name]); IA_TIMER[name] = setTimeout(() => consejoIA(name, i), 4000); }
+  if (s.t !== 'C') { decidirSerie(name, i); clearTimeout(IA_TIMER[name]); IA_TIMER[name] = setTimeout(() => consejoIA(name, i), 4000); pintarEntrenar(); }
   if (s.t === 'C' || FECHA) return;
   const p = companero(name);
   if (p && !state[p].done) {
@@ -1466,33 +1491,119 @@ function payloadIA(name, i) {
     ejercicio_terminado: st.sets.every(x => x.ok)
   };
 }
+/* ----- Motor de la siguiente serie: matemática exacta, al instante y sin señal ----- */
+// Paso real del equipo en la unidad que estás anotando (Catálogo P; si no, el que se dedujo de tu historial)
+function pasoEj(ex, st) {
+  const p = Math.abs(ex.paso || ex.step || 2.5);
+  if (!st || st.unit === ex.unit) return p;
+  return st.unit === 'kg' ? (p >= 10 ? 5 : p >= 5 ? 2.5 : 1.25) : (p >= 5 ? 10 : 5);
+}
+const alPaso = (w, p, modo) => { const f = modo === 'abajo' ? Math.floor : modo === 'arriba' ? Math.ceil : Math.round; return Math.round(f(Number(w) / p + 1e-9) * p * 100) / 100; };
+// Opciones para la serie que sigue. Modelo: Epley (1 rep ≈ 3.3 % de carga) + cuántas reps pierdes TÚ de serie a serie
+// (aprendido de tu historial: ex.caida; mientras haya pocos datos: 2 después de un fallo, 1 con 1–2 en reserva).
+function motorSerie(name, i) {
+  const ex = exDe(name), st = state[name], s = st && st.sets[i];
+  if (!ex || !s || s.t === 'C' || vacio(s.r) || st.sets.every(x => x.ok)) return null;
+  const r = Number(s.r), w = Number(s.w) || 0, min = ex.min, max = ex.max;
+  const rir = s.e ? RIR_DE[s.e] : null, rirE = rir === null ? 2 : rir;
+  const c = ex.caida || {};
+  const caida = rirE === 0 ? (c.nf >= 3 ? Math.max(1, c.fallo) : 2) : rirE <= 1.5 ? (c.nn >= 3 ? Math.max(0.5, c.normal) : 1) : (c.nn >= 3 ? Math.max(0, c.normal - 0.5) : 0.5);
+  const pred = Math.max(1, Math.round(r + rirE - 1.5 - caida));         // reps con el mismo peso dejando 1–2 en reserva
+  const r2 = x => Math.max(1, Math.min(max + 2, Math.round(x)));
+  const bajos = recuperacion() ? ['Mal', 'Baja', 'Adolorido'].filter(v => Object.values(recuperacion()).includes(v)).length : 0;
+  const ops = [];
+  if (ex.sinPeso || (!w && ex.inc === 0)) {
+    // Sin carga: solo reps y descanso
+    ops.push({ id: 'A', accion: 'mantener', peso: w, reps: r2(Math.max(min, pred)), mensaje: pred < min
+      ? 'Descansa 2–3 min: con ' + r + ' al fallo la siguiente te saldría ~' + pred + '. Haz las que salgan con buena técnica.'
+      : 'Busca ~' + pred + ' en la siguiente; deja 1 en reserva.' });
+    return { opciones: ops, eleccion: 'A' };
+  }
+  const p = pasoEj(ex, st), inv = ex.inc < 0;                            // inv: máquina asistida (más número = más fácil)
+  const conv = st.unit === 'kg' ? KG_A_LB : 1;
+  const corp = (Number(DATA.ultimoPeso) || 72) * KG_A_LB;
+  const carga = inv ? Math.max(20, corp - w * conv) : Math.max(5, cargaReal(ex, w, st.unit));
+  const repsPaso = Math.max(0.7, 30 * p * (inv ? 1 : ex.mult) * conv / carga);   // reps que ganas por cada paso que bajas
+  const mover = k => alPaso(inv ? w + k * p : w - k * p, p);
+  ops.push({ id: 'A', accion: 'mantener', peso: w, reps: r2(Math.min(pred, max)) });
+  if (pred < min || rir === 0) {
+    const k = Math.max(1, Math.ceil((min + 1 - pred) / repsPaso));
+    const wB = mover(k), caidaPct = 1 - (inv ? (corp - wB * conv) : cargaReal(ex, wB, st.unit)) / carga;
+    if (wB >= 0 && caidaPct <= 0.3) ops.push({ id: 'B', accion: 'bajar', peso: wB, reps: r2(Math.min(max, pred + k * repsPaso)), k: k });
+  }
+  if (rirE >= 3 && r >= min && !bajos && !DATA.descargaCarrera) {
+    const wC = mover(-1), rC = Math.round(pred - repsPaso);
+    if (rC >= min) ops.push({ id: 'C', accion: 'subir', peso: wC, reps: r2(rC) });
+    else ops.push({ id: 'C', accion: 'mas_reps', peso: w, reps: r2(Math.min(max + 2, r + 2)) });
+  }
+  const B = ops.find(o => o.id === 'B'), C = ops.find(o => o.id === 'C'), A = ops[0];
+  const basico = ex.modalidad === 'Barra' || ex.modalidad === 'Discos';
+  let el = 'A';
+  if (B && (pred < min || (rir === 0 && basico) || (rir === 0 && bajos >= 2))) el = 'B';
+  else if (C) el = 'C';
+  const u = ' ' + st.unit;
+  A.mensaje = rir === 0 ? 'Mantén ' + w + ': con ' + r + ' al fallo, la siguiente te sale ~' + A.reps + ' (sigues en ' + min + '–' + max + '). Descansa 2–3 min y deja 1 en reserva.'
+    : pred < min ? 'Mantén ' + w + ' si quieres, pero la siguiente te saldría ~' + A.reps + ', abajo de ' + min + '.'
+    : 'Mantén ' + w + u + ' y busca ' + A.reps + (A.reps < r ? ' (es normal perder ' + (r - A.reps) + ')' : '') + '.';
+  if (B) B.mensaje = 'Baja a ' + B.peso + u + (pred < min ? ': con ' + w + ' la siguiente te saldría ~' + Math.max(1, pred) + ', abajo de ' + min + '. Así sacas ~' + B.reps + '.'
+    : ': fuiste al fallo' + (basico ? ' en un básico; por técnica y seguridad' : '') + ', así sacas ~' + B.reps + ' de calidad.');
+  if (C) C.mensaje = C.accion === 'subir' ? 'Sube a ' + C.peso + u + ': te sobraron 3+ con ' + r + '. Busca ' + C.reps + '.'
+    : 'Te sobraron 3+, pero el siguiente peso es mucho salto: mantén ' + w + ' y busca ' + C.reps + '.';
+  return { opciones: ops, eleccion: el, paso: p, pasoDudoso: !ex.pasoFijo && (el === 'B' || (el === 'C' && C.accion === 'subir')) };
+}
+// Lo que se ve debajo de la serie: el motor responde al instante; si hay IA y señal, la IA elige y explica
+function decidirSerie(name, i) {
+  const st = state[name], m = motorSerie(name, i);
+  if (!m) { if (st) st.ia = null; return; }
+  const op = m.opciones.find(o => o.id === m.eleccion);
+  const dudo = m.pasoDudoso && op.accion !== 'mantener';
+  st.ia = { mensaje: op.mensaje + (dudo ? ' Si tu equipo no sube de ' + m.paso + ' en ' + m.paso + ', elige su paso abajo.' : ''), peso: op.peso, reps: op.reps, fuente: 'reglas', motor: m, i: i, pasoDudoso: dudo,
+            usar: usarAplica(st, op) };
+  ANIM_IA = jsq(name);
+}
+function usarAplica(st, op) { const sig = st.sets.find(x => !x.ok && x.t !== 'C'); return !!sig && op.peso !== null && (Number(sig.w) !== op.peso || Number(sig.r) !== op.reps); }
 let IA_SEQ = 0;
 async function consejoIA(name, i) {
   const st = state[name];
-  if (!st || st.done || !ajuste('ia', true) || FECHA || !navigator.onLine || st.sets.every(x => x.ok)) return;
-  const seq = ++IA_SEQ;
-  st.ia = { cargando: true }; pintarEntrenar();
+  if (!st || st.done || FECHA || st.sets.every(x => x.ok)) return;
+  decidirSerie(name, i);
+  if (TAB === 'Entrenar' && OPEN === baseVista(name)) pintarEntrenar();
+  if (!st.ia || !ajuste('ia', true) || !navigator.onLine || !DATA.ia) return;
+  const seq = ++IA_SEQ, m = st.ia.motor;
+  st.ia.afinando = true;
   try {
-    const r = await Promise.race([apiPost('ia', [payloadIA(name, i)], claveDe(name)),
-                                  new Promise((_, no) => setTimeout(() => no(new Error('tiempo')), 12000))]);
-    if (seq !== IA_SEQ || !state[name] || state[name].done) return;
-    const sig = state[name].sets.find(x => !x.ok && x.t !== 'C');
+    const pl = Object.assign(payloadIA(name, i), { opciones: m.opciones.map(o => ({ id: o.id, accion: o.accion, peso: o.peso, reps: o.reps, mensaje: o.mensaje })),
+      eleccion_reglas: m.eleccion, caida_reps: exDe(name).caida || null, paso: m.paso || pasoEj(exDe(name), st) });
+    const r = await conLimite(apiPost('ia', [pl], claveDe(name)), 12000);
+    if (seq !== IA_SEQ || !state[name] || state[name].done || !state[name].ia) return;
+    const op = m.opciones.find(o => o.id === r.opcion) || m.opciones.find(o => o.id === m.eleccion);   // la IA solo elige; los números son del motor
+    Object.assign(state[name].ia, { mensaje: r.mensaje || op.mensaje, peso: op.peso, reps: op.reps, fuente: r.ia === false ? 'reglas' : 'ia', afinando: false,
+      pasoDudoso: m.pasoDudoso && op.accion !== 'mantener', usar: usarAplica(state[name], op) });
     ANIM_IA = jsq(name);
-    state[name].ia = { mensaje: r.mensaje, peso: r.peso, reps: r.reps,
-                       usar: !!sig && r.peso !== null && r.reps !== null && (Number(sig.w) !== r.peso || Number(sig.r) !== r.reps) };
   } catch (e) {
-    if (seq === IA_SEQ && state[name]) state[name].ia = null;   // sin señal: la app sigue igual
-    // Un error real (clave, cuota, modelo) sí se avisa, una vez por sesión, para que no falle en silencio
+    if (state[name] && state[name].ia) state[name].ia.afinando = false;   // se queda el consejo del motor
     if (e.message !== 'tiempo' && !/Failed to fetch|NetworkError|Load failed/i.test(e.message) && !IA_AVISADO) { IA_AVISADO = true; toast('Coach IA: ' + e.message.slice(0, 120)); }
   }
   if (TAB === 'Entrenar' && OPEN === baseVista(name)) pintarEntrenar();
 }
-// Copia el peso y las reps que propuso la IA a la siguiente serie pendiente
+// "Usar": el peso nuevo va a TODAS las series pendientes (una serie de retroceso se sostiene) y las reps a la siguiente
 function usarIA(name) {
-  const st = state[name], ia = st.ia, sig = st.sets.find(x => !x.ok && x.t !== 'C');
-  if (!ia || !sig) return;
-  sig.w = ia.peso; sig.r = ia.reps; st.ia.usar = false;
+  const st = state[name], ia = st.ia, pend = st.sets.filter(x => !x.ok && x.t !== 'C');
+  if (!ia || !pend.length) return;
+  pend.forEach((x, k) => { x.w = ia.peso; if (k === 0) x.r = ia.reps; });
+  st.ia.usar = false; hap('ok');
   cambio(name);
+}
+// Paso de la máquina: se confirma una vez y queda en el Catálogo (columna P)
+function fijarPaso(name, p) {
+  const ex = exDe(name), base = baseDe(name);
+  [base, 'P|' + base].forEach(k => { const e = exDe(k); if (e) { e.paso = p; e.step = p; e.pasoFijo = true; } });
+  LS.set('gym_data', DATA);
+  encolar('savePaso', [base, p], 'paso-' + base);
+  if (PAR && PAR.exs && PAR.exs['P|' + base]) encolar('savePaso', [base, p], 'paso-P|' + base, PAR.key);
+  hap('ok'); toast('Listo: ' + ex.ejercicio + ' sube de ' + p + ' en ' + p);
+  const st = state[name];
+  if (st && st.ia && st.ia.i !== undefined) consejoIA(name, st.ia.i); else pintarEntrenar();
 }
 function cargaReal(ex, w, unit) { return (Number(w) || 0) * ex.mult * (unit === 'kg' ? KG_A_LB : 1) + ex.barra; }
 
@@ -2436,55 +2547,73 @@ function tarjetaFuerza() {
     '<div class="muted" style="margin-top:4px">Mejor: <b class="num" style="color:var(--text)">' + mejor.toFixed(1) + ' lb</b> · ' + pts.length + ' sesiones</div></div>';
   return h;
 }
-/* ----- Mapa muscular: color por series efectivas de 7 días (secundarios cuentan ½) ----- */
-// 0–4 gris (falta trabajo) · 5–9 ámbar (casi) · 10–20 verde (rango óptimo) · más de 20 rojo (alto: vigila la recuperación)
-const zonaM = n => n > 20 ? 3 : n >= 10 ? 2 : n >= 5 ? 1 : 0;
-const ZONA_TXT = ['Falta trabajo', 'Casi: te faltan pocas', 'Rango óptimo', 'Alto: vigila la recuperación'];
+/* ----- Mapa muscular por zonas específicas (Catálogo T): cada ejercicio suma a sus zonas (principal 1, apoyo ½) ----- */
+// Por zona: 0–3 gris (falta) · 4–7 ámbar (poco) · 8–20 verde (bien) · más de 20 rojo (alto: vigila la recuperación).
+// Es más bajo que el 10–20 por músculo completo porque cada zona es una parte del músculo.
+const zonaZ = n => n > 20 ? 3 : n >= 8 ? 2 : n >= 4 ? 1 : 0;
+const ZONA_TXT = ['Falta trabajo', 'Poco: súmale series', 'Bien trabajada', 'Alto: vigila la recuperación'];
 let MUS_SEL = null;
-function svgCuerpo(series, espalda) {
-  // m = músculo; t = figura SVG; a = atributos de forma
-  const p = (m, t, a) => '<' + t + ' ' + a + ' class="mz' + zonaM(series[m] || 0) + (MUS_SEL === m ? ' sel' : '') + '" data-m="' + m + '" onclick="MUS_SEL=\'' + m + '\';pintarProgreso()"><title>' + m + '</title></' + t + '>';
+function svgCuerpo(z, espalda) {
+  const p = (m, t, a) => '<' + t + ' ' + a + ' class="mz' + zonaZ(z[m] || 0) + (MUS_SEL === m ? ' sel' : '') + '" data-m="' + m + '" onclick="MUS_SEL=\'' + m + '\';pintarProgreso()"><title>' + m + '</title></' + t + '>';
   const par = (m, t, a1, a2) => p(m, t, a1) + p(m, t, a2);
   let h = '<svg viewBox="0 0 120 252" role="img" aria-label="' + (espalda ? 'Espalda' : 'Frente') + '">' +
-    '<circle class="base" cx="60" cy="18" r="11"/><rect class="base" x="55" y="28" width="10" height="8" rx="3"/>' +
-    '<ellipse class="base" cx="28" cy="93" rx="5" ry="13"/><ellipse class="base" cx="92" cy="93" rx="5" ry="13"/>' +
+    '<circle class="base" cx="60" cy="18" r="11"/><rect class="base" x="55" y="28" width="10" height="7" rx="3"/>' +
     '<circle class="base" cx="26" cy="110" r="4.5"/><circle class="base" cx="94" cy="110" r="4.5"/>' +
-    '<rect class="base" x="44" y="92" width="32" height="14" rx="6"/>' +
     '<circle class="base" cx="50" cy="157" r="5.5"/><circle class="base" cx="70" cy="157" r="5.5"/>' +
     '<ellipse class="base" cx="49" cy="236" rx="7" ry="4"/><ellipse class="base" cx="71" cy="236" rx="7" ry="4"/>' +
-    par('Hombro', 'ellipse', 'cx="37" cy="45" rx="10" ry="8.5"', 'cx="83" cy="45" rx="10" ry="8.5"');
+    par('Antebrazo', 'ellipse', 'cx="28" cy="93" rx="5" ry="13"', 'cx="92" cy="93" rx="5" ry="13"');
   if (!espalda) {
-    h += par('Pecho', 'rect', 'x="44" y="38" width="15.5" height="21" rx="6"', 'x="60.5" y="38" width="15.5" height="21" rx="6"') +
-      par('Bíceps', 'ellipse', 'cx="30" cy="68" rx="6.5" ry="13"', 'cx="90" cy="68" rx="6.5" ry="13"') +
-      p('Core', 'rect', 'x="47" y="61" width="26" height="31" rx="7"') +
-      par('Cuádriceps', 'ellipse', 'cx="50" cy="130" rx="9.5" ry="24"', 'cx="70" cy="130" rx="9.5" ry="24"') +
+    h += par('Deltoide lateral', 'ellipse', 'cx="31" cy="47" rx="5" ry="8"', 'cx="89" cy="47" rx="5" ry="8"') +
+      par('Deltoide frontal', 'ellipse', 'cx="39" cy="44" rx="6" ry="7.5"', 'cx="81" cy="44" rx="6" ry="7.5"') +
+      par('Pecho superior', 'rect', 'x="45" y="37" width="14.5" height="10" rx="4"', 'x="60.5" y="37" width="14.5" height="10" rx="4"') +
+      par('Pecho medio', 'rect', 'x="45" y="48" width="14.5" height="11" rx="4"', 'x="60.5" y="48" width="14.5" height="11" rx="4"') +
+      par('Bíceps', 'ellipse', 'cx="30" cy="68" rx="6.5" ry="12.5"', 'cx="90" cy="68" rx="6.5" ry="12.5"') +
+      p('Abdomen', 'rect', 'x="51" y="61" width="18" height="31" rx="5"') +
+      par('Oblicuos', 'rect', 'x="45" y="63" width="5" height="27" rx="2.5"', 'x="70" y="63" width="5" height="27" rx="2.5"') +
+      '<rect class="base" x="45" y="93" width="30" height="12" rx="5"/>' +
+      par('Cuádriceps', 'ellipse', 'cx="48.5" cy="129" rx="8" ry="23"', 'cx="71.5" cy="129" rx="8" ry="23"') +
+      par('Aductores', 'ellipse', 'cx="56.5" cy="119" rx="3.2" ry="12"', 'cx="63.5" cy="119" rx="3.2" ry="12"') +
       '<ellipse class="base" cx="49.5" cy="196" rx="6" ry="30"/><ellipse class="base" cx="70.5" cy="196" rx="6" ry="30"/>';
   } else {
-    h += p('Espalda', 'path', 'd="M46 36 L74 36 L81 56 L73 91 L47 91 L39 56 Z"') +
-      par('Tríceps', 'ellipse', 'cx="30" cy="68" rx="6.5" ry="13"', 'cx="90" cy="68" rx="6.5" ry="13"') +
-      par('Femoral y glúteo', 'ellipse', 'cx="51" cy="104" rx="10" ry="10"', 'cx="69" cy="104" rx="10" ry="10"') +
-      par('Femoral y glúteo', 'ellipse', 'cx="50" cy="134" rx="8.5" ry="19"', 'cx="70" cy="134" rx="8.5" ry="19"') +
+    h += p('Trapecio', 'path', 'd="M49 33 L71 33 L80 42 L60 49 L40 42 Z"') +
+      par('Deltoide lateral', 'ellipse', 'cx="31" cy="48" rx="4.5" ry="7.5"', 'cx="89" cy="48" rx="4.5" ry="7.5"') +
+      par('Deltoide posterior', 'ellipse', 'cx="38.5" cy="46" rx="6.5" ry="7.5"', 'cx="81.5" cy="46" rx="6.5" ry="7.5"') +
+      p('Espalda media', 'path', 'd="M50 50 L70 50 L70 70 L50 70 Z"') +
+      par('Dorsal', 'path', 'd="M42 52 L49 51 L49 84 L45 87 L40 64 Z"', 'd="M78 52 L71 51 L71 84 L75 87 L80 64 Z"') +
+      p('Lumbar', 'rect', 'x="51" y="72" width="18" height="18" rx="4"') +
+      par('Tríceps', 'ellipse', 'cx="30" cy="68" rx="6.5" ry="12.5"', 'cx="90" cy="68" rx="6.5" ry="12.5"') +
+      par('Glúteo medio', 'ellipse', 'cx="44" cy="97" rx="4.5" ry="6"', 'cx="76" cy="97" rx="4.5" ry="6"') +
+      par('Glúteo', 'ellipse', 'cx="52.5" cy="104" rx="8.5" ry="10"', 'cx="67.5" cy="104" rx="8.5" ry="10"') +
+      par('Isquiosurales', 'ellipse', 'cx="50" cy="134" rx="8.5" ry="19"', 'cx="70" cy="134" rx="8.5" ry="19"') +
       par('Pantorrilla', 'ellipse', 'cx="49.5" cy="186" rx="7.5" ry="19"', 'cx="70.5" cy="186" rx="7.5" ry="19"') +
       '<ellipse class="base" cx="49.5" cy="217" rx="4.5" ry="13"/><ellipse class="base" cx="70.5" cy="217" rx="4.5" ry="13"/>';
   }
   return h + '<text x="60" y="250">' + (espalda ? 'ESPALDA' : 'FRENTE') + '</text></svg>';
 }
+const ZONAS = ['Pecho superior', 'Pecho medio', 'Deltoide frontal', 'Deltoide lateral', 'Deltoide posterior', 'Trapecio', 'Dorsal', 'Espalda media', 'Lumbar',
+  'Bíceps', 'Tríceps', 'Antebrazo', 'Abdomen', 'Oblicuos', 'Cuádriceps', 'Isquiosurales', 'Glúteo', 'Glúteo medio', 'Aductores', 'Pantorrilla'];
 function tarjetaMusculos(ms) {
-  const series = {}; ms.forEach(x => { series[x.m] = x.series7 || 0; });
+  const z = (DATA.resumen && DATA.resumen.zonas7) || {};
   const col = ['var(--muted)', 'var(--acc)', 'var(--ok)', 'var(--bad)'];
-  const sel = MUS_SEL ? ms.find(x => x.m === MUS_SEL) : null;
-  let h = '<h2>Tus músculos</h2><div class="card"><div class="muted" style="margin-bottom:2px">Series efectivas de los últimos 7 días. Toca un músculo.</div>' +
-    '<div class="cuerpo">' + svgCuerpo(series, false) + svgCuerpo(series, true) + '</div>' +
-    '<div class="leyenda">' + ['0–4', '5–9', '10–20', '+20'].map((t, i) => '<span><i style="background:' + col[i] + (i === 0 ? ';opacity:.4' : '') + '"></i>' + t + '</span>').join('') + '</div>';
-  if (sel) {
-    const pct = sel.pct === null ? '' : Math.abs(sel.pct) < 0.5 ? ' · fuerza igual' : ' · ' + (sel.pct > 0 ? '+' : '') + sel.pct.toFixed(1) + '% fuerza';
-    h += '<div class="msel entra"><b>' + esc(sel.m) + '</b> · <span class="num">' + String(sel.series7).replace('.5', '½') + ' series</span>' + pct +
-      '<div class="muted" style="font-size:13px;margin-top:2px">' + ZONA_TXT[zonaM(sel.series7)] + (sel.ultimo ? ' · última vez ' + sel.ultimo : '') + '</div></div>';
+  const n = m => String(Math.round((z[m] || 0) * 2) / 2).replace('.5', '½');
+  let h = '<h2>Tus músculos</h2><div class="card"><div class="muted" style="margin-bottom:2px">Series efectivas de 7 días por zona (el ejercicio principal cuenta 1; el de apoyo, ½). Toca una zona.</div>' +
+    '<div class="cuerpo">' + svgCuerpo(z, false) + svgCuerpo(z, true) + '</div>' +
+    '<div class="leyenda">' + ['0–3', '4–7', '8–20', '+20'].map((t, i) => '<span><i style="background:' + col[i] + (i === 0 ? ';opacity:.4' : '') + '"></i>' + t + '</span>').join('') + '</div>';
+  if (MUS_SEL) {
+    const v = z[MUS_SEL] || 0, falta = Math.max(0, 8 - v);
+    const quien = DATA.exercises.filter(e => (e.zonas || []).some(x => x.z === MUS_SEL && x.w >= 1)).map(e => e.ejercicio.split(' (')[0]).filter((x, i, a) => a.indexOf(x) === i);
+    h += '<div class="msel entra"><b>' + esc(MUS_SEL) + '</b> · <span class="num">' + n(MUS_SEL) + ' series</span> · ' + ZONA_TXT[zonaZ(v)] +
+      (falta ? '<div class="muted" style="font-size:13px;margin-top:3px">Te faltan ~' + Math.ceil(falta) + ' series esta semana para llegar a 8.</div>' : '') +
+      (quien.length ? '<div class="muted" style="font-size:13px;margin-top:3px">La trabajan de forma directa: ' + esc(quien.slice(0, 5).join(', ')) + '.</div>' : '') + '</div>';
   }
-  h += '<div class="mchips">' + ms.slice().sort((a, b) => a.series7 - b.series7).map(x => '<button onclick="MUS_SEL=\'' + jsq(x.m) + '\';pintarProgreso()"><i style="background:' + col[zonaM(x.series7)] + '"></i>' +
-    esc(x.m) + ' <b class="num">' + String(x.series7).replace('.5', '½') + '</b></button>').join('') + '</div>';
+  h += '<div class="mchips">' + ZONAS.slice().sort((a, b) => (z[a] || 0) - (z[b] || 0)).map(m => '<button onclick="MUS_SEL=\'' + jsq(m) + '\';pintarProgreso()"><i style="background:' + col[zonaZ(z[m] || 0)] + '"></i>' +
+    esc(m) + ' <b class="num">' + n(m) + '</b></button>').join('') + '</div>';
+  // Resumen por músculo completo (el que usa el correo semanal), en una línea
+  const g = (ms || []).filter(x => x.series7 > 0).sort((a, b) => b.series7 - a.series7);
+  if (g.length) h += '<div class="muted" style="font-size:12.5px;margin-top:10px">Por músculo completo: ' + g.map(x => esc(x.m) + ' ' + String(x.series7).replace('.5', '½')).join(' · ') + '</div>';
   return h + '</div>';
 }
+
 /* ----- Fotos de progreso (una al mes, la imagen se guarda en tu Drive) ----- */
 let FOTOS = LS.get('gym_fotos', null), cargandoFotos = false;
 function fotosConPendientes() {
@@ -2590,7 +2719,7 @@ function abrirAjustes() {
     tog('reloj', NATIVO, 'Avisar al terminar el descanso', NATIVO ? 'Notificación con vibración aunque la pantalla esté bloqueada; llega a tu reloj' : 'Notificación al terminar (solo si la app está abierta; en el APK llega aunque bloquees)') +
     tog('autoDescanso', false, 'Iniciar el descanso solo', 'Si está apagado, solo te sugiere tiempos al marcar una serie') +
     tog('iaPlan', true, 'Plan del día con IA', 'Al abrir Entrenar: un foco para la sesión y una meta por ejercicio') +
-    tog('ia', true, 'Coach IA entre series', 'Después de cada serie de trabajo, la IA (Gemini, gratis) te dice qué hacer en la siguiente (necesita señal)') +
+    tog('ia', true, 'La IA afina el consejo entre series', 'El motor te dice al instante qué hacer en la siguiente serie (sin señal); con señal, Gemini elige entre sus opciones y te explica por qué') +
     tog('calentamiento', false, 'Calentamiento automático', 'En los básicos con barra agrega 2 series ligeras (50 % y 70 %) al abrirlos') +
     '<div class="opt" style="display:block"><div class="t1" style="font-size:15px;margin-bottom:8px">Descanso predeterminado</div><div class="pills" style="margin:0;display:grid;grid-template-columns:repeat(4,1fr)">' +
     DESCANSOS.map(s => '<button class="' + (s === def ? 'on' : '') + '" onclick="setAjuste(\'descanso\',' + s + ');abrirAjustes()">' + mmss(s) + '</button>').join('') + '</div></div>' +
