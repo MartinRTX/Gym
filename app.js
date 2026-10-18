@@ -233,6 +233,22 @@ const CSS_V53 = `
   .msg .aprendio { display: block; margin-top: 6px; font-size: 12.5px; color: var(--muted); }
   .debrief .sec2 { margin: 12px 0 0; }
   .debrief .sec2 b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 3px; }
+  .zbar { display: inline-block; flex: 1; height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; min-width: 40px; vertical-align: middle; }
+  .zbar.w { display: block; height: 8px; margin-top: 6px; } .zbar i { display: block; height: 100%; border-radius: 99px; }
+  .region { margin-top: 10px; } .region > .muted { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; margin-bottom: 4px; }
+  .region button { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; padding: 5px 2px; font-size: 13.5px; text-align: left; }
+  .region button > span:first-child { width: 130px; flex-shrink: 0; } .region button .num { width: 44px; text-align: right; color: var(--muted); font-size: 12.5px; }
+  .region button.on > span:first-child { font-weight: 700; }
+  .accion { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; font-size: 14px; }
+  .accion .btn.block { width: 100%; margin-top: 2px; } .accion .porque { font-size: 12.5px; margin: 6px 2px 0; }
+  .accion .alts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .accion .alt { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 99px; padding: 6px 11px; font-size: 13px; }
+  .aviso2 { background: var(--acc-weak); border-radius: 10px; padding: 8px 10px; font-size: 13px; margin-bottom: 8px; }
+  .falta { font-size: 13.5px; margin-top: 8px; } .falta .link { font-size: 13.5px; padding: 0; }
+  .mchips button.on { border-color: var(--pri); }
+  .regiones { display: grid; gap: 8px; margin: 8px 0; } .regiones > div > .muted { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+  .musbtn { display: block; width: 100%; margin: 14px 0 0; padding: 14px; border: 1.5px dashed var(--line); border-radius: 16px; background: none; font-weight: 700; text-align: left; }
+  .musbtn span { display: block; font-weight: 400; color: var(--muted); font-size: 13.5px; }
   .discos { margin: -4px 2px 10px; font-size: 13px; color: var(--muted); }
   .saltar { text-align: right; margin: -6px 2px 8px; font-size: 13px; }
   .saltar .link { color: var(--muted); }
@@ -450,7 +466,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v6.1';
+const VERSION_APP = 'v6.2';
 // Tu link de configuración (lleva tu clave): para configurar el APK sin escribir nada
 function copiarLinkConfig() {
   const link = location.origin + location.pathname + '?api=' + encodeURIComponent(API) + '&key=' + encodeURIComponent(KEY);
@@ -578,10 +594,21 @@ function quitarMapa(base) { const m = mapaPar(); delete m[base]; guardarMapaPar(
 // En pareja cada quien es independiente: la tarjeta pasa a "Completados" solo cuando cada uno terminó
 // o se marcó que hoy no lo hace (no se asume que el otro lo hará o no).
 function saltosPar() { return LS.get('gym_parskip_' + hoy(), {}); }
-function saltado(base, lado) { return !!(saltosPar()[base] || {})[lado]; }
+function saltado(base, lado) {
+  const m = saltosPar()[base] || {};
+  if (m[lado] !== undefined) return !!m[lado];            // lo que elegiste hoy manda
+  const a = asignadoDe(base);                              // si no, lo que dice el Catálogo (columna U)
+  if (!a || !PAR) return false;
+  return !mismoNombre(a, lado === 'par' ? PAR.nombre : DATA.nombre);
+}
 function saltarLado(base, lado) {
-  const m = saltosPar(); m[base] = Object.assign({}, m[base]); m[base][lado] = !m[base][lado]; LS.set('gym_parskip_' + hoy(), m);
+  const ahora = !saltado(base, lado), a = asignadoDe(base);
+  const m = saltosPar(); m[base] = Object.assign({}, m[base]); m[base][lado] = ahora; LS.set('gym_parskip_' + hoy(), m);
   hap('tecla');
+  // Si se repite, que no tengas que marcarlo cada vez: ofrece guardarlo como regla del ejercicio
+  const otro = lado === 'yo' ? PAR.nombre : DATA.nombre, nom = (exDe(base) || {}).ejercicio || '';
+  if (ahora && !a) toast((lado === 'yo' ? 'Hoy no lo haces' : PAR.nombre + ' no lo hace hoy'), '', { txt: '¿Siempre solo ' + otro + '?', fn: () => fijarAsignado(base, otro) });
+  else if (!ahora && a) toast((lado === 'yo' ? 'Hoy sí lo haces' : PAR.nombre + ' sí lo hace hoy'), '', { txt: '¿Siempre los dos?', fn: () => fijarAsignado(base, 'Ambos') });
   if (m[base][lado] && OPEN === base) OPEN = siguiente(GRUPO, base);
   conTransicion(pintarEntrenar);
 }
@@ -679,10 +706,12 @@ function pintarTab() {
 
 /* ===================== ENTRENAR ===================== */
 function ordenGrupo(g) {
-  const exs = DATA.exercises.filter(ex => ex.group === g);
-  if (g === 'Core') return [exs];
+  // Lo que añadiste hoy desde el mapa va al final de lo recomendado, sea del grupo que sea
+  const extra = extrasHoy().map(x => exDe(x.name)).filter(Boolean), esX = e => extra.includes(e);
+  const exs = DATA.exercises.filter(ex => ex.group === g && !esX(ex));
+  if (g === 'Core') return [exs.concat(extra)];
   const rec = DATA.bloquePara[g], otro = rec === 'A' ? 'B' : 'A';
-  return [exs.filter(e => e.bloque === rec), exs.filter(e => e.bloque === otro), exs.filter(e => e.bloque !== 'A' && e.bloque !== 'B')];
+  return [exs.filter(e => e.bloque === rec).concat(extra), exs.filter(e => e.bloque === otro), exs.filter(e => e.bloque !== 'A' && e.bloque !== 'B')];
 }
 // "4×12 con 22.5" si todas las series son iguales; "85: 10, 10, 9, 8" si solo cambia la repetición
 function resumenSets(sets) {
@@ -746,6 +775,7 @@ function pintarEntrenar() {
       items.map(tarjetaEjercicio).join('') + '</details>';
     primera = false;
   });
+  if (!FECHA && DATA.exercises.some(e => (e.zonas || []).length)) h += '<button class="musbtn" onclick="elegirMusculo()">🎯 ¿Quieres trabajar un músculo? <span>Te digo qué hacer hoy</span></button>';
   $('vEntrenar').innerHTML = h + pieFecha();
   ANIM_ABRE = ANIM_SET = ANIM_IA = null; ANIM_PLAN = false;
   if (!planHoy() && !PLAN_CARGANDO) setTimeout(pedirPlan, 0);
@@ -847,6 +877,8 @@ function tarjetaEjercicio(ex) {
         : log && log.cambio >= 1 ? ' · <b style="color:var(--ok)">↑ ' + log.cambio + '%</b>' : '');
   } else if (enCurso) meta = '<b style="color:var(--acc)">' + hechas + ' de ' + trabajo.length + ' series</b>';
   else meta = ex.anterior.length ? 'Última (' + ex.lastWhen + '): ' + resumenSets(ex.anterior) : ex.min + '–' + ex.max + ' reps · primera vez';
+  if (!st.done && esExtra(ex.name)) meta = '<b style="color:var(--pri)">➕ Añadido hoy</b> · ' + meta;
+  else if (!st.done && esDeOtro(ex)) meta = 'Normalmente lo hace ' + esc(ex.asignado) + ' · ' + meta;
   let ico;
   if (st.done) ico = ICO.check;
   else if (enCurso || abierto) ico = anillo(hechas, trabajo.length, false) + '<span class="rt num">' + hechas + '/' + trabajo.length + '</span>';
@@ -1000,13 +1032,14 @@ function planHoy() { return GRUPOS3.includes(GRUPO) ? LS.get(clavePlan(), null) 
 function planAplica() { return !!(DATA && DATA.ia && !FECHA && GRUPOS3.includes(GRUPO) && ajuste('iaPlan', true)); }
 async function pedirPlan() {
   if (!planAplica() || PLAN_CARGANDO || planHoy() || PLAN_FALLO[clavePlan()] || !navigator.onLine || pideReady()) return;
-  const exs = (ordenGrupo(GRUPO).find(x => x.length) || []).filter(e => !state[e.name] || !state[e.name].done);
+  const exs = (ordenGrupo(GRUPO).find(x => x.length) || []).filter(e => (!state[e.name] || !state[e.name].done) && (parOn() || !esDeOtro(e)));
   if (!exs.length) return;
   const g = GRUPO, k = clavePlan();
   PLAN_CARGANDO = true;
   if (TAB === 'Entrenar') pintarEntrenar();
   try {
-    const r = await conLimite(apiPost('plan', [{ grupo: g, descarga: !!DATA.descargaCarrera, recuperacion: recuperacion(), ejercicios: exs.map(e => ({
+    const r = await conLimite(apiPost('plan', [{ grupo: g, descarga: !!DATA.descargaCarrera, recuperacion: recuperacion(), objetivo: FOCOS[focoMus()][0],
+      zonas_bajas: zonasAtrasadas(5).map(x => ({ zona: x.m, series: Math.round(x.v * 2) / 2, meta: x.meta })), ejercicios: exs.map(e => ({
       nombre: e.ejercicio, modalidad: e.modalidad || '', rango: e.min + '–' + e.max,
       ultima: e.anterior.length ? e.lastWhen + ': ' + resumenSets(e.anterior) + ' ' + e.unit : 'primera vez',
       rir_ultima: e.rirUlt === undefined ? null : e.rirUlt, regla: e.hint || '', sube: !!e.up, pesos_validos: pesosValidos(e) })) }]), 45000);
@@ -1069,6 +1102,8 @@ function menuEjercicio(k) {
   if (!esPar(k)) h += par ? item('⇆', 'Quitar superserie', 'Con ' + exDe(par).ejercicio, "cerrarModal();quitarSuper()")
                           : item('⇆', 'Superserie', 'Alterna con otro ejercicio y descansa al final del par', "elegirSuper('" + n + "')");
   h += item('⇄', 'Cambiar ejercicio', 'Máquina ocupada o molestia' + (parOn() ? ' (para los dos o solo uno)' : ''), "elegirCambio('" + jsq(base) + "')");
+  if (parejaDisponible()) { const a = asignadoDe(base); h += item('👥', 'Quién lo hace: ' + (a ? 'solo ' + a : 'los dos'), 'En pareja, al otro se le marca «no lo hace hoy» de entrada', "menuAsignado('" + jsq(base) + "')"); }
+  if (esExtra(baseDe(k)) && !state[baseDe(k)].sets.some(s => s.ok)) h += item('✕', 'Quitar de hoy', 'Lo añadiste desde el mapa de músculos', "quitarDeHoy('" + jsq(baseDe(k)) + "')");
   $('sheet').innerHTML = h + '</div>';
   abrirModal();
 }
@@ -1110,9 +1145,12 @@ function tarjetaPareja(ex) {
     '<button class="' + (lado === 'yo' ? 'on' : '') + '" onclick="verLado(\'' + n + '\',\'yo\')">Tú · ' + prog(yo, cy, 'yo') + '</button>' +
     '<button class="' + (lado === 'par' ? 'on' : '') + '" onclick="verLado(\'' + n + '\',\'par\')">' + esc(PAR.nombre) + ' · ' + prog(pa, cp, 'par') + '</button></div>';
   // Cada quien puede no hacer este ejercicio: así no se registra nada a su nombre y la tarjeta se puede completar
-  const quienTxt = lado === 'par' ? esc(PAR.nombre) : 'Yo';
-  if (saltado(base, lado)) return h + '<div class="mapa"><span>' + quienTxt + ' no lo hace hoy</span><button class="link" onclick="saltarLado(\'' + n + '\',\'' + lado + '\')">Sí lo hace</button></div></div></div>';
-  if (st && !st.done && !st.sets.some(x => x.ok)) h += '<div class="saltar"><button class="link" onclick="saltarLado(\'' + n + '\',\'' + lado + '\')">' + quienTxt + ' no lo hace hoy</button></div>';
+  const asig = asignadoDe(base), habitual = asig && saltado(base, lado) && (saltosPar()[base] || {})[lado] === undefined;
+  if (saltado(base, lado)) return h + '<div class="mapa"><span>' + (lado === 'par' ? esc(PAR.nombre) + ' no lo hace hoy' : 'Hoy no lo haces') +
+    (habitual ? '<br><small class="muted">Normalmente lo hace solo ' + esc(asig) + '</small>' : '') + '</span><button class="link" onclick="saltarLado(\'' + n + '\',\'' + lado + '\')">' +
+    (lado === 'par' ? 'Sí lo hace hoy' : 'Sí lo hago hoy') + '</button></div></div></div>';
+  if (st && !st.done && !st.sets.some(x => x.ok)) h += '<div class="saltar"><button class="link" onclick="saltarLado(\'' + n + '\',\'' + lado + '\')">' +
+    (lado === 'par' ? esc(PAR.nombre) + ' no lo hace hoy' : 'Hoy no lo hago') + '</button></div>';
   if (lado === 'par' && mapeado && exV) h += '<div class="mapa"><span>' + esc(PAR.nombre) + ' hace <b>' + esc(exV.ejercicio) + '</b></span>' +
     '<button class="link" onclick="quitarMapa(\'' + n + '\')">Que haga ' + esc(ex.ejercicio.split(' (')[0]) + '</button></div>';
   if (!exV) h += '<div class="tip">Este ejercicio no está en el catálogo de ' + esc(PAR.nombre) + '.</div>';
@@ -1211,7 +1249,7 @@ function siguiente(g, actual) {
   const secs = ordenGrupo(g).filter(x => x.length);
   const dentro = secs.find(x => x.some(e => e.name === actual));
   const orden = dentro ? [dentro].concat(secs.filter(x => x !== dentro)) : secs;
-  for (const sec of orden) { const e = sec.find(e => !state[e.name].done && !cardDone(e.name) && e.name !== actual); if (e) return e.name; }
+  for (const sec of orden) { const e = sec.find(e => !state[e.name].done && !cardDone(e.name) && e.name !== actual && (parOn() || !esDeOtro(e))); if (e) return e.name; }
   return '';
 }
 function elegirGrupo(g) {
@@ -2617,10 +2655,8 @@ function tarjetaFuerza() {
   return h;
 }
 /* ----- Mapa muscular por zonas específicas (Catálogo T): cada ejercicio suma a sus zonas (principal 1, apoyo ½) ----- */
-// Por zona: 0–3 gris (falta) · 4–7 ámbar (poco) · 8–20 verde (bien) · más de 20 rojo (alto: vigila la recuperación).
+// Por zona, contra la meta de tu objetivo (metaZona): falta · poco · en meta · arriba del tope.
 // Es más bajo que el 10–20 por músculo completo porque cada zona es una parte del músculo.
-const zonaZ = n => n > 20 ? 3 : n >= 8 ? 2 : n >= 4 ? 1 : 0;
-const ZONA_TXT = ['Falta trabajo', 'Poco: súmale series', 'Bien trabajada', 'Alto: vigila la recuperación'];
 let MUS_SEL = null;
 // Mapa muscular anatómico (dibujo propio). Se define la mitad izquierda (x < 100) de cada figura y la derecha es su espejo.
 // Cada pieza: [zona que cuenta series | '' = anatomía que no se cuenta, path SVG].
@@ -2685,7 +2721,7 @@ const ANAT = {
 };
 function svgCuerpo(z, espalda) {
   const lado = espalda ? 'espalda' : 'frente';
-  const pieza = (m, d) => m ? '<path class="mz' + zonaZ(z[m] || 0) + (MUS_SEL === m ? ' sel' : '') + '" data-m="' + m + '" d="' + d + '" onclick="MUS_SEL=\'' + m + '\';pintarProgreso()"><title>' + m + '</title></path>'
+  const pieza = (m, d) => m ? '<path class="mz' + zonaZ(z[m] || 0, m) + (MUS_SEL === m ? ' sel' : '') + '" data-m="' + m + '" d="' + d + '" onclick="MUS_SEL=\'' + m + '\';pintarProgreso()"><title>' + m + '</title></path>'
     : '<path class="nz" d="' + d + '"/>';
   const mitad = ANAT[lado].map(x => pieza(x[0], x[1])).join('') + ANAT.fibras[lado].map(d => '<path class="fib" d="' + d + '"/>').join('');
   const espejo = c => '<g' + (c ? ' transform="matrix(-1 0 0 1 200 0)"' : '') + '>';
@@ -2696,13 +2732,210 @@ function svgCuerpo(z, espalda) {
 }
 const ZONAS = ['Pecho superior', 'Pecho medio', 'Deltoide frontal', 'Deltoide lateral', 'Deltoide posterior', 'Trapecio', 'Dorsal', 'Espalda media', 'Lumbar',
   'Bíceps', 'Tríceps', 'Antebrazo', 'Abdomen', 'Oblicuos', 'Cuádriceps', 'Isquiosurales', 'Glúteo', 'Glúteo medio', 'Aductores', 'Pantorrilla'];
+/* ----- Metas por zona según tu objetivo (Ajustes → Objetivo de músculo) -----
+   meta = series efectivas por semana para "en meta" (verde); tope = arriba de eso, rojo (vigila recuperación).
+   Las zonas chicas reciben mucho trabajo indirecto (el press ya trabaja deltoide frontal y tríceps), por eso su meta es baja. */
+const FOCOS = {
+  balanceado: ['Balanceado', 'Todo el cuerpo parejo (recomendado para ganar músculo en general)'],
+  v: ['Torso en V', 'Espalda ancha y hombros redondos: más dorsal y deltoide lateral; pierna en mantenimiento'],
+  pierna: ['Énfasis pierna', 'Más cuádriceps, glúteo e isquiosurales; torso en mantenimiento']
+};
+const META_BASE = {
+  'Pecho superior': [6, 14], 'Pecho medio': [8, 18], 'Deltoide frontal': [4, 18], 'Deltoide lateral': [8, 18], 'Deltoide posterior': [6, 14],
+  'Trapecio': [4, 12], 'Dorsal': [10, 20], 'Espalda media': [8, 18], 'Lumbar': [3, 10], 'Bíceps': [8, 16], 'Tríceps': [8, 16], 'Antebrazo': [3, 12],
+  'Abdomen': [6, 14], 'Oblicuos': [3, 10], 'Cuádriceps': [10, 20], 'Isquiosurales': [8, 16], 'Glúteo': [8, 18], 'Glúteo medio': [3, 10],
+  'Aductores': [3, 10], 'Pantorrilla': [6, 14]
+};
+const META_FOCO = {
+  v: { 'Deltoide lateral': [12, 22], 'Dorsal': [12, 22], 'Espalda media': [10, 20], 'Deltoide posterior': [8, 16],
+       'Cuádriceps': [8, 18], 'Isquiosurales': [6, 14], 'Glúteo': [6, 16] },
+  pierna: { 'Cuádriceps': [12, 22], 'Glúteo': [12, 22], 'Isquiosurales': [10, 18], 'Glúteo medio': [4, 12], 'Aductores': [4, 12], 'Pantorrilla': [8, 16],
+            'Pecho medio': [6, 16], 'Dorsal': [8, 18], 'Espalda media': [6, 16], 'Bíceps': [6, 14], 'Tríceps': [6, 14], 'Deltoide lateral': [6, 16] }
+};
+function focoMus() { const f = ajuste('foco', (DATA && DATA.foco) || 'balanceado'); return FOCOS[f] ? f : 'balanceado'; }
+// Se guarda también en tu configuración de la hoja: así el correo del domingo y el APK usan el mismo objetivo
+function setFoco(f) { setAjuste('foco', f); DATA.foco = f; LS.set('gym_data', DATA); encolar('saveConfig', [{ foco: f }], 'cfg-foco'); hap('tecla'); abrirAjustes(); if (TAB === 'Progreso') pintarProgreso(); }
+function metaZona(m) { const t = (META_FOCO[focoMus()] || {})[m] || META_BASE[m] || [6, 16]; return { meta: t[0], tope: t[1] }; }
+// 0 falta (menos de la mitad de la meta) · 1 poco · 2 en meta · 3 arriba del tope
+const zonaZ = (n, m) => { const t = metaZona(m); return n > t.tope ? 3 : n >= t.meta ? 2 : n >= t.meta / 2 ? 1 : 0; };
+const ZONA_TXT = ['Falta trabajo', 'Poco: súmale series', 'En meta', 'Arriba del tope: vigila la recuperación'];
+const REGIONES = {
+  Espalda: ['Dorsal', 'Espalda media', 'Trapecio', 'Lumbar'], Hombro: ['Deltoide lateral', 'Deltoide posterior', 'Deltoide frontal'],
+  Pecho: ['Pecho superior', 'Pecho medio'], Brazos: ['Bíceps', 'Tríceps', 'Antebrazo'], Core: ['Abdomen', 'Oblicuos'],
+  Pierna: ['Cuádriceps', 'Isquiosurales', 'Glúteo', 'Glúteo medio', 'Aductores', 'Pantorrilla']
+};
+const regionDe = m => Object.keys(REGIONES).find(r => REGIONES[r].includes(m)) || '';
+// Series de la semana por zona, incluyendo lo que guardaste hoy y la hoja todavía no devuelve
+function zonasVivas() {
+  const z = Object.assign({}, (DATA.resumen && DATA.resumen.zonas7) || {});
+  if (FECHA) return z;
+  sesion().log.forEach(l => {
+    const e = exDe(l.name);
+    if (!e || e.uid === l.uid) return;
+    const ef = l.sets.filter(s => s.t !== 'C' && s.r > 0).length;
+    (e.zonas || []).forEach(x => { z[x.z] = (z[x.z] || 0) + ef * x.w; });
+  });
+  return z;
+}
+// Series de una zona en las últimas 48 h (para no recomendar machacar algo que trabajaste ayer)
+function zonaReciente(m) {
+  const ayer = sumarDias(hoy(), -1);
+  let n = 0, cuando = '';
+  ((DATA.resumen || {}).zonasDias || []).forEach(d => { if (d.k >= ayer && d.z[m]) { n += d.z[m]; cuando = d.k === hoy() ? 'hoy' : 'ayer'; } });
+  sesion().log.forEach(l => { const e = exDe(l.name); if (!e || e.uid === l.uid) return; const x = (e.zonas || []).find(y => y.z === m); if (x) { n += l.sets.filter(s => s.t !== 'C').length * x.w; cuando = 'hoy'; } });
+  return { n: n, cuando: cuando };
+}
+const fmtSer = v => String(Math.round(v * 2) / 2).replace('.5', '½');
+/* ----- Ejercicios añadidos a la sesión de hoy desde el mapa ----- */
+function extrasHoy() { return FECHA ? [] : LS.get('gym_extra_' + hoy(), []).filter(x => exDe(x.name)); }
+const esExtra = name => extrasHoy().some(x => x.name === name);
+function anadirHoy(name, n) {
+  const ex = exDe(name);
+  if (!ex) return;
+  const l = LS.get('gym_extra_' + hoy(), []).filter(x => x.name !== name);
+  l.push({ name: name, n: n || 0 }); LS.set('gym_extra_' + hoy(), l);
+  const st = state[name];
+  // Si te recomendó menos series que las del catálogo, la tarjeta ya viene con esas
+  if (st && !st.done && !st.edited && n && st.sets.filter(s => s.t !== 'C').length > n) {
+    let quedan = n; st.sets = st.sets.filter(s => s.t === 'C' || quedan-- > 0);
+  }
+  cerrarModal(); hap('ok');
+  BUSCA = ''; OPEN = name; ANIM_ABRE = name;
+  if (TAB !== 'Entrenar') verTab('Entrenar'); else pintarEntrenar();
+  irA(name);
+  toast('Añadido a hoy: ' + ex.ejercicio.split(' (')[0] + (n ? ' · ' + n + ' series' : ''));
+}
+function quitarDeHoy(name) {
+  LS.set('gym_extra_' + hoy(), LS.get('gym_extra_' + hoy(), []).filter(x => x.name !== name));
+  cerrarModal(); if (OPEN === name) OPEN = ''; pintarEntrenar(); toast('Quitado de hoy');
+}
+function irAEjercicio(name) {
+  cerrarModal();
+  const g = exDe(name).group;
+  if (g !== GRUPO && !esExtra(name)) { GRUPO = g; GRUPO_MANUAL = true; GRUPO_DIA = hoy(); }
+  BUSCA = ''; OPEN = name; ANIM_ABRE = name;
+  if (TAB !== 'Entrenar') verTab('Entrenar'); else pintarEntrenar();
+  irA(name);
+}
+// Qué hacer para una zona: lo que ya tienes hoy y los mejores ejercicios para añadir
+function opcionesZona(m) {
+  const z = zonasVivas(), hoyEx = (GRUPO && GRUPO !== 'Trote' ? (ordenGrupo(GRUPO)[0] || []) : []).map(e => e.name);
+  const peso = e => ((e.zonas || []).find(x => x.z === m) || {}).w || 0;
+  let cands = DATA.exercises.filter(e => peso(e) > 0 && !/^Otro ejercicio/.test(e.ejercicio));
+  const directos = cands.filter(e => peso(e) >= 1);
+  if (directos.length) cands = directos;
+  const hechoHoy = cands.filter(e => state[e.name] && state[e.name].done);
+  const pendHoy = cands.filter(e => hoyEx.includes(e.name) && state[e.name] && !state[e.name].done);
+  const rojo = e => (e.zonas || []).some(x => x.z !== m && x.w >= 0.5 && zonaZ(z[x.z] || 0, x.z) === 3);
+  const score = e => (e.anterior.length ? 3 : 0) + (e.group === GRUPO ? 2 : 0) + ((e.zonas || []).length <= 2 ? 1 : 0) +
+    (e.bloque && e.bloque === DATA.bloquePara[e.group] ? 0.5 : 0) - (rojo(e) ? 2 : 0) - (esDeOtro(e) ? 3 : 0);
+  const resto = cands.filter(e => !hoyEx.includes(e.name) && !(state[e.name] && state[e.name].done)).sort((a, b) => score(b) - score(a));
+  return { pendHoy: pendHoy, hechoHoy: hechoHoy, top: resto.slice(0, 3), peso: peso, rojo: rojo };
+}
+// Por qué te recomienda ese ejercicio, en pocas palabras
+function porQue(e, m, o) {
+  const p = [];
+  if (e.anterior.length) p.push('la última vez (' + e.lastWhen + '): ' + resumenSets(e.anterior) + ' ' + e.unit);
+  else p.push('nuevo para ti: empieza ligero, 1–2 en reserva');
+  if ((e.zonas || []).length <= 2) p.push('trabaja directo ' + m.toLowerCase());
+  if (o.rojo(e)) p.push('ojo: también carga una zona que ya va alta');
+  return p.join(' · ');
+}
+// Panel de una zona (en Progreso y en "🎯 Trabajar un músculo")
+function panelZona(m, modal) {
+  const z = zonasVivas(), v = z[m] || 0, t = metaZona(m), est = zonaZ(v, m), falta = Math.max(0, t.meta - v);
+  const sel = x => modal ? 'elegirMusculo(\'' + jsq(x) + '\')' : 'MUS_SEL=\'' + jsq(x) + '\';pintarProgreso()';
+  const col = ['var(--muted)', 'var(--acc)', 'var(--ok)', 'var(--bad)'];
+  const barra = (x, w) => '<span class="zbar' + (w ? ' w' : '') + '"><i style="width:' + Math.min(100, Math.round((z[x] || 0) / metaZona(x).meta * 100)) + '%;background:' + col[zonaZ(z[x] || 0, x)] + '"></i></span>';
+  let h = '<div class="msel entra"><div class="row between" style="align-items:baseline"><b>' + esc(m) + '</b><span class="num">' + fmtSer(v) + ' / ' + t.meta + ' series</span></div>' +
+    barra(m, true) + '<div class="muted" style="font-size:13px;margin-top:4px">' + ZONA_TXT[est] + (focoMus() !== 'balanceado' ? ' · meta con tu objetivo «' + FOCOS[focoMus()][0] + '»' : '') + '</div>';
+  const r = regionDe(m);
+  if (r) h += '<div class="region"><div class="muted">' + r + '</div>' + REGIONES[r].map(x => '<button class="' + (x === m ? 'on' : '') + '" onclick="' + sel(x) + '">' +
+    '<span>' + esc(x) + '</span>' + barra(x) + '<span class="num">' + fmtSer(z[x] || 0) + '/' + metaZona(x).meta + '</span></button>').join('') + '</div>';
+  const o = opcionesZona(m), rec = zonaReciente(m);
+  const boton = (e, grande) => {
+    const n = Math.min(e.series || 4, Math.max(2, Math.ceil(falta / o.peso(e)) || 3));
+    if (esExtra(e.name)) return '<button class="' + (grande ? 'btn block' : 'alt') + '" onclick="irAEjercicio(\'' + jsq(e.name) + '\')">✓ Ya está en tu sesión: ' + esc(e.ejercicio.split(' (')[0]) + ' → Ir</button>';
+    return grande ? '<button class="btn block" onclick="anadirHoy(\'' + jsq(e.name) + '\',' + n + ')">➕ Añadir ' + esc(e.ejercicio.split(' (')[0]) + ' a hoy · ' + n + ' series</button>' +
+      '<div class="muted porque">' + esc(porQue(e, m, o)) + '</div>'
+      : '<button class="alt" onclick="anadirHoy(\'' + jsq(e.name) + '\',' + n + ')">' + (o.pendHoy.length || est === 2 ? '➕ ' : 'o ') + esc(e.ejercicio.split(' (')[0]) + '</button>';
+  };
+  h += '<div class="accion">';
+  if (est === 3) h += '<div>Ya pasaste el tope esta semana: no le sumes más; dale descanso para que crezca.</div>';
+  else {
+    if (est === 2) h += '<div class="muted" style="margin-bottom:6px">Vas en meta. Si aun así quieres darle más:</div>';
+    else h += '<div style="margin-bottom:6px">Te faltan <b>~' + Math.ceil(falta) + ' series</b> esta semana.</div>';
+    if (rec.n >= 4) h += '<div class="aviso2">⏳ Ya le diste ' + fmtSer(rec.n) + ' series ' + rec.cuando + ': si la sientes cargada, mejor en tu próxima sesión (48 h de recuperación).</div>';
+    if (o.pendHoy.length) h += '<div style="margin:2px 0 8px">Ya está en tu rutina de hoy: ' + o.pendHoy.slice(0, 2).map(e => '<button class="alt" onclick="irAEjercicio(\'' + jsq(e.name) + '\')">' + esc(e.ejercicio.split(' (')[0]) + ' → Ir</button>').join(' ') + '</div>';
+    // Si el grupo que la trabaja es tu próximo día, se cubre ahí (no hace falta adelantarlo)
+    const rot = ['Push', 'Pull', 'Legs'], gHoy = rot.includes(GRUPO) ? GRUPO : DATA.sugGrupo, prox = rot[(rot.indexOf(gHoy) + 1) % 3];
+    if (est < 2 && o.top.length && o.top[0].group === prox && prox !== GRUPO) h += '<div class="muted" style="font-size:13px;margin-bottom:6px">Tu próximo día es ' + prox + ': ahí la cubres. Si quieres adelantarla o no vas a ir:</div>';
+    if (o.top.length) {
+      const n0 = Math.min(o.top[0].series || 4, Math.max(2, Math.ceil(falta / o.peso(o.top[0])) || 3));
+      // Si ya tienes uno pendiente hoy, lo demás va como alternativa chica (primero haz lo que ya está)
+      h += o.pendHoy.length || est === 2 ? '<div class="alts">' + (o.pendHoy.length ? '<span class="muted" style="font-size:13px;align-self:center">¿Quieres otro?</span>' : '') + o.top.map(e => boton(e, false)).join('') + '</div>'
+        : boton(o.top[0], true) + (o.top.length > 1 ? '<div class="alts">' + o.top.slice(1).map(e => boton(e, false)).join('') + '</div>' : '');
+      if (est < 2 && !o.pendHoy.length && falta > n0 + 0.5) h += '<div class="muted" style="font-size:12.5px;margin-top:6px">Las otras ~' + Math.ceil(falta - n0) + ' series, en tu próxima sesión: más de 4–5 series de una zona en un día rinden menos.</div>';
+    }
+    else if (!o.pendHoy.length) h += '<div class="muted">No hay otro ejercicio en tu catálogo que la trabaje directo.</div>';
+  }
+  if (o.hechoHoy.length) h += '<div class="muted" style="font-size:12.5px;margin-top:6px">Hoy ya hiciste: ' + esc(o.hechoHoy.map(e => e.ejercicio.split(' (')[0]).join(', ')) + '.</div>';
+  return h + '</div></div>';
+}
+// Las zonas más atrasadas contra su meta (para "Lo que más te falta")
+function zonasAtrasadas(n) {
+  // Primero lo que más series te falta, y las zonas grandes pesan más que las chicas (antebrazo, lumbar…)
+  const z = zonasVivas(), peso = x => (x.meta - x.v) * (x.meta >= 8 ? 1.5 : 1);
+  return ZONAS.map(m => ({ m: m, v: z[m] || 0, meta: metaZona(m).meta })).filter(x => x.v < x.meta)
+    .sort((a, b) => peso(b) - peso(a)).slice(0, n || 3);
+}
+// "🎯 Trabajar un músculo" desde Entrenar: eliges zona y te dice qué hacer hoy
+function elegirMusculo(m) {
+  const z = zonasVivas(), col = ['var(--muted)', 'var(--acc)', 'var(--ok)', 'var(--bad)'];
+  const atr = zonasAtrasadas(3);
+  let h = '<div class="row between"><div class="t2">¿Qué quieres trabajar?</div><button class="btn ghost sm" onclick="cerrarModal()">✕</button></div>';
+  if (!m && atr.length) h += '<div class="muted" style="margin:4px 0 6px">Lo que más te falta esta semana:</div><div class="mchips" style="margin-top:0">' +
+    atr.map(x => '<button onclick="elegirMusculo(\'' + jsq(x.m) + '\')"><i style="background:' + col[zonaZ(x.v, x.m)] + '"></i>' + esc(x.m) + ' <b class="num">' + fmtSer(x.v) + '/' + x.meta + '</b></button>').join('') + '</div>';
+  h += '<div class="regiones">' + Object.keys(REGIONES).map(r => '<div><div class="muted">' + r + '</div><div class="mchips" style="margin-top:4px">' + REGIONES[r].map(x =>
+    '<button class="' + (x === m ? 'on' : '') + '" onclick="elegirMusculo(\'' + jsq(x) + '\')"><i style="background:' + col[zonaZ(z[x] || 0, x)] + '"></i>' + esc(x) + '</button>').join('') + '</div></div>').join('') + '</div>';
+  if (m) h += panelZona(m, true);
+  $('sheet').innerHTML = h;
+  if (!$('modal').classList.contains('show')) abrirModal();
+  if (m) setTimeout(() => { const el = document.querySelector('#sheet .msel'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 30);
+}
+/* ----- Quién hace cada ejercicio en pareja (Catálogo U): "Ambos" o el nombre de uno ----- */
+const mismoNombre = (a, b) => { const n = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim().split(' ')[0]; return !!a && n(a) === n(b); };
+function asignadoDe(name) { const e = DATA.exercises.find(x => x.name === baseDe(name)); return e ? e.asignado || '' : ''; }
+// En tu catálogo dice que lo hace otra persona (en pareja se marca "no lo haces hoy"; solo, no te lo propone)
+function esDeOtro(e) { const a = e && (e.asignado || asignadoDe(e.name)); return !!a && !mismoNombre(a, DATA.nombre); }
+function fijarAsignado(base, quien) {
+  const e = DATA.exercises.find(x => x.name === base);
+  if (!e) return;
+  e.asignado = quien === 'Ambos' ? '' : quien;
+  LS.set('gym_data', DATA);
+  const m = saltosPar(); delete m[base]; LS.set('gym_parskip_' + hoy(), m);   // la regla nueva aplica desde ya
+  encolar('saveAsignado', [base, quien], 'asig-' + base);
+  cerrarModal(); hap('ok');
+  toast(quien === 'Ambos' ? e.ejercicio.split(' (')[0] + ': lo hacen los dos' : e.ejercicio.split(' (')[0] + ': normalmente solo ' + quien);
+  pintarEntrenar();
+}
+function menuAsignado(k) {
+  const base = baseDe(k), a = asignadoDe(base), otro = (PAR && PAR.nombre) || (parejaDisponible() || {}).nombre || 'tu compañero';
+  const ops = [['Ambos', 'Los dos'], [DATA.nombre, 'Solo yo'], [otro, 'Solo ' + otro]];
+  const on = v => v === 'Ambos' ? !a : mismoNombre(a, v);
+  $('sheet').innerHTML = '<div class="t2">¿Quién lo hace normalmente?</div><div class="muted" style="margin:4px 0 10px">' + esc(exDe(base).ejercicio) +
+    '. En pareja, al que no lo hace se le marca «no lo hace hoy» desde el inicio (lo puedes cambiar ese día).</div><div class="pills" style="display:grid;grid-template-columns:repeat(3,1fr)">' +
+    ops.map(o => '<button class="' + (on(o[0]) ? 'on' : '') + '" onclick="fijarAsignado(\'' + jsq(base) + '\',\'' + jsq(o[0]) + '\')">' + esc(o[1]) + '</button>').join('') +
+    '</div><div class="acts"><button class="btn ghost" onclick="cerrarModal()">Cancelar</button></div>';
+  abrirModal();
+}
 // "▶ Tu semana": el mapa empieza en gris y se pinta día por día con lo que entrenaste
 let SEM_T = [];
 function verSemana() {
   const dias = ((DATA.resumen || {}).zonasDias || []), piezas = [...document.querySelectorAll('.cuerpo [data-m]')], lbl = $('semDia'), btn = $('semBtn');
   if (!dias.length || !piezas.length) return;
   SEM_T.forEach(clearTimeout); SEM_T = [];
-  const pintar = acc => piezas.forEach(el => el.setAttribute('class', 'mz' + zonaZ(acc[el.dataset.m] || 0)));
+  const pintar = acc => piezas.forEach(el => el.setAttribute('class', 'mz' + zonaZ(acc[el.dataset.m] || 0, el.dataset.m)));
   const acc = {};
   pintar(acc); if (btn) btn.disabled = true; if (lbl) lbl.textContent = 'Empieza la semana…';
   dias.forEach((d, i) => SEM_T.push(setTimeout(() => {
@@ -2713,28 +2946,25 @@ function verSemana() {
     if (lbl) lbl.textContent = f.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric' }).replace(/^./, c => c.toUpperCase()) + ' · +' + String(Math.round(n * 2) / 2).replace('.5', '½') + ' series';
   }, 700 + i * 1100)));
   SEM_T.push(setTimeout(() => {
-    pintar((DATA.resumen || {}).zonas7 || acc);
+    pintar(zonasVivas());
     piezas.forEach(el => { if (el.dataset.m === MUS_SEL) el.classList.add('sel'); });
     if (lbl) lbl.textContent = 'Así quedó tu semana'; if (btn) btn.disabled = false;
   }, 700 + dias.length * 1100 + 600));
 }
 function tarjetaMusculos(ms) {
-  const z = (DATA.resumen && DATA.resumen.zonas7) || {};
+  const z = zonasVivas();
   const col = ['var(--muted)', 'var(--acc)', 'var(--ok)', 'var(--bad)'];
-  const n = m => String(Math.round((z[m] || 0) * 2) / 2).replace('.5', '½');
-  let h = '<h2>Tus músculos</h2><div class="card"><div class="muted" style="margin-bottom:2px">Series efectivas de 7 días por zona (el ejercicio principal cuenta 1; el de apoyo, ½). Toca una zona.</div>' +
+  let h = '<h2>Tus músculos</h2><div class="card"><div class="muted" style="margin-bottom:2px">Series efectivas de 7 días por zona contra tu meta' +
+    (focoMus() !== 'balanceado' ? ' (objetivo: ' + FOCOS[focoMus()][0] + ')' : '') + '. Toca una zona y te digo qué hacer.</div>' +
     '<div class="cuerpo">' + svgCuerpo(z, false) + svgCuerpo(z, true) + '</div>' +
-    '<div class="leyenda">' + ['0–3', '4–7', '8–20', '+20'].map((t, i) => '<span><i style="background:' + col[i] + (i === 0 ? ';opacity:.4' : '') + '"></i>' + t + '</span>').join('') + '</div>';
+    '<div class="leyenda">' + ['Falta', 'Poco', 'En meta', 'Arriba del tope'].map((t, i) => '<span><i style="background:' + col[i] + (i === 0 ? ';opacity:.4' : '') + '"></i>' + t + '</span>').join('') + '</div>';
   if (((DATA.resumen || {}).zonasDias || []).length) h += '<div class="semana"><span class="dia" id="semDia"></span><button class="btn ghost sm" id="semBtn" onclick="verSemana()">▶ Tu semana</button></div>';
-  if (MUS_SEL) {
-    const v = z[MUS_SEL] || 0, falta = Math.max(0, 8 - v);
-    const quien = DATA.exercises.filter(e => (e.zonas || []).some(x => x.z === MUS_SEL && x.w >= 1)).map(e => e.ejercicio.split(' (')[0]).filter((x, i, a) => a.indexOf(x) === i);
-    h += '<div class="msel entra"><b>' + esc(MUS_SEL) + '</b> · <span class="num">' + n(MUS_SEL) + ' series</span> · ' + ZONA_TXT[zonaZ(v)] +
-      (falta ? '<div class="muted" style="font-size:13px;margin-top:3px">Te faltan ~' + Math.ceil(falta) + ' series esta semana para llegar a 8.</div>' : '') +
-      (quien.length ? '<div class="muted" style="font-size:13px;margin-top:3px">La trabajan de forma directa: ' + esc(quien.slice(0, 5).join(', ')) + '.</div>' : '') + '</div>';
-  }
-  h += '<div class="mchips">' + ZONAS.slice().sort((a, b) => (z[a] || 0) - (z[b] || 0)).map(m => '<button onclick="MUS_SEL=\'' + jsq(m) + '\';pintarProgreso()"><i style="background:' + col[zonaZ(z[m] || 0)] + '"></i>' +
-    esc(m) + ' <b class="num">' + n(m) + '</b></button>').join('') + '</div>';
+  const atr = zonasAtrasadas(3);
+  if (atr.length && !MUS_SEL) h += '<div class="falta"><span class="muted">Lo que más te falta:</span> ' + atr.map(x => '<button class="link" onclick="MUS_SEL=\'' + jsq(x.m) + '\';pintarProgreso()">' +
+    esc(x.m) + ' ' + fmtSer(x.v) + '/' + x.meta + '</button>').join(' · ') + '</div>';
+  if (MUS_SEL) h += panelZona(MUS_SEL, false);
+  h += '<div class="mchips">' + ZONAS.slice().sort((a, b) => (z[a] || 0) / metaZona(a).meta - (z[b] || 0) / metaZona(b).meta).map(m => '<button class="' + (m === MUS_SEL ? 'on' : '') + '" onclick="MUS_SEL=\'' + jsq(m) + '\';pintarProgreso()"><i style="background:' + col[zonaZ(z[m] || 0, m)] + '"></i>' +
+    esc(m) + ' <b class="num">' + fmtSer(z[m] || 0) + '/' + metaZona(m).meta + '</b></button>').join('') + '</div>';
   // Resumen por músculo completo (el que usa el correo semanal), en una línea
   const g = (ms || []).filter(x => x.series7 > 0).sort((a, b) => b.series7 - a.series7);
   if (g.length) h += '<div class="muted" style="font-size:12.5px;margin-top:10px">Por músculo completo: ' + g.map(x => esc(x.m) + ' ' + String(x.series7).replace('.5', '½')).join(' · ') + '</div>';
@@ -2850,6 +3080,8 @@ function abrirAjustes() {
     tog('calentamiento', false, 'Calentamiento automático', 'En los básicos con barra agrega 2 series ligeras (50 % y 70 %) al abrirlos') +
     '<div class="opt" style="display:block"><div class="t1" style="font-size:15px;margin-bottom:8px">Descanso predeterminado</div><div class="pills" style="margin:0;display:grid;grid-template-columns:repeat(4,1fr)">' +
     DESCANSOS.map(s => '<button class="' + (s === def ? 'on' : '') + '" onclick="setAjuste(\'descanso\',' + s + ');abrirAjustes()">' + mmss(s) + '</button>').join('') + '</div></div>' +
+    '<div class="opt" style="display:block"><div class="t1" style="font-size:15px">Objetivo de músculo</div><div class="muted">' + esc(FOCOS[focoMus()][1]) + '. Cambia las metas del mapa de músculos.</div>' +
+    '<div class="pills" style="margin:8px 0 0;display:grid;grid-template-columns:repeat(3,1fr)">' + Object.keys(FOCOS).map(f => '<button class="' + (f === focoMus() ? 'on' : '') + '" onclick="setFoco(\'' + f + '\')">' + FOCOS[f][0] + '</button>').join('') + '</div></div>' +
     '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Meta de proteína</div><div class="muted">Unos 1.6–2 g por kilo de tu peso</div></div>' +
     '<div class="unit"><button onclick="cambiarMeta(-5)">−5</button><button class="on num" style="pointer-events:none">' + metaProt() + ' g</button><button onclick="cambiarMeta(5)">+5</button></div></div>' +
     '<div class="opt" style="display:block"><div class="t1" style="font-size:15px">Días de aviso</div><div class="muted">Esos días te llega a las 5:00 am lo que te toca</div><div class="dias">' +
