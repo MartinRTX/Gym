@@ -1,14 +1,17 @@
 /**
- * Gym v7 – ejercicios populares para el Catálogo.
+ * Gym v7 – ejercicios populares para el Catálogo (versión 2: repara la columna G y es rápida).
  *
- * Pega este bloque AL FINAL de tu script (no borres nada de lo que ya tienes), guarda y corre una vez
- * agregarEjercicios() desde el editor. Los agrega a tu hoja y a la de cada persona que agregaste (Aaron).
+ * Si ya pegaste la versión anterior: bórrala completa (desde "Gym v7 – ejercicios populares" hasta el final)
+ * y pega esta en su lugar. Guarda y corre agregarEjercicios() desde el editor (tarda unos segundos).
  *
- * - No toca tus ejercicios: si un nombre ya existe en el Catálogo, lo salta. Puedes correrla de nuevo sin duplicar.
+ * - Repara la columna G ("Nombre en la app (auto)"): deja solo la fórmula de G2, que llena la columna sola.
+ *   (La versión anterior escribía en G y eso rompía esa fórmula: G2 salía #REF!.)
+ * - Quita filas vacías que hayan quedado entre ejercicios.
+ * - No toca tus ejercicios ni repite los que ya estén: puedes correrla otra vez sin duplicar.
  * - Van sin bloque (columna I vacía): no cambian tu rotación A/B. Salen en "Más ejercicios", en el buscador,
- *   en el mapa de músculos ("Añadir a hoy") y en "Máquina ocupada → cambiar" (por su patrón de movimiento).
- * - Cada uno se inserta al final de su grupo (antes de "Otro ejercicio"), con el formato de la fila de arriba.
- * - No hace falta volver a implementar la app web: la app lee el Catálogo cada vez que se actualiza.
+ *   en "Músculos" ("Añadir a hoy") y en "Máquina ocupada → cambiar" (por su patrón de movimiento).
+ * - Se insertan al final de su grupo (antes de "Otro ejercicio"), todos los del grupo de una vez.
+ * - Lo hace en tu hoja y en la de cada persona que agregaste (Aaron). No hace falta volver a implementar la app web.
  */
 // [grupo, ejercicio, series, reps mín, reps máx, cómo anotar, al subir (+/−), músculo, barra lb, multiplicador,
 //  músculo secundario, patrón, técnica, modalidad, zonas]
@@ -126,30 +129,63 @@ function agregarEjercicios() {
   Logger.log('Listo.\n' + resumen.join('\n'));
 }
 
-// Inserta en el Catálogo de una hoja los ejercicios que falten; devuelve un texto con lo que hizo
+// Repara la columna G y quita filas vacías intermedias; sirve sola si solo quieres arreglar la hoja
+function repararCatalogo() {
+  const resumen = [];
+  paraTodos_(u => { resumen.push(u.nombre + ': ' + repararCatalogoA_(SpreadsheetApp.openById(u.ss).getSheetByName('Catálogo'))); });
+  Logger.log(resumen.join('\n'));
+}
+
+function repararCatalogoA_(cat) {
+  if (!cat) return 'no tiene pestaña Catálogo';
+  const hechos = [];
+  // 1) Columna G: si G2 es una fórmula de arreglo, todo lo de abajo debe estar vacío para que se expanda
+  if (/ARRAYFORMULA/i.test(cat.getRange(2, 7).getFormula()) && cat.getMaxRows() > 2) {
+    const g = cat.getRange(3, 7, cat.getMaxRows() - 2, 1);
+    // Rota si G2 muestra #REF! (algo escrito abajo le estorba) o si hay fórmulas copiadas debajo
+    if (/^#REF!/.test(cat.getRange(2, 7).getDisplayValue()) || g.getFormulas().some(r => r[0])) { g.clearContent(); hechos.push('columna G reparada'); }
+  }
+  // 2) Filas vacías entre ejercicios (sin grupo ni nombre) antes del último ejercicio
+  const n = cat.getLastRow();
+  if (n > 2) {
+    const ab = cat.getRange(2, 1, n - 1, 2).getValues();
+    let ultima = 0;
+    ab.forEach((r, i) => { if (r[0] && r[1]) ultima = i; });
+    let quitadas = 0;
+    for (let i = ultima; i >= 0; i--) if (!ab[i][0] && !ab[i][1]) { cat.deleteRow(i + 2); quitadas++; }
+    if (quitadas) hechos.push(quitadas + ' fila' + (quitadas === 1 ? '' : 's') + ' vacía' + (quitadas === 1 ? '' : 's') + ' quitada' + (quitadas === 1 ? '' : 's'));
+  }
+  return hechos.length ? hechos.join(', ') : 'sin cambios';
+}
+
+// Inserta en el Catálogo los ejercicios que falten, un bloque por grupo; devuelve un texto con lo que hizo
 function agregarEjerciciosA_(ss) {
   const cat = ss.getSheetByName('Catálogo');
   if (!cat) return 'no tiene pestaña Catálogo';
+  const reparado = repararCatalogoA_(cat);
   const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
   const ncols = Math.min(21, cat.getMaxColumns());
-  const formulaG = cat.getRange(2, 7).getFormulaR1C1();          // "Nombre en la app (auto)": si es fórmula, se copia
-  let nuevos = 0, saltados = 0;
-  EJERCICIOS_V7.forEach(x => {
-    const filas = cat.getRange(2, 1, Math.max(1, cat.getLastRow() - 1), 2).getValues();
-    if (filas.some(r => r[0] === x[0] && norm(r[1]) === norm(x[1]))) { saltados++; return; }
-    // Última fila de su grupo que no sea "Otro ejercicio…": ahí debajo va el nuevo
+  const filas = cat.getRange(2, 1, Math.max(1, cat.getLastRow() - 1), 2).getValues();
+  const existe = {};
+  filas.forEach(r => { if (r[0] && r[1]) existe[r[0] + '|' + norm(r[1])] = true; });
+  const faltan = EJERCICIOS_V7.filter(x => !existe[x[0] + '|' + norm(x[1])]);
+  // De abajo hacia arriba, para que insertar un grupo no mueva las filas de los grupos que siguen
+  const grupos = ['Core', 'Legs', 'Pull', 'Push'];
+  grupos.forEach(g => {
+    const nuevos = faltan.filter(x => x[0] === g);
+    if (!nuevos.length) return;
     let despues = 0;
-    filas.forEach((r, i) => { if (r[0] === x[0] && !/^Otro ejercicio/.test(String(r[1]))) despues = i + 2; });
+    filas.forEach((r, i) => { if (r[0] === g && !/^Otro ejercicio/.test(String(r[1]))) despues = i + 2; });
     if (!despues) despues = cat.getLastRow();
-    cat.insertRowsAfter(despues, 1);                              // hereda el formato de la fila de arriba
-    const fila = despues + 1;
-    // A grupo, B ejercicio, C series, D mín, E máx, F cómo anotar, G nombre, H incremento, I bloque (vacío), J músculo,
-    // K barra, L multiplicador, M secundario, N ajuste, O patrón, P paso, Q video, R técnica, S modalidad, T zonas, U asignado
-    const v = [x[0], x[1], x[2], x[3], x[4], x[5], x[0] + ': ' + x[1], x[6], '', x[7], x[8], x[9], x[10], '', x[11], '', '', x[12], x[13], x[14], ''];
-    cat.getRange(fila, 1, 1, ncols).setValues([v.slice(0, ncols)]);
-    if (formulaG) cat.getRange(fila, 7).setFormulaR1C1(formulaG);
-    nuevos++;
+    cat.insertRowsAfter(despues, nuevos.length);                  // heredan el formato de la fila de arriba
+    // A grupo, B ejercicio, C series, D mín, E máx, F cómo anotar · G NO se toca (la llena la fórmula de G2)
+    cat.getRange(despues + 1, 1, nuevos.length, 6).setValues(nuevos.map(x => [x[0], x[1], x[2], x[3], x[4], x[5]]));
+    // H incremento, I bloque (vacío), J músculo, K barra, L multiplicador, M secundario, N ajuste, O patrón,
+    // P paso, Q video, R técnica, S modalidad, T zonas, U asignado
+    const resto = nuevos.map(x => [x[6], '', x[7], x[8], x[9], x[10], '', x[11], '', '', x[12], x[13], x[14], ''].slice(0, ncols - 7));
+    cat.getRange(despues + 1, 8, nuevos.length, ncols - 7).setValues(resto);
   });
   SpreadsheetApp.flush();
-  return nuevos + ' nuevos' + (saltados ? ', ' + saltados + ' ya estaban' : '');
+  return faltan.length + ' nuevos' + (EJERCICIOS_V7.length - faltan.length ? ', ' + (EJERCICIOS_V7.length - faltan.length) + ' ya estaban' : '') +
+    (reparado !== 'sin cambios' ? ' · ' + reparado : '');
 }
