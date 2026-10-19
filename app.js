@@ -313,10 +313,11 @@ const CSS_V7 = `
 
   /* Encabezado */
   .top { margin-top: 8px; }
-  /* GYM MB: "MB" toma el color de la sección (Entrenar rojo, Comida ámbar, Progreso cian-verde, Coach morado) */
+  /* GYM MB: "MB" toma el color de la sección (Entrenar rojo, Comida ámbar, Progreso cian-verde, Músculos verde, Coach morado) */
   :root { --marca: var(--g-red); }
   body[data-tab=Comida] { --marca: linear-gradient(90deg, var(--acc), #FACC15); }
   body[data-tab=Progreso] { --marca: var(--g-cg); }
+  body[data-tab=Musculos] { --marca: linear-gradient(90deg, var(--ok), #A3E635); }
   body[data-tab=Coach] { --marca: var(--g-pri); }
   .brand { font-size: 25px; font-weight: 900; letter-spacing: -.01em; }
   .brand span { background: var(--marca); -webkit-background-clip: text; background-clip: text; color: transparent; padding-right: 2px; }
@@ -472,6 +473,19 @@ const CSS_V7 = `
   .med .mb div { background: var(--g-pri); }
   .mz1 { fill: var(--acc); } .mz2 { fill: var(--ok); } .mz3 { fill: var(--red); }
 
+  /* Coach: el nombre se queda arriba y la caja de texto abajo, como en una app de mensajes */
+  body[data-tab=Coach] .top { position: sticky; top: var(--sat); z-index: 16; background: var(--bg); margin: 0 -16px; padding: 8px 16px;
+    box-shadow: 0 calc(-1 * var(--sat)) 0 var(--bg), 0 12px 16px -14px rgba(0, 0, 0, .5); }
+  body[data-tab=Coach] .chatin { position: sticky; bottom: calc(var(--nav-h) + var(--sab) + 6px); z-index: 14; background: var(--bg); padding: 8px 0; }
+  .chatmas { display: block; width: 100%; border: 1px dashed var(--line); background: none; color: var(--muted); border-radius: 14px; padding: 9px; margin: 4px 0 10px; font-size: 13.5px; font-weight: 600; }
+  .chat.anterior { opacity: .6; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+  /* Músculos de hoy */
+  .hoycard .cuerpo { margin-top: 10px; }
+  .zfila { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .zfila:first-child { border-top: 0; padding-top: 2px; }
+  .zfila .zt { flex: 1; min-width: 0; }
+  .zfila .btn { flex: none; white-space: nowrap; }
+  .zfila .cnt { white-space: nowrap; font-size: 13px; } .zfila .ej { font-size: 12.5px; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* Interruptores */
   .tog { background: var(--line); }
   .tog.on { background: var(--pri); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pri) 18%, transparent); }
@@ -514,8 +528,7 @@ const CSS_V7 = `
   .nav { background: color-mix(in srgb, var(--card) 94%, transparent); backdrop-filter: saturate(1.4) blur(16px); -webkit-backdrop-filter: saturate(1.4) blur(16px); }
   .nav .in2 { align-items: stretch; }
   .nav button { position: relative; font-size: 11.5px; font-weight: 700; letter-spacing: .01em; }
-  #nComida { order: 1; } #nProgreso { order: 2; } #nEntrenar { order: 3; } #nCoach { order: 4; } #nAjustes { order: 5; }
-  .nav:not(.con-coach) #nProgreso { order: 4; }
+  #nComida { order: 1; } #nProgreso { order: 2; } #nEntrenar { order: 3; } #nMusculos { order: 4; } #nCoach { order: 5; }
   .nav button.on::before { content: ''; position: absolute; top: 0; left: 50%; width: 26px; height: 3px; margin-left: -13px; border-radius: 0 0 4px 4px; background: currentColor; }
   #nEntrenar::before { display: none; }
   #nEntrenar .bola { display: grid; place-items: center; width: 58px; height: 58px; margin-top: -26px; border-radius: 20px; color: #fff; background: var(--rut-g);
@@ -692,7 +705,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v7.0';
+const VERSION_APP = 'v7.1';
 // Tu link de configuración (lleva tu clave): para configurar el APK sin escribir nada
 function copiarLinkConfig() {
   const link = location.origin + location.pathname + '?api=' + encodeURIComponent(API) + '&key=' + encodeURIComponent(KEY);
@@ -914,7 +927,7 @@ function verTab(t) {
   if (t !== 'Comida' && COMIDA_DIA) { COMIDA_DIA = null; prot = cargarProt(hoy()); }
   TAB = t;
   document.body.dataset.tab = t;
-  ['Entrenar', 'Comida', 'Progreso', 'Coach'].forEach(x => {
+  ['Entrenar', 'Comida', 'Progreso', 'Musculos', 'Coach'].forEach(x => {
     if (!$('v' + x)) return;
     $('v' + x).classList.toggle('hide', x !== t);
     $('n' + x).classList.toggle('on', x === t);
@@ -927,6 +940,7 @@ function verTab(t) {
 function pintarTab() {
   if (TAB === 'Entrenar') pintarEntrenar();
   else if (TAB === 'Comida') pintarComida();
+  else if (TAB === 'Musculos') pintarMusculos();
   else if (TAB === 'Coach') { if ($('vCoach')) pintarCoach(); else verTab('Entrenar'); }
   else pintarProgreso();
 }
@@ -2713,17 +2727,29 @@ function asegurarTabCoach() {
   const b = document.createElement('button'); b.id = 'nCoach';
   b.setAttribute('onclick', "verTab('Coach')");
   b.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></svg>Coach';
-  // Con Coach la barra queda simétrica: Comida · Progreso · ENTRENAR · Coach · Ajustes
-  $('nEntrenar').after(b);
-  $('nAjustes').classList.remove('hide');
-  $('nav').classList.add('con-coach');
+  // Con Coach la barra queda simétrica: Comida · Progreso · ENTRENAR · Músculos · Coach
+  $('nMusculos').after(b);
 }
 // Texto del coach: **negritas**, viñetas y saltos de línea; todo lo demás escapado
 function formatoChat(t) {
   return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^\s*[-*•]\s+/gm, '• ').replace(/\n/g, '<br>');
 }
+// Una conversación por día: al día siguiente la de ayer pasa al archivo y empiezas en limpio
+function rotarChat() {
+  const l = chatLista(), u = l[l.length - 1];
+  if (!CHAT_CARGANDO && u && u.ts && claveDia(new Date(u.ts)) !== hoy()) { LS.set('gym_chat_ant', l); LS.set('gym_chat', []); CHAT_TODO = false; }
+}
+let CHAT_TODO = false, CHAT_ANT = false;
+const CHAT_VISIBLES = 6;   // mensajes a la vista; los anteriores se abren con un botón
+function burbuja(m) {
+  return '<div class="msg ' + (m.rol === 'yo' ? 'yo' : 'coach') + (m.err ? ' err' : '') + '">' +
+    (m.rol === 'yo' ? esc(m.texto).replace(/\n/g, '<br>') : formatoChat(m.texto)) +
+    (m.aprendio && m.aprendio.length ? '<span class="aprendio">🧠 Lo anoté: ' + esc(m.aprendio.join(' · ')) + '</span>' : '') +
+    (m.err ? '<br><button class="link" onclick="reintentarChat()">Reintentar</button>' : '') + '</div>';
+}
 function pintarCoach() {
-  const lista = chatLista();
+  rotarChat();
+  const lista = chatLista(), ant = LS.get('gym_chat_ant', []);
   let h = '<div class="row between" style="margin:4px 0 6px"><div class="t1">Pregúntale a tu coach</div>' +
     (lista.length ? '<button class="link" onclick="nuevaCharla()">Nueva conversación</button>' : '') + '</div>';
   const mem = DATA.memoria || [];
@@ -2733,10 +2759,13 @@ function pintarCoach() {
     '<div class="muted" style="font-size:12px;margin-top:4px">Lo usa en cada consejo entre series, en el plan del día y en el chat. Toca ✕ para que lo olvide.</div></details>';
   if (!lista.length) h += '<div class="muted" style="margin-bottom:10px">Conoce tus pesos, tu proteína, tu cintura, tus trotes y tu plan. Pregúntale lo que quieras.</div>' +
     '<div class="sugs">' + SUGS_CHAT.map(q => '<button onclick="preguntar(\'' + jsq(q) + '\')">' + esc(q) + '</button>').join('') + '</div>';
-  h += '<div class="chat">' + lista.map(m => '<div class="msg ' + (m.rol === 'yo' ? 'yo' : 'coach') + (m.err ? ' err' : '') + '">' +
-    (m.rol === 'yo' ? esc(m.texto).replace(/\n/g, '<br>') : formatoChat(m.texto)) +
-    (m.aprendio && m.aprendio.length ? '<span class="aprendio">🧠 Lo anoté: ' + esc(m.aprendio.join(' · ')) + '</span>' : '') +
-    (m.err ? '<br><button class="link" onclick="reintentarChat()">Reintentar</button>' : '') + '</div>').join('') +
+  // La conversación anterior (de otro día) se puede abrir, pero no estorba
+  if (ant.length) h += '<button class="chatmas" onclick="CHAT_ANT=!CHAT_ANT;pintarCoach()">' + (CHAT_ANT ? 'Ocultar' : 'Ver') + ' la conversación anterior · ' +
+    diaCorto(claveDia(new Date(ant[ant.length - 1].ts || Date.now()))) + '</button>' +
+    (CHAT_ANT ? '<div class="chat anterior">' + ant.map(burbuja).join('') + '</div>' : '');
+  const ocultos = CHAT_TODO ? 0 : Math.max(0, lista.length - CHAT_VISIBLES);
+  if (ocultos) h += '<button class="chatmas" onclick="CHAT_TODO=true;pintarCoach()">Ver ' + ocultos + ' mensaje' + (ocultos === 1 ? '' : 's') + ' anterior' + (ocultos === 1 ? '' : 'es') + ' de hoy</button>';
+  h += '<div class="chat">' + lista.slice(ocultos).map(burbuja).join('') +
     (CHAT_CARGANDO ? '<div class="msg coach pensando" aria-label="Pensando"><span></span><span></span><span></span></div>' : '') + '</div>';
   h += '<div class="chatin">' + botonMic('chatTxt', 'preguntar') + '<textarea id="chatTxt" rows="1" maxlength="1500" placeholder="Escribe o dicta tu pregunta…"></textarea>' +
     '<button class="btn"' + (CHAT_CARGANDO ? ' disabled' : '') + ' onclick="preguntar()">Enviar</button></div>' +
@@ -2744,12 +2773,18 @@ function pintarCoach() {
   $('vCoach').innerHTML = h;
   if (lista.length || CHAT_CARGANDO) setTimeout(() => window.scrollTo({ top: document.body.scrollHeight }), 30);
 }
-function nuevaCharla() { if (CHAT_CARGANDO) return; LS.set('gym_chat', []); pintarCoach(); }
+function nuevaCharla() {
+  if (CHAT_CARGANDO) return;
+  const l = chatLista();
+  if (l.length) LS.set('gym_chat_ant', l);
+  LS.set('gym_chat', []); CHAT_TODO = false; CHAT_ANT = false; pintarCoach();
+}
 function preguntar(q) {
   if (CHAT_CARGANDO) return;
   const txt = (q || ($('chatTxt') || {}).value || '').trim();
   if (!txt) return;
   if (!navigator.onLine) return toast('Necesitas señal para hablar con el coach');
+  rotarChat();
   const lista = chatLista().filter(m => !m.err);
   lista.push({ rol: 'yo', texto: txt, ts: Date.now() });
   LS.set('gym_chat', lista.slice(-40));
@@ -2989,9 +3024,12 @@ const ANAT = {
     espalda: ['M100,70 C94,76 88,82 80,86', 'M90,104 C86,112 82,118 78,122', 'M70,140 C74,160 80,180 88,196', 'M50,128 C48,140 48,152 49,162', 'M80,240 C84,250 88,258 92,264', 'M72,300 C72,312 73,322 74,330', 'M86,300 C86,314 87,324 88,330']
   }
 };
-function svgCuerpo(z, espalda) {
+// clase(m, v) y accion(m) permiten reusar el dibujo con otra escala (por ejemplo, solo lo de hoy)
+function svgCuerpo(z, espalda, clase, accion) {
   const lado = espalda ? 'espalda' : 'frente';
-  const pieza = (m, d) => m ? '<path class="mz' + zonaZ(z[m] || 0, m) + (MUS_SEL === m ? ' sel' : '') + '" data-m="' + m + '" d="' + d + '" onclick="MUS_SEL=\'' + m + '\';pintarProgreso()"><title>' + m + '</title></path>'
+  clase = clase || ((m, v) => 'mz' + zonaZ(v, m) + (MUS_SEL === m ? ' sel' : ''));
+  accion = accion || (m => 'MUS_SEL=\'' + m + '\';pintarProgreso()');
+  const pieza = (m, d) => m ? '<path class="' + clase(m, z[m] || 0) + '" data-m="' + m + '" d="' + d + '" onclick="' + accion(m) + '"><title>' + m + '</title></path>'
     : '<path class="nz" d="' + d + '"/>';
   const mitad = ANAT[lado].map(x => pieza(x[0], x[1])).join('') + ANAT.fibras[lado].map(d => '<path class="fib" d="' + d + '"/>').join('');
   const espejo = c => '<g' + (c ? ' transform="matrix(-1 0 0 1 200 0)"' : '') + '>';
@@ -3239,6 +3277,54 @@ function tarjetaMusculos(ms) {
   const g = (ms || []).filter(x => x.series7 > 0).sort((a, b) => b.series7 - a.series7);
   if (g.length) h += '<div class="muted" style="font-size:12.5px;margin-top:10px">Por músculo completo: ' + g.map(x => esc(x.m) + ' ' + String(x.series7).replace('.5', '½')).join(' · ') + '</div>';
   return h + '</div>';
+}
+
+/* ----- Músculos de hoy (pestaña de la barra): qué zonas llevas en la sesión de hoy y qué te falta por añadir ----- */
+// Series efectivas de HOY por zona: lo guardado en la sesión + las series marcadas que aún no guardas
+function zonasHoy() {
+  const z = {}, sumar = (name, n) => { const e = exDe(name); if (e && n) (e.zonas || []).forEach(x => { z[x.z] = (z[x.z] || 0) + n * x.w; }); };
+  if (FECHA) return z;
+  const enLog = {};
+  sesion().log.forEach(l => { if (esPar(l.name)) return; enLog[l.name] = true; sumar(l.name, l.sets.filter(s => s.t !== 'C' && s.r > 0).length); });
+  Object.keys(state).forEach(n => { if (!esPar(n) && !enLog[n] && state[n] && !state[n].done) sumar(n, state[n].sets.filter(s => s.ok && s.t !== 'C').length); });
+  return z;
+}
+// Meta de un día: la mitad de la semanal (la zona se trabaja ~2 veces por semana); arriba de la mitad del tope ya es mucho para un día
+const metaHoy = m => Math.max(2, Math.ceil(metaZona(m).meta / 2));
+const zonaHoyZ = (v, m) => v > Math.ceil(metaZona(m).tope / 2) ? 3 : v >= metaHoy(m) ? 2 : v > 0 ? 1 : 0;
+function pintarMusculos() {
+  const g = GRUPO && GRUPO !== 'Trote' ? GRUPO : DATA.sugGrupo;
+  const zh = zonasHoy(), total = Object.values(zh).reduce((a, b) => a + b, 0);
+  const col = ['var(--muted)', 'var(--acc)', 'var(--ok)', 'var(--bad)'];
+  // Zonas que trabaja directo la rutina de hoy (lo recomendado + lo que añadiste desde el mapa)
+  const rutina = ordenGrupo(g)[0] || [], deHoy = [];
+  rutina.forEach(e => (e.zonas || []).forEach(x => { if (x.w >= 1 && !deHoy.includes(x.z)) deHoy.push(x.z); }));
+  const faltan = deHoy.filter(m => (zh[m] || 0) < metaHoy(m)), listas = ZONAS.filter(m => zonaHoyZ(zh[m] || 0, m) >= 2);
+  const barra = m => '<span class="zbar w"><i style="width:' + Math.min(100, Math.round((zh[m] || 0) / metaHoy(m) * 100)) + '%;background:' + col[zonaHoyZ(zh[m] || 0, m)] + '"></i></span>';
+  let h = '<div class="card hoycard"><div class="row between"><div><div class="t2">Músculos de hoy</div><div class="muted">' + esc(g) +
+    (DATA.bloquePara && DATA.bloquePara[g] ? ' · bloque ' + DATA.bloquePara[g] : '') + ' · ' + fmtSer(total) + ' series efectivas</div></div>' +
+    '<span class="pill ' + (faltan.length ? 'acc' : 'ok') + '">' + (faltan.length ? faltan.length + ' por cubrir' : '✓ Todo cubierto') + '</span></div>' +
+    '<div class="cuerpo">' + svgCuerpo(zh, false, (m, v) => 'mz' + zonaHoyZ(v, m), m => 'elegirMusculo(\'' + m + '\')') +
+    svgCuerpo(zh, true, (m, v) => 'mz' + zonaHoyZ(v, m), m => 'elegirMusculo(\'' + m + '\')') + '</div>' +
+    '<div class="leyenda">' + ['Sin trabajar', 'Empezado', 'Cubierto hoy', 'Mucho para un día'].map((t, i) => '<span><i style="background:' + col[i] + (i === 0 ? ';opacity:.4' : '') + '"></i>' + t + '</span>').join('') + '</div>' +
+    '<div class="muted" style="font-size:12.5px;margin-top:8px">Solo cuenta lo de hoy. Toca una zona para ver opciones y añadirla a tu sesión.</div></div>';
+  if (FECHA) return ($('vMusculos').innerHTML = h + '<div class="tip">Estás registrando otro día; este mapa es solo para la sesión de hoy.</div>');
+  if (faltan.length) {
+    h += '<h2>Te falta hoy · ' + esc(g) + '</h2><div class="card">' + faltan.map(m => {
+      const ej = rutina.find(e => (e.zonas || []).some(x => x.z === m && x.w >= 1) && !(state[e.name] && state[e.name].done));
+      return '<div class="zfila"><div class="zt"><div class="row between"><b>' + esc(m) + '</b><span class="num muted cnt">' + fmtSer(zh[m] || 0) + ' / ' + metaHoy(m) + ' series</span></div>' + barra(m) +
+        '<div class="muted ej">' + (ej ? 'Con: ' + esc(ej.ejercicio.split(' (')[0]) : 'No está en tu rutina de hoy') + '</div></div>' +
+        (ej ? '<button class="btn sm" onclick="irAEjercicio(\'' + jsq(ej.name) + '\')">Ir →</button>'
+            : '<button class="btn ghost sm" onclick="elegirMusculo(\'' + jsq(m) + '\')">＋ Añadir</button>') + '</div>';
+    }).join('') + '</div>';
+  }
+  if (listas.length) h += '<h2>Ya cubriste hoy</h2><div class="mchips">' + listas.map(m => '<button onclick="elegirMusculo(\'' + jsq(m) + '\')"><i style="background:' + col[zonaHoyZ(zh[m] || 0, m)] + '"></i>' +
+    esc(m) + ' <b class="num">' + fmtSer(zh[m] || 0) + '</b></button>').join('') + '</div>';
+  // Lo que va atrasado en la semana y no toca hoy: por si te sobra tiempo
+  const atr = zonasAtrasadas(4).filter(x => !deHoy.includes(x.m));
+  if (atr.length) h += '<h2>Si te sobra tiempo · atrasado en la semana</h2><div class="mchips">' + atr.map(x => '<button onclick="elegirMusculo(\'' + jsq(x.m) + '\')"><i style="background:var(--acc)"></i>' +
+    esc(x.m) + ' <b class="num">' + fmtSer(x.v) + '/' + x.meta + '</b></button>').join('') + '</div>';
+  $('vMusculos').innerHTML = h;
 }
 
 /* ----- Fotos de progreso (una al mes, la imagen se guarda en tu Drive) ----- */
