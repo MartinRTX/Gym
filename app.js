@@ -313,7 +313,13 @@ const CSS_V7 = `
 
   /* Encabezado */
   .top { margin-top: 8px; }
-  .brand { font-size: 25px; letter-spacing: -.035em; }
+  /* GYM MB: "MB" toma el color de la sección (Entrenar rojo, Comida ámbar, Progreso cian-verde, Coach morado) */
+  :root { --marca: var(--g-red); }
+  body[data-tab=Comida] { --marca: linear-gradient(90deg, var(--acc), #FACC15); }
+  body[data-tab=Progreso] { --marca: var(--g-cg); }
+  body[data-tab=Coach] { --marca: var(--g-pri); }
+  .brand { font-size: 25px; font-weight: 900; letter-spacing: -.01em; }
+  .brand span { background: var(--marca); -webkit-background-clip: text; background-clip: text; color: transparent; padding-right: 2px; }
   .sync { font-weight: 700; padding: 5px 11px; }
   .sync.ok { border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
   .gear { width: 38px; height: 38px; border-radius: 50%; background: transparent; border: 1px solid var(--line); }
@@ -867,7 +873,7 @@ function pintarTodo() {
   if (COMIDA_DIA && COMIDA_DIA !== sumarDias(hoy(), -1)) COMIDA_DIA = null;   // pasó la medianoche
   prot = cargarProt(diaComida());
   asegurarTabCoach();
-  $('brand').innerHTML = 'Gym <span>' + esc(DATA.nombre || '') + '</span>';
+  $('brand').innerHTML = 'GYM <span>' + (DATA.dueno ? 'MB' : esc((DATA.nombre || '').toUpperCase())) + '</span>';
   document.title = 'Gym' + (DATA.nombre ? ' ' + DATA.nombre : '');
   pintarFecha();
   $('loading').classList.add('hide'); $('app').classList.remove('hide'); $('nav').classList.remove('hide');
@@ -907,6 +913,7 @@ function pintarFecha() {
 function verTab(t) {
   if (t !== 'Comida' && COMIDA_DIA) { COMIDA_DIA = null; prot = cargarProt(hoy()); }
   TAB = t;
+  document.body.dataset.tab = t;
   ['Entrenar', 'Comida', 'Progreso', 'Coach'].forEach(x => {
     if (!$('v' + x)) return;
     $('v' + x).classList.toggle('hide', x !== t);
