@@ -2,37 +2,53 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#6D3BE8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#F5F3FA" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0C14" media="(prefers-color-scheme: dark)">
+<link rel="preload" href="fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Gym</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
+  /* Inter (variable), guardada en la app para que funcione sin señal. Licencia: fonts/OFL.txt */
+  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter.woff2) format('woff2'); }
+  /* Tema claro: mismos acentos, un tono más profundo para que se lean sobre blanco */
   :root {
-    --bg: #F5F3FA; --card: #FFFFFF; --card2: #F8F6FD; --text: #1A1530; --muted: #6B6680;
+    --bg: #F5F3FA; --card: #FFFFFF; --card2: #F4F1FA; --text: #1A1530; --muted: #6B6680;
     --line: #E6E1F0; --pri: #6D3BE8; --pri-2: #8B5CF6; --pri-weak: #EFE9FD; --on-pri: #FFFFFF;
-    --acc: #F2762E; --acc-weak: #FFF0E5; --on-acc: #FFFFFF;
-    --ok: #1F9D55; --ok-weak: #E4F6EC; --bad: #D64545;
+    --acc: #EA6A1F; --acc-weak: #FFF0E5; --on-acc: #FFFFFF;
+    --ok: #16A34A; --ok-weak: #E4F6EC; --bad: #E11D48; --bad-weak: #FDE7EC;
+    --cyan: #0891B2; --cyan-weak: #E0F5FA; --red: #E11D48; --red-weak: #FDE7EC;
+    --g-pri: linear-gradient(90deg, #6D3BE8, #9B5CF6); --g-red: linear-gradient(90deg, #E11D48, #F43F5E);
+    --g-cg: linear-gradient(90deg, #0891B2, #16A34A); --g-acc: linear-gradient(90deg, #EA6A1F, #F59E0B);
+    --glow: rgba(109, 59, 232, .22); --on-cg: #FFFFFF;
     --shadow: 0 1px 2px rgba(40, 20, 90, .06), 0 4px 16px rgba(40, 20, 90, .05);
-    --nav-h: 64px;
+    --nav-h: 68px;
+    --sat: max(env(safe-area-inset-top), var(--safe-area-inset-top, 0px));
+    --sab: max(env(safe-area-inset-bottom), var(--safe-area-inset-bottom, 0px));
   }
+  /* Tema oscuro: la paleta de las capturas */
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0E0C14; --card: #18151F; --card2: #1F1B2A; --text: #EEEAF7; --muted: #A29CB6;
+      --bg: #0E0C14; --card: #18151F; --card2: #211D2D; --text: #EEEAF7; --muted: #A29CB6;
       --line: #2B2638; --pri: #9B7BFF; --pri-2: #B49CFF; --pri-weak: #2A2142; --on-pri: #0E0C14;
-      --acc: #FF9A55; --acc-weak: #3A2618; --on-acc: #1A0F07;
-      --ok: #4ADE80; --ok-weak: #15301F; --bad: #F87171;
-      --shadow: none;
+      --acc: #FF9A55; --acc-weak: #35231A; --on-acc: #1A0F07;
+      --ok: #4ADE80; --ok-weak: #13291C; --bad: #F43F5E; --bad-weak: #36141E;
+      --cyan: #06B6D4; --cyan-weak: #0B2A33; --red: #F43F5E; --red-weak: #36141E;
+      --g-pri: linear-gradient(90deg, #7C5CFF, #B266FF); --g-red: linear-gradient(90deg, #F43F5E, #FB6F84);
+      --g-cg: linear-gradient(90deg, #06B6D4, #4ADE80); --g-acc: linear-gradient(90deg, #FF9A55, #FFB46E);
+      --glow: rgba(155, 123, 255, .28); --on-cg: #0E0C14;
+      --shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 8px 24px rgba(0, 0, 0, .35);
     }
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; background: var(--bg); color: var(--text); }
-  body { font: 16px/1.4 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-         padding-top: env(safe-area-inset-top); }
+  body { font: 16px/1.4 Inter, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; font-feature-settings: "cv11", "ss01";
+         padding-top: var(--sat); -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
   button { font: inherit; color: inherit; cursor: pointer; }
-  .wrap { max-width: 520px; margin: 0 auto; padding: 12px 16px calc(var(--nav-h) + 96px + env(safe-area-inset-bottom)); }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 12px 16px calc(var(--nav-h) + 96px + var(--sab)); }
   .num { font-variant-numeric: tabular-nums; }
 
   /* Encabezado */
@@ -129,7 +145,7 @@
   .session .btn { background: rgba(255,255,255,.18); color: inherit; }
 
   /* Temporizador de descanso: barra delgada sobre la navegación */
-  .rest { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + 8px + env(safe-area-inset-bottom));
+  .rest { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + 30px + var(--sab));
           width: min(496px, calc(100% - 16px)); background: var(--card); color: var(--text); border: 1.5px solid var(--acc); border-radius: 16px; padding: 7px 8px 7px 12px;
           box-shadow: 0 8px 30px rgba(0,0,0,.25); z-index: 20; display: none; }
   .rest.show { display: block; animation: up .2s ease; }
@@ -146,7 +162,7 @@
   .rbar div { height: 100%; background: var(--acc); }
 
   /* Barra de sesión pegada arriba */
-  .sesbar { position: sticky; top: env(safe-area-inset-top); z-index: 15; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px;
+  .sesbar { position: sticky; top: var(--sat); z-index: 15; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px;
             border-radius: 14px; background: linear-gradient(135deg, #5B2FD0, #7444E8); color: #fff; margin: 0 0 12px; box-shadow: 0 4px 18px rgba(60,20,160,.25); }
   .sesbar .dotlive { width: 8px; height: 8px; border-radius: 9px; background: var(--acc); box-shadow: 0 0 0 4px rgba(255,138,61,.3); }
   .sesbar b { font-size: 16px; }
@@ -222,7 +238,7 @@
 
   /* Navegación inferior */
   .nav { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line);
-         padding-bottom: env(safe-area-inset-bottom); z-index: 30; }
+         padding-bottom: var(--sab); z-index: 30; }
   .nav .in2 { max-width: 520px; margin: 0 auto; display: flex; height: var(--nav-h); }
   .nav button { flex: 1; border: 0; background: transparent; color: var(--muted); display: flex; flex-direction: column; align-items: center;
                 justify-content: center; gap: 3px; font-size: 12px; font-weight: 600; }
@@ -232,13 +248,13 @@
   /* Ventana de resumen de sesión */
   .modal { position: fixed; inset: 0; background: rgba(10, 6, 25, .55); display: none; align-items: flex-end; justify-content: center; z-index: 50; }
   .modal.show { display: flex; }
-  .sheet { background: var(--card); width: 100%; max-width: 520px; border-radius: 24px 24px 0 0; padding: 22px 18px calc(22px + env(safe-area-inset-bottom)); animation: up2 .25s ease; }
+  .sheet { background: var(--card); width: 100%; max-width: 520px; border-radius: 24px 24px 0 0; padding: 22px 18px calc(22px + var(--sab)); animation: up2 .25s ease; }
   @keyframes up2 { from { transform: translateY(40px); opacity: 0; } }
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
   .stats div { background: var(--card2); border-radius: 14px; padding: 12px 8px; text-align: center; }
   .stats b { display: block; font-size: 22px; font-weight: 800; }
 
-  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + 74px + env(safe-area-inset-bottom)); background: var(--text); color: var(--bg);
+  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--nav-h) + 104px + var(--sab)); background: var(--text); color: var(--bg);
            padding: 10px 14px; border-radius: 14px; font-size: 14px; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 60;
            width: max-content; max-width: min(460px, calc(100% - 32px)); display: flex; align-items: center; gap: 12px; }
   .toast.show { opacity: 1; }
@@ -288,7 +304,7 @@
   .lista button { display: flex; width: 100%; text-align: left; align-items: center; gap: 10px; border: 0; border-top: 1px solid var(--line); background: none; padding: 13px 2px; font-size: 15px; color: var(--text); }
   .lista button:first-child { border-top: 0; }
   input[type=date] { width: 100%; padding: 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--card2); color: var(--text); font-size: 16px; margin: 8px 0; }
-  .sheet { max-height: 92vh; overflow-y: auto; }
+  .sheet { max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain; }
 </style>
 </head>
 <body>
@@ -318,13 +334,16 @@
 
 <div class="rest" id="rest"></div>
 
+<!-- Barra inferior: Entrenar va al centro; Coach y Ajustes aparecen a la derecha cuando la IA está activa -->
 <nav class="nav hide" id="nav"><div class="in2">
-  <button id="nEntrenar" class="on" onclick="verTab('Entrenar')">
-    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg>Entrenar</button>
   <button id="nComida" onclick="verTab('Comida')">
     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-4 0-7-3.5-7-8 0-3.5 2.2-6 5-6 1 0 1.5.5 2 .5s1-.5 2-.5c2.8 0 5 2.5 5 6 0 4.5-3 8-7 8z"/><path d="M12 7c0-2 1-3.5 3-4"/></svg>Comida</button>
   <button id="nProgreso" onclick="verTab('Progreso')">
     <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M6 16l4-5 3 3 5-7"/></svg>Progreso</button>
+  <button id="nEntrenar" class="on centro" onclick="verTab('Entrenar')" aria-label="Entrenar">
+    <span class="bola"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg></span>Entrenar</button>
+  <button id="nAjustes" class="hide" onclick="abrirAjustes()">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Ajustes</button>
 </div></nav>
 
 <div class="kp" id="kp" onclick="if(event.target===this)cerrarTeclado()"><div class="sheet" id="kpSheet"></div></div>

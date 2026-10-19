@@ -301,6 +301,225 @@ const CSS_V53 = `
   @media (prefers-reduced-motion: reduce) { .entra, .set.recien .chk, .brillo, .mic.oye { animation: none !important; } .set { transition: none; } }
 `;
 
+// v7: diseño nuevo (paleta de las capturas, tarjetas con profundidad, barra con Entrenar al centro).
+// Va después de CSS_V53 para ganarle a los estilos anteriores sin tener que tocarlos uno por uno.
+const CSS_V7 = `
+  /* Acento de la rutina elegida: chips, botón central y botones principales */
+  :root { --rut: var(--pri); --rut-g: var(--g-pri); --rut-weak: var(--pri-weak); }
+  body[data-rut=Push] { --rut: var(--acc); --rut-g: var(--g-acc); --rut-weak: var(--acc-weak); }
+  body[data-rut=Pull] { --rut: var(--cyan); --rut-g: var(--g-cg); --rut-weak: var(--cyan-weak); }
+  body[data-rut=Core] { --rut: var(--ok); --rut-g: linear-gradient(90deg, #22C55E, var(--ok)); --rut-weak: var(--ok-weak); }
+  body[data-rut=Trote] { --rut: var(--red); --rut-g: var(--g-red); --rut-weak: var(--red-weak); }
+
+  /* Encabezado */
+  .top { margin-top: 8px; }
+  .brand { font-size: 25px; letter-spacing: -.035em; }
+  .sync { font-weight: 700; padding: 5px 11px; }
+  .sync.ok { border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
+  .gear { width: 38px; height: 38px; border-radius: 50%; background: transparent; border: 1px solid var(--line); }
+  .sub { font-size: 13.5px; }
+  .sub .link { color: var(--cyan) !important; }
+
+  /* Tarjetas con profundidad sutil */
+  .card, .ex, .kpi, .med, .mem, .parbtn { border-radius: 20px; box-shadow: var(--shadow); }
+  .card { padding: 18px; }
+  h2 { letter-spacing: .1em; font-size: 11.5px; margin-top: 22px; }
+  .t2 { letter-spacing: -.02em; }
+
+  /* Botones: los principales con degradado y brillo */
+  .btn { background: var(--g-pri); color: #fff; box-shadow: 0 8px 22px -8px var(--glow); letter-spacing: -.01em; }
+  .btn.ghost { box-shadow: none; }
+  .btn.acc { background: var(--g-acc); color: var(--on-acc); }
+  .btn.verde { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); border: 1px solid color-mix(in srgb, var(--ok) 45%, transparent); box-shadow: none; }
+  .btn:active { transform: scale(.98); }
+  #vEntrenar .ex-body .acts .btn:not(.ghost), #vEntrenar .card.trote > .btn.block { background: var(--rut-g); box-shadow: 0 10px 26px -10px var(--rut); }
+  .link { color: var(--pri); }
+
+  /* Buscador con lupa */
+  .buscar { border-radius: 16px; padding-left: 42px; border-width: 1px; background: var(--card) no-repeat 14px center / 18px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A84A0' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E"); }
+  #troteNotas { padding-left: 14px; background-image: none; }
+
+  /* Entrenar con pareja */
+  .parbtn { border-width: 1px; padding: 14px 16px; }
+  .parbtn .sw { width: 50px; height: 30px; } .parbtn .sw::after { width: 24px; height: 24px; }
+  .parbtn.on .sw::after { transform: translateX(20px); }
+
+  /* Chips de rutina: cada una con su color; Trote activo en degradado rojo */
+  .chips { gap: 9px; padding: 2px 0 8px; }
+  .chip { --c: var(--pri); border-radius: 14px; border: 1.5px solid color-mix(in srgb, var(--c) 45%, transparent); color: var(--c); background: var(--card);
+    font-weight: 700; padding: 9px 18px; display: inline-flex; align-items: center; gap: 6px; }
+  .chip .icon { width: 16px; height: 16px; }
+  .chip.r-Push { --c: var(--acc); } .chip.r-Pull { --c: var(--cyan); } .chip.r-Legs { --c: var(--pri); } .chip.r-Core { --c: var(--ok); } .chip.r-Trote { --c: var(--red); }
+  .chip.on { background: color-mix(in srgb, var(--c) 16%, transparent); border-color: var(--c); color: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 14%, transparent); }
+  .chip.r-Trote.on { background: var(--g-red); color: #fff; border-color: transparent; box-shadow: 0 8px 20px -8px var(--red); }
+  .chip .dot { background: var(--c); margin-left: 2px; }
+  .chip.on .dot { background: currentColor; }
+
+  /* Tarjeta de ejercicio */
+  .ex { border-width: 1px; }
+  .ex.open { border-color: color-mix(in srgb, var(--rut) 70%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--rut) 35%, transparent), 0 14px 34px -14px var(--rut); }
+  .ex-ico { background: var(--rut-weak); color: var(--rut); border-radius: 12px; }
+  .ex.done .ex-ico { background: var(--ok-weak); color: var(--ok); }
+  .ex-name { font-size: 16px; letter-spacing: -.01em; }
+  .mod { color: var(--rut); border-color: color-mix(in srgb, var(--rut) 40%, transparent); background: color-mix(in srgb, var(--rut) 10%, transparent); border-radius: 7px; }
+  .unit { border-width: 1px; border-radius: 12px; background: var(--card2); }
+  .unit button.on { background: var(--rut); color: var(--on-pri); border-radius: 9px; }
+  .tip { border-radius: 14px; }
+  .tip.plan, .foco { background: color-mix(in srgb, var(--acc) 9%, var(--card)); border: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); }
+
+  /* Series: la marcada se pone verde */
+  .val, .chk { border-width: 1px; border-radius: 14px; }
+  .set.hecho { background: color-mix(in srgb, var(--ok) 7%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ok) 30%, transparent); }
+  .set.hecho .val { background: transparent; border-color: color-mix(in srgb, var(--ok) 25%, transparent); }
+  .set.hecho .chk { background: var(--ok); border-color: var(--ok); color: #0E0C14; }
+  .sets-h { letter-spacing: .08em; }
+
+  /* Barra de sesión arriba */
+  .sesbar { background: var(--rut-g); box-shadow: 0 10px 26px -10px var(--rut); }
+
+  /* Plan de carrera */
+  .plan5k { background: radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--red) 10%, var(--card)) 0%, var(--card) 60%);
+    border-color: color-mix(in srgb, var(--red) 35%, transparent); }
+  .plan5k .count { font-size: 54px; letter-spacing: -.05em; }
+  .plan5k .count span { font-size: 20px; font-weight: 800; letter-spacing: -.02em; margin-left: 4px; }
+  .pseslist { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+  .pses { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: color-mix(in srgb, var(--bg) 45%, transparent); }
+  .pses:first-of-type { border-top: 1px solid var(--line); }
+  .pses .ck { border-radius: 50%; }
+  .pses.ok { border-color: color-mix(in srgb, var(--ok) 50%, transparent); background: color-mix(in srgb, var(--ok) 8%, transparent); }
+  .pses.ok .t1 { text-decoration: none; opacity: 1; }
+  .pses .ritmo { color: var(--muted); font-weight: 600; font-size: 13px; }
+  .pses .estado { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .pses.ok .estado { color: var(--ok); }
+  .minbar { height: 4px; border-radius: 9px; background: var(--card2); overflow: hidden; margin-top: 8px; }
+  .minbar div { height: 100%; background: var(--g-red); border-radius: 9px; }
+
+  /* Registrar trote */
+  .card.trote .cap-t { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .card.trote .sincro { font-size: 12.5px; font-weight: 700; color: var(--cyan); }
+  .cap { border: 0; background: var(--g-pri); color: #fff; box-shadow: 0 10px 24px -10px var(--pri); }
+  .cap .icon { width: 18px; height: 18px; }
+  .datos3 > div { background: var(--card2); border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; }
+  .datos3 > div > .muted { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .datos3 .val { border: 0; background: transparent; text-align: left; padding: 0; height: 38px; font-size: 24px; }
+  .datos3 .val.vacio { font-size: 15px; }
+  .card.trote .pills button.on, body[data-rut=Trote] .pills button.on { background: var(--cyan); border-color: var(--cyan); color: #0E0C14; }
+  .card.trote .pills button { border-color: color-mix(in srgb, var(--cyan) 35%, transparent); }
+  .medal.int { background: var(--red-weak); color: var(--red); } .medal.fac { background: var(--cyan-weak); color: var(--cyan); }
+  .rojo { color: var(--red); } .cian { color: var(--cyan); }
+  .polar .f { background: var(--cyan); }
+  #vEntrenar .minis .kpi:nth-child(2) .v { color: var(--cyan); }
+
+  /* Comida */
+  .protcard .ventana { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ok); margin-bottom: 2px; }
+  .protcard .pill .icon { width: 13px; height: 13px; }
+  .ring { width: 200px; height: 200px; margin: 18px auto 14px; border: 0; background: none; padding: 0; color: inherit; }
+  .ring .lbl { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .ring .v { font-size: 46px; letter-spacing: -.04em; line-height: 1.05; }
+  .ring .v small { font-size: 20px; color: var(--muted); font-weight: 700; }
+  .protcard .falta { margin-top: 2px; }
+  .pill.prio { background: var(--red); color: #fff; text-transform: uppercase; letter-spacing: .06em; font-size: 10.5px; }
+  .consejo { margin-top: 10px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--acc) 9%, transparent); color: var(--muted); font-size: 13.5px; }
+  .iacard { border-color: color-mix(in srgb, var(--pri) 40%, transparent); }
+  .iacard .btn { background: var(--g-cg); color: var(--on-cg); box-shadow: 0 10px 24px -10px var(--cyan); }
+  .tipico { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 16px; margin: 0 0 6px; border-radius: 20px; font: inherit; color: var(--text);
+    border: 1px solid color-mix(in srgb, var(--pri) 45%, transparent); background: color-mix(in srgb, var(--pri) 8%, var(--card)); }
+  .tipico .ic { font-size: 24px; } .tipico b { font-size: 16px; } .tipico small { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .tipico .mas, .food .mas { color: var(--pri); font-size: 22px; font-weight: 700; }
+  .rapido { font-size: 12px; font-weight: 700; color: var(--ok); }
+  .row:has(> h2) { align-items: baseline; }
+  .foods { gap: 9px; }
+  .food { border-width: 1px; border-radius: 16px; padding: 12px; min-height: 84px; display: flex; flex-direction: column; gap: 8px; box-shadow: var(--shadow); }
+  .food .ic { font-size: 20px; line-height: 1; }
+  .food b { position: absolute; top: 10px; right: 10px; color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); border-radius: 99px; padding: 2px 8px; font-size: 12.5px; }
+  .food .nom { font-size: 14px; line-height: 1.3; }
+  .food .c { top: auto; bottom: 8px; color: var(--acc); }
+  .foods.tops { grid-template-columns: 1fr; }
+  .foods.tops .food { flex-direction: row; align-items: center; min-height: 0; gap: 12px; }
+  .foods.tops .food b { position: static; order: 3; }
+  .foods.tops .food .nom { flex: 1; font-weight: 700; }
+  .foods.tops .food .ic { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--acc-weak); order: 0; }
+  .foods.tops .food .mas { order: 4; color: var(--muted); }
+  .foods.tops .food .c { position: static; order: 2; }
+  .food.top { border-color: var(--line); background: var(--card); }
+  .eaten button { background: var(--card); border: 1px solid var(--line); }
+
+  /* Progreso: pestañas con punto de color */
+  .seg { background: var(--card); border-radius: 16px; padding: 5px; }
+  .seg button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid transparent; }
+  .seg.s4 button::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--c, var(--pri)); }
+  .seg.s4 button:nth-child(1) { --c: var(--pri); } .seg.s4 button:nth-child(2) { --c: var(--cyan); }
+  .seg.s4 button:nth-child(3) { --c: var(--ok); } .seg.s4 button:nth-child(4) { --c: var(--acc); }
+  .seg button.on { background: color-mix(in srgb, var(--c, var(--pri)) 14%, transparent); border-color: color-mix(in srgb, var(--c, var(--pri)) 60%, transparent); color: var(--text); box-shadow: none; }
+  .week i { border-radius: 11px; width: 36px; height: 36px; border-width: 1px; }
+  .week .y i { background: var(--g-pri); border: 0; box-shadow: 0 6px 14px -6px var(--pri); }
+  .medal { border-radius: 12px; }
+  .kpi .v { font-size: 28px; }
+  .metabar div { background: var(--g-cg); }
+  .chart .grid { stroke-dasharray: 3 5; }
+  .legend i { background: var(--cyan); }
+  select { border-width: 1px; border-radius: 14px; }
+  .desglose .b div { background: var(--g-pri); }
+  .pts b { color: var(--text); font-size: 48px; } .pts span { color: var(--acc); font-weight: 800; }
+  .med { border-radius: 16px; } .med:not(.no) { border-color: color-mix(in srgb, var(--acc) 45%, transparent); background: color-mix(in srgb, var(--acc) 7%, var(--card)); }
+  .med .mb div { background: var(--g-pri); }
+  .mz1 { fill: var(--acc); } .mz2 { fill: var(--ok); } .mz3 { fill: var(--red); }
+
+  /* Interruptores */
+  .tog { background: var(--line); }
+  .tog.on { background: var(--pri); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pri) 18%, transparent); }
+
+  /* Ventanas (hojas) */
+  .modal { backdrop-filter: blur(3px); }
+  .sheet { border-radius: 28px 28px 0 0; border-top: 1px solid var(--line); }
+  .sheet:not(.completa)::before { content: ''; display: block; width: 40px; height: 4px; border-radius: 9px; background: var(--line); margin: -10px auto 12px; }
+
+  /* Ajustes a pantalla completa */
+  .modal.completa { align-items: stretch; background: var(--bg); backdrop-filter: none; }
+  .sheet.completa { max-width: 560px; max-height: none; height: 100%; border-radius: 0; border: 0; background: var(--bg);
+    padding: calc(14px + var(--sat)) 16px calc(28px + var(--sab)); animation: entraLado .22s ease-out; }
+  @keyframes entraLado { from { transform: translateY(16px); opacity: 0; } }
+  .ajhead { margin-bottom: 14px; } .ajhead .t2 { font-size: 26px; }
+  .ajhead .cerrar { width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--card2); color: var(--muted); font-size: 15px; font-weight: 800; }
+  .completa .opt { border-top: 1px solid var(--line); padding: 18px 0; }
+  .completa .opt.tarj { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 14px; margin-bottom: 10px; box-shadow: var(--shadow); }
+  .completa .opt.tarj + .opt:not(.tarj) { border-top: 0; margin-top: 6px; }
+  .aic { --c: var(--pri); flex: none; width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; color: var(--c);
+    background: color-mix(in srgb, var(--c) 12%, transparent); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); }
+  .aic svg { width: 20px; height: 20px; }
+  .asec { display: flex; align-items: center; gap: 8px; font-size: 15.5px; margin-bottom: 6px; }
+  .asec svg { width: 19px; height: 19px; display: block; }
+  .completa .pills button { border-width: 1px; border-radius: 12px; padding: 12px 6px; font-weight: 700; background: var(--card2); }
+  .pills.c-cyan button.on { background: linear-gradient(135deg, #06B6D4, #22D3EE); border-color: transparent; color: #0E0C14; }
+  .pills.c-pri button.on { background: var(--g-pri); border-color: transparent; color: #fff; }
+  .pills.c-red button.on { background: var(--g-red); border-color: transparent; color: #fff; }
+  .unit.paso { border: 0; background: transparent; gap: 6px; overflow: visible; }
+  .unit.paso button { min-width: 40px; height: 40px; padding: 0 8px; border-radius: 99px; border: 1px solid var(--line); background: var(--card2); color: var(--muted); }
+  .unit.paso button.on { min-width: 76px; color: #0E0C14; border: 0; background: var(--ok); }
+  .unit.paso.c-cyan button.on { background: var(--cyan); }
+  .dias { gap: 8px; } .dias button { border-width: 1px; border-radius: 12px; padding: 11px 0; }
+  .dias button.on { background: var(--g-pri); border-color: transparent; color: #fff; }
+  .completa input[type=date] { background: var(--card); border: 1px solid color-mix(in srgb, var(--red) 35%, transparent); border-radius: 16px; padding: 14px 16px; font-weight: 700; letter-spacing: .05em; }
+  .hoja { display: flex !important; align-items: center; justify-content: center; gap: 10px; text-decoration: none; margin-top: 8px; padding: 16px; border-radius: 18px; }
+  .hoja svg { width: 20px; height: 20px; color: var(--ok); }
+
+  /* Barra inferior: Entrenar al centro, más grande y con el color de la rutina */
+  .nav { background: color-mix(in srgb, var(--card) 94%, transparent); backdrop-filter: saturate(1.4) blur(16px); -webkit-backdrop-filter: saturate(1.4) blur(16px); }
+  .nav .in2 { align-items: stretch; }
+  .nav button { position: relative; font-size: 11.5px; font-weight: 700; letter-spacing: .01em; }
+  #nComida { order: 1; } #nProgreso { order: 2; } #nEntrenar { order: 3; } #nCoach { order: 4; } #nAjustes { order: 5; }
+  .nav:not(.con-coach) #nProgreso { order: 4; }
+  .nav button.on::before { content: ''; position: absolute; top: 0; left: 50%; width: 26px; height: 3px; margin-left: -13px; border-radius: 0 0 4px 4px; background: currentColor; }
+  #nEntrenar::before { display: none; }
+  #nEntrenar .bola { display: grid; place-items: center; width: 58px; height: 58px; margin-top: -26px; border-radius: 20px; color: #fff; background: var(--rut-g);
+    box-shadow: 0 0 0 5px var(--bg), 0 12px 26px -8px var(--rut); transition: transform .2s ease, filter .2s ease; }
+  #nEntrenar .bola .icon { width: 28px; height: 28px; }
+  #nEntrenar:not(.on) .bola { filter: saturate(.75) brightness(.92); }
+  #nEntrenar.on { color: var(--rut); }
+  #nEntrenar:active .bola { transform: scale(.94); }
+`;
+
 /* ===================== Configuración y datos ===================== */
 let API = LS.get('gym_api', ''), KEY = LS.get('gym_key', '');
 let DATA = null, GRUPO = null, TAB = 'Entrenar', OPEN = null, BUSCA = '', PTAB = 'Semana';
@@ -424,7 +643,7 @@ function avisoErrores() {
 
 /* ===================== Arranque ===================== */
 function arrancar() {
-  const st = document.createElement('style'); st.textContent = CSS_V53; document.head.appendChild(st);
+  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7; document.head.appendChild(st);
   const p = new URLSearchParams(location.search);
   if (p.get('api') && p.get('k')) {
     const nuevaClave = p.get('k').trim();
@@ -439,6 +658,7 @@ function arrancar() {
   const g = p.get('g');
   if (g) { GRUPO = g; OPEN = null; GRUPO_MANUAL = true; GRUPO_DIA = hoy(); }
   if (p.toString()) history.replaceState(null, '', location.pathname);
+  ponerGuardia();
   if ('serviceWorker' in navigator) {
     const teniaVersion = !!navigator.serviceWorker.controller;
     let recargada = false;
@@ -466,7 +686,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v6.2';
+const VERSION_APP = 'v7.0';
 // Tu link de configuración (lleva tu clave): para configurar el APK sin escribir nada
 function copiarLinkConfig() {
   const link = location.origin + location.pathname + '?api=' + encodeURIComponent(API) + '&key=' + encodeURIComponent(KEY);
@@ -725,6 +945,7 @@ function resumenSets(sets) {
 
 function pintarEntrenar() {
   const ses = sesion(), activa = sesionActiva();
+  document.body.dataset.rut = GRUPO || '';
   let h = '';
   if (activa && !FECHA) {
     h += '<div class="sesbar"><span class="dotlive"></span><div><b id="sesT">' + minutos(Date.now() - ses.start) + '</b>' +
@@ -753,8 +974,8 @@ function pintarEntrenar() {
   const comp = parejaDisponible();
   if (comp && !FECHA) h += '<button class="parbtn' + (parejaHoy() ? ' on' : '') + '" onclick="alternarPareja()"><span>👥 ' +
     (parejaHoy() ? 'Entrenando con ' + esc(comp.nombre) + (PAR && !PAR.exs ? ' · cargando…' : '') : '¿Entrenas con ' + esc(comp.nombre) + ' hoy?') + '</span><span class="sw"></span></button>';
-  h += '<div class="chips">' + DATA.chips.concat(['Trote']).map(g => '<button class="chip' + (g === GRUPO ? ' on' : '') + '" onclick="elegirGrupo(\'' + g + '\')">' +
-    g + (g === DATA.sugGrupo ? '<span class="dot"></span>' : '') + '</button>').join('') + '</div>';
+  h += '<div class="chips">' + DATA.chips.concat(['Trote']).map(g => '<button class="chip r-' + g + (g === GRUPO ? ' on' : '') + '" onclick="elegirGrupo(\'' + g + '\')">' +
+    (g === 'Trote' ? ICO.flame : '') + g + (g === DATA.sugGrupo ? '<span class="dot"></span>' : '') + '</button>').join('') + '</div>';
   if (GRUPO === 'Trote') { $('vEntrenar').innerHTML = h + vistaTrote() + pieFecha(); return; }
   h += tarjetaFoco();
   const hechos = ordenGrupo(GRUPO).flat().filter(e => cardDone(e.name));
@@ -1846,19 +2067,39 @@ function terminarSesion() {
     '<button class="btn" onclick="cerrarSesion()">Terminar</button></div>';
   $('sheet').innerHTML = h; abrirModal();
 }
-function abrirModal() {
-  $('toast').className = 'toast'; $('modal').classList.add('show');
-  if (!(history.state && history.state.modal)) history.pushState({ modal: 1 }, '');
+function abrirModal(clase) {
+  $('sheet').className = 'sheet' + (clase ? ' ' + clase : '');
+  $('modal').className = 'modal show' + (clase ? ' ' + clase : '');
+  $('toast').className = 'toast';
 }
-let IGNORAR_POP = false;
-function cerrarModal() {
-  $('modal').classList.remove('show');
-  if (history.state && history.state.modal) { IGNORAR_POP = true; history.back(); }
+function cerrarModal() { $('modal').classList.remove('show'); }
+
+/* ----- Gesto o botón "atrás" de Android ----- */
+// Siempre queda una entrada extra en el historial (la "guardia"): el gesto atrás la consume, la app cierra lo que esté
+// encima y la vuelve a poner. En la pantalla principal, dos veces seguidas mandan la app al fondo (APK) o salen (navegador).
+// En el APK hace falta el plugin @capacitor/app; sin él, Android cierra la app sin pasar por aquí.
+let ATRAS_T = 0;
+function ponerGuardia() { if (!(history.state && history.state.guardia)) history.pushState({ guardia: 1 }, ''); }
+function cerrarLoDeArriba() {
+  if ($('kp').classList.contains('show')) { cerrarTeclado(); return true; }
+  if ($('modal').classList.contains('show')) { cerrarModal(); return true; }
+  if (TAB !== 'Entrenar') { verTab('Entrenar'); return true; }
+  if (BUSCA) { BUSCA = ''; pintarEntrenar(); return true; }
+  if (OPEN) { abrir(OPEN); return true; }
+  return false;
 }
-// El gesto o botón "atrás" de Android cierra la ventana abierta en vez de salir de la app
 window.addEventListener('popstate', () => {
-  if (IGNORAR_POP) { IGNORAR_POP = false; return; }
-  if ($('modal') && $('modal').classList.contains('show')) $('modal').classList.remove('show');
+  // Si cerró algo, el siguiente atrás vuelve a pedir confirmación antes de salir
+  if (cerrarLoDeArriba()) { ATRAS_T = 0; ponerGuardia(); return; }
+  if (Date.now() - ATRAS_T < 2200) {
+    ATRAS_T = 0;
+    if (NATIVO) { nativo('App', 'minimizeApp'); ponerGuardia(); }
+    else history.back();
+    return;
+  }
+  ATRAS_T = Date.now();
+  toast('Desliza atrás otra vez para salir');
+  ponerGuardia();
 });
 function cerrarSesion() {
   guardarPendientes();
@@ -2058,7 +2299,7 @@ function tarjetaPolar() {
   } else msg = 'Bien polarizado: ' + p.pct + ' % fácil. Así se construye la base sin acumular fatiga.';
   return '<div class="card"><div class="row between"><div class="t1">Fácil vs. intenso · 7 días</div><span class="num muted">' + (Math.round(p.total * 10) / 10) + ' km</span></div>' +
     '<div class="polar"><div class="f" style="width:' + (p.facil / p.total * 100) + '%"></div><div class="i" style="width:' + (p.intenso / p.total * 100) + '%"></div><div class="meta"></div></div>' +
-    '<div class="leyenda"><span><i style="background:var(--ok)"></i>Fácil ' + p.pct + ' %</span><span><i style="background:var(--acc)"></i>Intenso ' + (100 - p.pct) + ' %</span><span>| meta: 80 / 20</span></div>' +
+    '<div class="leyenda"><span><i style="background:var(--cyan)"></i>Fácil ' + p.pct + ' %</span><span><i style="background:var(--acc)"></i>Intenso ' + (100 - p.pct) + ' %</span><span>| meta: 80 / 20</span></div>' +
     '<div class="' + cls + '" style="margin:10px 0 0">' + esc(msg) + '</div></div>';
 }
 // Hidratación al guardar: temperatura actual de Hermosillo (Open-Meteo, gratis y sin clave) + duración + intensidad
@@ -2155,24 +2396,28 @@ function vistaTrote() {
   if (TROTE.tipo === null) { const sig = ses && ses.find(s => !s.hecho); TROTE.tipo = sig ? sig.tipo : 'Libre'; }
   let h = '';
   if (p) {
-    h += '<div class="card"><div class="row between"><div><div class="count num">' + p.faltan + '</div><div class="muted">día' + (p.faltan === 1 ? '' : 's') + ' para tu ' + esc(p.carrera.nombre) + ' · ' + diaCorto(p.carrera.fecha) + '</div></div>' +
+    h += '<div class="card plan5k"><div class="row between" style="align-items:flex-start"><div><div class="count num">' + p.faltan + '<span> día' + (p.faltan === 1 ? '' : 's') + ' para tu ' + esc(p.carrera.nombre) + '</span></div>' +
+      '<div class="muted">Fecha objetivo: <b style="color:var(--red)">' + diaCorto(p.carrera.fecha) + '</b></div></div>' +
       (ses ? '<span class="pill pri">Semana ' + p.semana + ' de ' + p.total + '</span>' : '') + '</div>';
     if (ses) {
       const minHechos = ses.filter(s => s.hecho).reduce((a, s) => a + (s.real || s.min), 0);
-      h += '<div style="margin-top:10px">' + ses.map((s, i) => '<div class="pses' + (s.hecho ? ' ok' : '') + '"><div class="ck">' + (s.hecho ? ICO.check.replace('class="icon"', 'class="icon" style="width:16px;height:16px"') : i + 1) + '</div>' +
-        '<div style="flex:1"><div class="t1" style="font-size:15px">' + s.tipo + (s.ritmo ? ' · <span class="num">' + s.ritmo + '/km</span>' : '') + '</div><div class="muted">' + esc(s.txt) + '</div></div></div>').join('') + '</div>' +
-        '<div class="muted" style="margin-top:8px">Esta semana: <b class="num" style="color:var(--text)">' + Math.round(minHechos) + ' de ~' + p.minMeta + ' min</b>' +
+      h += '<div class="pseslist">' + ses.map((s, i) => '<div class="pses' + (s.hecho ? ' ok' : '') + '"><div class="ck">' + (s.hecho ? ICO.check.replace('class="icon"', 'class="icon" style="width:16px;height:16px"') : i + 1) + '</div>' +
+        '<div style="flex:1"><div class="t1" style="font-size:15px">' + s.tipo + (s.ritmo ? ' <span class="num ritmo">· ' + s.ritmo + '/km</span>' : '') + '</div><div class="muted">' + esc(s.txt) + '</div></div>' +
+        '<span class="estado">' + (s.hecho ? 'Listo' : 'Pendiente') + '</span></div>').join('') + '</div>' +
+        '<div class="muted" style="margin-top:12px">Esta semana: <b class="num" style="color:var(--text)">' + Math.round(minHechos) + ' de ~' + p.minMeta + ' min</b>' +
         (p.ritmos ? (p.ritmos.fijos ? ' · ritmos de tu plan; meta de carrera ' + p.ritmos.carrera + '/km' : ' · ritmos según tu mejor salida reciente (' + p.ritmos.ref + '/km)')
-                  : ' · aún sin salidas de 4 km o más para calcular tus ritmos') + '</div>';
+                  : ' · aún sin salidas de 4 km o más para calcular tus ritmos') + '</div>' +
+        '<div class="minbar"><div style="width:' + Math.min(100, minHechos / p.minMeta * 100) + '%"></div></div>';
     } else if (p.empieza) h += '<div class="muted" style="margin-top:8px">Tu plan de 6 semanas empieza el ' + diaCorto(p.empieza) + '. Mientras, trota como siempre.</div>';
     h += '</div>';
   }
   const ritmo = TROTE.km && TROTE.min ? mmss(TROTE.min * 60 / TROTE.km) + ' min/km' : '—';
   const hid = LS.get('gym_hidrata_' + hoy(), null);
   if (hid && !FECHA) h += '<div class="tip" style="margin:0 0 12px">💧 ' + esc(hid) + '</div>';
-  h += '<h2>Registrar trote' + (FECHA ? ' · ' + diaCorto(FECHA) : '') + '</h2>' +
-    (DATA.ia ? '<button class="cap" onclick="elegirCapturas()"' + (TROTE.leyendo ? ' disabled' : '') + '>📷 Leer captura de Samsung Health</button>' : '') + tarjetaLectura() +
-    '<div class="card"><div class="row" style="gap:10px">' +
+  h += '<div class="card trote"><div class="row between" style="margin-bottom:12px"><div class="cap-t">Registrar trote' + (FECHA ? ' · ' + diaCorto(FECHA) : '') + '</div>' +
+    (DATA.ia ? '<span class="sincro">⚡ Sync auto</span>' : '') + '</div>' +
+    (DATA.ia ? '<button class="cap" onclick="elegirCapturas()"' + (TROTE.leyendo ? ' disabled' : '') + '>' + ICO_CAM + ' Leer captura de Samsung Health</button>' : '') + tarjetaLectura() +
+    '<div class="row datos3" style="gap:10px">' +
     '<div style="flex:1"><div class="muted">Kilómetros</div><button class="val num' + (TROTE.km === '' ? ' vacio' : '') + '" style="margin-top:4px" onclick="tecladoTrote(\'km\')">' + (TROTE.km === '' ? 'km' : TROTE.km) + '</button></div>' +
     '<div style="flex:1"><div class="muted">Minutos</div><button class="val num' + (TROTE.min === '' ? ' vacio' : '') + '" style="margin-top:4px" onclick="tecladoTrote(\'min\')">' + (TROTE.min === '' ? 'min' : Number(TROTE.min) % 1 ? mmss(TROTE.min * 60) : TROTE.min) + '</button></div>' +
     '<div style="flex:1"><div class="muted">FC prom.</div><button class="val num' + (TROTE.fc === '' ? ' vacio' : '') + '" style="margin-top:4px" onclick="tecladoTrote(\'fc\')">' + (TROTE.fc === '' ? 'ppm' : TROTE.fc) + '</button></div></div>' +
@@ -2195,8 +2440,8 @@ function vistaTrote() {
     '<div class="kpi"><div class="v num">' + (larga ? larga.km + ' km' : '—') + '</div><div class="l">Salida más larga</div>' + (larga ? '<div class="d">' + larga.d + '</div>' : '') + '</div></div>';
   if (DATA.trotes.semanas && DATA.trotes.semanas.some(s => s.km)) h += '<div class="card chart"><div class="row between"><div class="t1">Km por semana</div><span class="muted">Últimos 7 días: <b class="num" style="color:var(--text)">' + Math.round(km7 * 10) / 10 + '</b></span></div>' + barras(DATA.trotes.semanas) + '</div>';
   if (lista.length) h += '<h2>Últimas salidas</h2><div class="card">' + lista.slice(0, 6).map(t =>
-    '<div class="rec"><div class="medal" style="background:var(--pri-weak);color:var(--pri)">' + ICO.pausa + '</div><div style="flex:1"><div class="t1 num" style="font-size:15px">' + t.km + ' km' +
-    (t.min ? ' · ' + mmss(t.min * 60) + ' · ' + mmss(t.min * 60 / t.km) + '/km' : '') + '</div><div class="muted">' + t.d + (t.tipo ? ' · ' + esc(t.tipo) : '') +
+    '<div class="rec"><div class="medal ' + (intensidad(t) === 'intenso' ? 'int' : 'fac') + '">' + ICO.pausa + '</div><div style="flex:1"><div class="t1 num" style="font-size:15px">' + t.km + ' km' +
+    (t.min ? ' · ' + mmss(t.min * 60) + ' · <span class="' + (intensidad(t) === 'intenso' ? 'rojo' : 'cian') + '">' + mmss(t.min * 60 / t.km) + '/km</span>' : '') + '</div><div class="muted">' + t.d + (t.tipo ? ' · ' + esc(t.tipo) : '') +
     (t.fc ? ' · ' + t.fc + ' ppm' + (intensidad(t) === 'facil' ? ' (fácil)' : ' (intenso)') : '') + (t.pend ? ' · sin subir' : '') + '</div></div>' +
     (t.uid ? '<button class="btn ghost sm" onclick="borrarTrote(\'' + jsq(t.uid) + '\')">Borrar</button>' : '') + '</div>').join('') + '</div>';
   return h;
@@ -2276,23 +2521,30 @@ function pintarComida() {
   let h = '';
   if (COMIDA_DIA) h += '<div class="otro">' + ICO.cal + '<span>Comida del ' + diaCorto(COMIDA_DIA) + '</span><button class="btn" onclick="comidaDe(null)">Volver a hoy</button></div>';
   else h += tarjetaAyer();
-  h += '<div class="card" style="text-align:center"><div class="ring"><svg viewBox="0 0 170 170">' +
-    '<circle cx="85" cy="85" r="' + R + '" fill="none" stroke="var(--card2)" stroke-width="14"/>' +
-    '<circle cx="85" cy="85" r="' + R + '" fill="none" stroke="' + (tot >= meta ? 'var(--ok)' : 'var(--pri)') + '" stroke-width="14" stroke-linecap="round" ' +
-    'stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - pct)) + '" style="transition:stroke-dashoffset .4s"/></svg>' +
-    '<div><div class="v num">' + tot + ' g</div><div class="muted">de ' + meta + ' g</div></div></div>' +
-    '<div class="t1" style="margin-top:4px">' + (falta > 0 ? 'Te faltan ~' + falta + ' g' : '¡Meta cumplida!') + '</div>' +
-    '<div class="muted">' + (falta > 0 ? (prot.includes('Scoop') ? 'Fácil: 2 huevos (12 g), yogurt (15 g) o atún (20 g)' : 'Lo más barato: un scoop con agua (22 g)') : 'Bien hecho hoy') + '</div></div>';
+  // Anillo: al tocarlo alterna entre lo registrado y lo que te falta
+  const verFalta = RING_FALTA && falta > 0;
+  h += '<div class="card protcard"><div class="row between"><div><div class="ventana">● Ventana anabólica activa</div><div class="t2">Meta de Proteína Diaria</div></div>' +
+    '<span class="pill acc">' + ICO.flame + 'Objetivo: ' + meta + ' g</span></div>' +
+    '<button class="ring" onclick="RING_FALTA=!RING_FALTA;hap(\'tecla\');pintarComida()" aria-label="Cambiar entre registrado y lo que falta"><svg viewBox="0 0 170 170">' +
+    '<defs><linearGradient id="ringG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--cyan)"/><stop offset="1" stop-color="var(--ok)"/></linearGradient></defs>' +
+    '<circle cx="85" cy="85" r="' + R + '" fill="none" stroke="var(--card2)" stroke-width="13"/>' +
+    '<circle cx="85" cy="85" r="' + (R - 14) + '" fill="none" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 5"/>' +
+    '<circle cx="85" cy="85" r="' + R + '" fill="none" stroke="url(#ringG)" stroke-width="13" stroke-linecap="round" ' +
+    'stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - pct)) + '" style="transition:stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1)"/></svg>' +
+    '<div><div class="lbl">' + (verFalta ? 'Te faltan' : 'Registrado') + '</div><div class="v num">' + (verFalta ? falta : tot) +
+    (verFalta ? '' : '<small>/' + meta + '</small>') + '</div><div class="muted">gramos</div></div></button>' +
+    '<div class="row between falta"><div class="t1">' + (falta > 0 ? 'Te faltan ~' + falta + ' g' : '¡Meta cumplida!') + '</div>' +
+    (falta > meta / 2 ? '<span class="pill prio">Prioritario</span>' : falta <= 0 ? '<span class="pill ok">✓ Listo</span>' : '') + '</div>' +
+    '<div class="consejo">💡 ' + (falta > 0 ? (prot.includes('Scoop') ? 'Fácil: 2 huevos (12 g), yogurt (15 g) o atún (20 g)' : 'Lo más barato: un scoop con agua (22 g)') : 'Bien hecho hoy') + '</div></div>';
   h += tarjetaComidaIA();
-  if (!prot.length && tipico.length) h += '<button class="btn block" style="margin-bottom:6px" onclick="diaTipico()">Mi día típico · +' +
-    protTotal(tipico) + ' g</button>' +
-    '<div class="muted" style="text-align:center;margin-bottom:12px">Tócalo en la noche y luego cambia lo que fue diferente</div>';
-  if (top.length) h += '<h2>Lo que más comes</h2><div class="foods">' + top.map(f => botonComida(f, true)).join('') + '</div>';
+  if (!prot.length && tipico.length) h += '<button class="tipico" onclick="diaTipico()"><span class="ic">🍽️</span><span style="flex:1"><b>Mi día típico</b> <span class="pill ok">+' +
+    protTotal(tipico) + ' g</span><small>Tócalo en la noche y luego cambia lo que fue diferente</small></span><span class="mas">＋</span></button>';
+  if (top.length) h += '<div class="row between"><h2>Lo que más comes</h2><span class="muted" style="font-size:12px">Frecuentes</span></div><div class="foods tops">' + top.map(f => botonComida(f, true)).join('') + '</div>';
   const favs = misComidas().filter(f => !top.some(t => t.k === f.k));
   if (favs.length || QUITAR_FAV) h += '<div class="row between"><h2>Mis comidas</h2><button class="link" onclick="QUITAR_FAV=!QUITAR_FAV;pintarComida()">' + (QUITAR_FAV ? 'Listo' : 'Editar') + '</button></div>' +
     (QUITAR_FAV ? '<div class="muted" style="margin:-4px 0 8px;font-size:13px">Toca una para quitarla de tus comidas</div>' : '') +
     '<div class="foods">' + (QUITAR_FAV ? misComidas() : favs).map(f => botonComida(f, false)).join('') + '</div>';
-  h += '<h2>Agregar</h2><div class="foods">' + FOODS.filter(f => !top.includes(f)).map(f => botonComida(f, false)).join('') + '</div>';
+  h += '<div class="row between"><h2>Agregar</h2><span class="rapido">Toque rápido</span></div><div class="foods">' + FOODS.filter(f => !top.includes(f)).map(f => botonComida(f, false)).join('') + '</div>';
   if (prot.length) h += '<h2>Hoy comiste · toca para quitar</h2><div class="eaten">' +
     prot.map((k, i) => '<button onclick="quitarProt(' + i + ')">' + esc(tDe(k)) + ' ✕</button>').join('') + '</div>';
   h += '<p class="muted" style="margin-top:14px">Cantidades aproximadas. Lo que cuenta es acercarte a la meta casi todos los días.</p>';
@@ -2302,8 +2554,15 @@ function botonComida(f, esTop) {
   const c = prot.filter(k => k === f.k).length;
   const quitar = QUITAR_FAV && f.fav;
   return '<button class="food' + (esTop ? ' top' : '') + (f.fav ? ' fav' : '') + (quitar ? ' quitar' : '') + '" onclick="' +
-    (quitar ? 'quitarFav(\'' + jsq(f.t) + '\')' : 'addProt(\'' + jsq(f.k) + '\')') + '">' + (c && !quitar ? '<span class="c">×' + c + '</span>' : '') +
-    '<b>+' + f.g + ' g</b>' + esc(f.t) + '</button>';
+    (quitar ? 'quitarFav(\'' + jsq(f.t) + '\')' : 'addProt(\'' + jsq(f.k) + '\')') + '">' +
+    '<span class="ic">' + iconoComida(f) + '</span><b>+' + f.g + ' g</b><span class="nom">' + esc(f.t) + '</span>' +
+    (c && !quitar ? '<span class="c">×' + c + '</span>' : '') + (esTop ? '<span class="mas">＋</span>' : '') + '</button>';
+}
+// Ícono de cada acceso rápido (los que agregas tú usan uno genérico)
+const ICONO_COMIDA = { 'Licuado': '🥤', 'Scoop': '🥛', 'Tupper carne': '🍗', 'Tupper pasta': '🍝', 'Cena huevos': '🍳', 'Cena pollo': '🌮', 'Quesadillas': '🫓',
+  'Huevos': '🥚', 'Atún': '🐟', 'Carne': '🥩', 'Leche': '🥛', 'Yogurt': '🍶', 'Calle': '🌯' };
+function iconoComida(f) {
+  return ICONO_COMIDA[f.k] || '🍽️';
 }
 function cambiarProt() {
   const dia = diaComida();
@@ -2319,11 +2578,11 @@ function addProt(k) {
 function diaTipico() { prot = prot.concat(diaTipicoLista()); cambiarProt(); }
 
 /* ----- Comida con IA: escribes lo que comiste y calcula la proteína ----- */
-let COMIDA_IA = null, QUITAR_FAV = false;
+let COMIDA_IA = null, QUITAR_FAV = false, RING_FALTA = false;
 function tarjetaComidaIA() {
   if (!DATA.ia) return '';
   const c = COMIDA_IA || {};
-  let h = '<div class="card iacard"><div class="t1" style="margin-bottom:6px">✨ Dime qué comiste</div>' +
+  let h = '<div class="card iacard"><div class="row between" style="margin-bottom:8px"><div class="t1">✨ Registro Inteligente</div><span class="pill pri">IA asistida</span></div>' +
     '<textarea id="iaComida" maxlength="600" placeholder="Ej. 3 tacos de asada y una coca · o: la etiqueta dice 24 g por porción y me comí 2" oninput="(COMIDA_IA=COMIDA_IA||{}).texto=this.value">' + esc(c.texto || '') + '</textarea>' +
     '<div class="fila-ia">' + botonMic('iaComida', 'calcularComida') + '<button class="btn"' + (c.cargando ? ' disabled' : '') + ' onclick="calcularComida()">' + (c.cargando ? 'Calculando…' : 'Calcular proteína') + '</button></div>';
   if (c.error) h += '<div class="muted" style="margin-top:8px;color:var(--acc)">' + esc(c.error) + '</div>';
@@ -2382,6 +2641,7 @@ function conLimite(pr, ms) { return Promise.race([pr, new Promise((_, no) => set
 
 /* ----- Dictado por voz: en el APK usa el reconocedor de Android; en Chrome, el del navegador ----- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const ICO_CAM = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg>';
 const ICO_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>';
 let VOZ = null;   // { id, rec } mientras escucha
 function botonMic(idTexto, alTerminar) {
@@ -2446,7 +2706,10 @@ function asegurarTabCoach() {
   const b = document.createElement('button'); b.id = 'nCoach';
   b.setAttribute('onclick', "verTab('Coach')");
   b.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></svg>Coach';
-  $('nProgreso').after(b);
+  // Con Coach la barra queda simétrica: Comida · Progreso · ENTRENAR · Coach · Ajustes
+  $('nEntrenar').after(b);
+  $('nAjustes').classList.remove('hide');
+  $('nav').classList.add('con-coach');
 }
 // Texto del coach: **negritas**, viñetas y saltos de línea; todo lo demás escapado
 function formatoChat(t) {
@@ -2581,9 +2844,9 @@ function progresoCuerpo() {
   const serie = (DATA.cuerpo && DATA.cuerpo.serie) || [];
   const cs = serie.filter(x => x.cint !== null).map(x => ({ d: x.d, v: x.cint }));
   const ps = serie.filter(x => x.peso !== null).map(x => ({ d: x.d, v: x.peso }));
-  h += '<div class="card chart"><div class="t1">Cintura desde el inicio</div>' + (cs.length >= 2 ? linea(cs, false)
+  h += '<div class="card chart"><div class="t1">Cintura desde el inicio</div>' + (cs.length >= 2 ? linea(cs, false, 'var(--cyan)')
     : '<div class="muted" style="margin-top:6px">La gráfica aparece con 2 domingos medidos. Tu cintura es el mejor indicador de la grasa de la panza.</div>') + '</div>';
-  h += '<div class="card chart"><div class="t1">Peso promedio por semana</div>' + (ps.length >= 2 ? linea(ps, false)
+  h += '<div class="card chart"><div class="t1">Peso promedio por semana</div>' + (ps.length >= 2 ? linea(ps, false, 'var(--pri)')
     : '<div class="muted" style="margin-top:6px">Aparece con 2 semanas de pesajes. El promedio semanal no se mueve con el agua de un día.</div>') + '</div>';
   h += '<div class="card chart"><div class="t1">Peso, últimos 30 días</div>' + graficaPeso(r.serie30) + '</div>';
   if (DATA.fotos && DATA.fotos.activas) h += tarjetaFotos();
@@ -2650,7 +2913,7 @@ function tarjetaFuerza() {
   const pts = ex.hist, mejor = Math.max.apply(null, pts.map(p => p.e1)), cambio = (pts[pts.length - 1].e1 / pts[0].e1 - 1) * 100;
   h += '<select onchange="EJ_GRAF=this.value;pintarProgreso()">' + conHist.map(e => '<option value="' + esc(e.name) + '"' + (e.name === EJ_GRAF ? ' selected' : '') + '>' + esc(e.ejercicio) + '</option>').join('') + '</select>' +
     '<div class="row between" style="margin:6px 0"><div class="muted">Fuerza estimada (1RM, lb de carga real)</div><b class="num ' + (cambio >= 0 ? 'up' : 'down') + '">' + (cambio > 0 ? '+' : '') + cambio.toFixed(1) + '%</b></div>' +
-    linea(pts.map(p => ({ d: p.d, v: p.e1 })), false) +
+    linea(pts.map(p => ({ d: p.d, v: p.e1 })), false, 'var(--cyan)', 'var(--pri)') +
     '<div class="muted" style="margin-top:4px">Mejor: <b class="num" style="color:var(--text)">' + mejor.toFixed(1) + ' lb</b> · ' + pts.length + ' sesiones</div></div>';
   return h;
 }
@@ -3066,42 +3329,60 @@ function guardarBienvenida() {
 }
 
 /* ===================== AJUSTES ===================== */
+const svgA = d => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+const AIC = {
+  cel: svgA('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18h2"/>'),
+  campana: svgA('<path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9z"/><path d="M10 20a2 2 0 0 0 4 0M3 5l2-2M21 5l-2-2"/>'),
+  reloj: svgA('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M10 2h4"/>'),
+  chispa: svgA('<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>'),
+  cerebro: svgA('<path d="M12 5a3 3 0 0 0-5.9.8A3 3 0 0 0 4 11a3 3 0 0 0 1.5 5.2A3 3 0 0 0 12 18zM12 5a3 3 0 0 1 5.9.8A3 3 0 0 1 20 11a3 3 0 0 1-1.5 5.2A3 3 0 0 1 12 18z"/>'),
+  flama: svgA('<path d="M12 22c4 0 7-2.7 7-6.8 0-3.7-2.6-6.6-4.6-8.7-.6 2.4-1.6 3.6-3 4C11.9 7.6 10.5 4.6 8 2.5 8 7 5 9 5 15.2 5 19.3 8 22 12 22z"/>'),
+  flechas: svgA('<path d="M4 9V4h5M20 15v5h-5M4 4l6 6M20 20l-6-6"/>'),
+  cubiertos: svgA('<path d="M7 2v9a2 2 0 0 0 2 2v9M11 2v7M3 2v7a2 2 0 0 0 2 2M17 22V2c2.5 1 4 3.5 4 7v4h-4"/>'),
+  cal: svgA('<rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M3 10h18M8 2.5v4M16 2.5v4"/>'),
+  regla: svgA('<rect x="2" y="8" width="20" height="8" rx="2"/><path d="M6 8v3M10 8v4M14 8v3M18 8v4"/>'),
+  corre: svgA('<circle cx="14" cy="4.5" r="2"/><path d="M5 21l3.5-6 3 2.5V22M8.5 11.5l3-3.5 3 2 2.5 3.5H20M11.5 8l-3 1.5-2 3"/>'),
+  nube: svgA('<path d="M7 18a5 5 0 1 1 .9-9.9A6 6 0 0 1 19.5 10 4 4 0 0 1 18 18z"/><path d="M12 11v6m-2.5-2.5L12 17l2.5-2.5"/>'),
+  tabla: svgA('<rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18M3 15h18M9 3v18"/>')
+};
 function abrirAjustes() {
   if (!DATA) return;
-  const tog = (k, d, txt, sub) => '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">' + txt + '</div><div class="muted">' + sub + '</div></div>' +
+  // Cada interruptor va en su tarjeta con un ícono de color
+  const tog = (k, d, txt, sub, ic, color) => '<div class="opt tarj"><span class="aic" style="--c:var(--' + color + ')">' + ic + '</span><div class="txt"><div class="t1" style="font-size:15px">' + txt + '</div><div class="muted">' + sub + '</div></div>' +
     '<button class="tog' + (ajuste(k, d) ? ' on' : '') + '" onclick="toggleAjuste(\'' + k + '\',' + d + ')" aria-label="' + esc(txt) + '"></button></div>';
   const def = ajuste('descanso', 90), c = DATA.carrera;
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Ajustes</div><button class="btn ghost sm" onclick="cerrarModal()">✕</button></div>' +
-    tog('pantalla', true, 'Pantalla encendida en la sesión', 'Para que el descanso suene y no tengas que desbloquear') +
-    tog('reloj', NATIVO, 'Avisar al terminar el descanso', NATIVO ? 'Notificación con vibración aunque la pantalla esté bloqueada; llega a tu reloj' : 'Notificación al terminar (solo si la app está abierta; en el APK llega aunque bloquees)') +
-    tog('autoDescanso', false, 'Iniciar el descanso solo', 'Si está apagado, solo te sugiere tiempos al marcar una serie') +
-    tog('iaPlan', true, 'Plan del día con IA', 'Al abrir Entrenar: un foco para la sesión y una meta por ejercicio') +
-    tog('ia', true, 'La IA afina el consejo entre series', 'El motor te dice al instante qué hacer en la siguiente serie (sin señal); con señal, Gemini elige entre sus opciones y te explica por qué') +
-    tog('calentamiento', false, 'Calentamiento automático', 'En los básicos con barra agrega 2 series ligeras (50 % y 70 %) al abrirlos') +
-    '<div class="opt" style="display:block"><div class="t1" style="font-size:15px;margin-bottom:8px">Descanso predeterminado</div><div class="pills" style="margin:0;display:grid;grid-template-columns:repeat(4,1fr)">' +
+  const sec = (ic, color, txt) => '<div class="t1 asec"><span style="color:var(--' + color + ')">' + ic + '</span>' + txt + '</div>';
+  $('sheet').innerHTML = '<div class="row between ajhead"><div class="t2">Ajustes</div><button class="cerrar" onclick="cerrarModal()" aria-label="Cerrar">✕</button></div>' +
+    tog('pantalla', true, 'Pantalla encendida en la sesión', 'Para que el descanso suene y no tengas que desbloquear', AIC.cel, 'cyan') +
+    tog('reloj', NATIVO, 'Avisar al terminar el descanso', NATIVO ? 'Notificación con vibración aunque la pantalla esté bloqueada; llega a tu reloj' : 'Notificación al terminar (solo si la app está abierta; en el APK llega aunque bloquees)', AIC.campana, 'acc') +
+    tog('autoDescanso', false, 'Iniciar el descanso solo', 'Si está apagado, solo te sugiere tiempos al marcar una serie', AIC.reloj, 'ok') +
+    tog('iaPlan', true, 'Plan del día con IA', 'Al abrir Entrenar: un foco para la sesión y una meta por ejercicio', AIC.chispa, 'pri') +
+    tog('ia', true, 'La IA afina el consejo entre series', 'El motor te dice al instante qué hacer en la siguiente serie (sin señal); con señal, Gemini elige entre sus opciones y te explica por qué', AIC.cerebro, 'pri') +
+    tog('calentamiento', false, 'Calentamiento automático', 'En los básicos con barra agrega 2 series ligeras (50 % y 70 %) al abrirlos', AIC.flama, 'red') +
+    '<div class="opt" style="display:block">' + sec(AIC.reloj, 'cyan', 'Descanso predeterminado') + '<div class="pills c-cyan" style="margin:0;display:grid;grid-template-columns:repeat(4,1fr)">' +
     DESCANSOS.map(s => '<button class="' + (s === def ? 'on' : '') + '" onclick="setAjuste(\'descanso\',' + s + ');abrirAjustes()">' + mmss(s) + '</button>').join('') + '</div></div>' +
-    '<div class="opt" style="display:block"><div class="t1" style="font-size:15px">Objetivo de músculo</div><div class="muted">' + esc(FOCOS[focoMus()][1]) + '. Cambia las metas del mapa de músculos.</div>' +
-    '<div class="pills" style="margin:8px 0 0;display:grid;grid-template-columns:repeat(3,1fr)">' + Object.keys(FOCOS).map(f => '<button class="' + (f === focoMus() ? 'on' : '') + '" onclick="setFoco(\'' + f + '\')">' + FOCOS[f][0] + '</button>').join('') + '</div></div>' +
-    '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Meta de proteína</div><div class="muted">Unos 1.6–2 g por kilo de tu peso</div></div>' +
-    '<div class="unit"><button onclick="cambiarMeta(-5)">−5</button><button class="on num" style="pointer-events:none">' + metaProt() + ' g</button><button onclick="cambiarMeta(5)">+5</button></div></div>' +
-    '<div class="opt" style="display:block"><div class="t1" style="font-size:15px">Días de aviso</div><div class="muted">Esos días te llega a las 5:00 am lo que te toca</div><div class="dias">' +
+    '<div class="opt" style="display:block">' + sec(AIC.flechas, 'pri', 'Objetivo de músculo') + '<div class="muted">' + esc(FOCOS[focoMus()][1]) + '. Cambia las metas del mapa de músculos.</div>' +
+    '<div class="pills c-pri" style="margin:8px 0 0;display:grid;grid-template-columns:repeat(3,1fr)">' + Object.keys(FOCOS).map(f => '<button class="' + (f === focoMus() ? 'on' : '') + '" onclick="setFoco(\'' + f + '\')">' + FOCOS[f][0] + '</button>').join('') + '</div></div>' +
+    '<div class="opt"><span class="aic" style="--c:var(--ok)">' + AIC.cubiertos + '</span><div class="txt"><div class="t1" style="font-size:15px">Meta de proteína</div><div class="muted">Unos 1.6–2 g por kilo de tu peso</div></div>' +
+    '<div class="unit paso c-ok"><button onclick="cambiarMeta(-5)">−5</button><button class="on num" style="pointer-events:none">' + metaProt() + ' g</button><button onclick="cambiarMeta(5)">+5</button></div></div>' +
+    '<div class="opt" style="display:block">' + sec(AIC.cal, 'acc', 'Días de aviso') + '<div class="muted">Esos días te llega a las 5:00 am lo que te toca</div><div class="dias">' +
     [1, 2, 3, 4, 5, 6, 0].map(d => '<button class="' + ((DATA.dias || []).includes(d) ? 'on' : '') + '" onclick="cambiarDias(' + d + ')">' + DIAS_CORTOS[d] + '</button>').join('') + '</div></div>' +
-    '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Meta de cintura</div><div class="muted">' +
+    '<div class="opt"><span class="aic" style="--c:var(--cyan)">' + AIC.regla + '</span><div class="txt"><div class="t1" style="font-size:15px">Meta de cintura</div><div class="muted">' +
     (DATA.cuerpo && DATA.cuerpo.actual ? 'Hoy: ' + DATA.cuerpo.actual + ' cm' : 'A la altura del ombligo') + '</div></div>' +
     (DATA.cuerpo && DATA.cuerpo.meta
-      ? '<div class="unit"><button onclick="cambiarMetaCintura(-0.5)">−</button><button class="on num" style="pointer-events:none">' + DATA.cuerpo.meta + ' cm</button><button onclick="cambiarMetaCintura(0.5)">+</button></div>'
+      ? '<div class="unit paso c-cyan"><button onclick="cambiarMetaCintura(-0.5)">−</button><button class="on num" style="pointer-events:none">' + DATA.cuerpo.meta + ' cm</button><button onclick="cambiarMetaCintura(0.5)">+</button></div>'
       : '<button class="btn ghost sm" onclick="cambiarMetaCintura(0)">Poner meta</button>') + '</div>' +
-    '<div class="opt" style="display:block"><div class="t1" style="font-size:15px">Carrera</div><div class="muted">Con una carrera de 5 km activa tu plan de 6 semanas en la pestaña Trote</div>' +
+    '<div class="opt" style="display:block">' + sec(AIC.corre, 'red', 'Carrera') + '<div class="muted">Con una carrera de 5 km activa tu plan de 6 semanas en la pestaña Trote</div>' +
     '<input type="date" id="carFecha" min="' + hoy() + '" value="' + (c ? c.fecha : '') + '">' +
-    '<div class="pills" style="display:grid;grid-template-columns:repeat(4,1fr);margin:0">' + [5, 10, 21].map(k => '<button class="' + (c && c.km === k ? 'on' : '') + '" onclick="guardarCarrera(' + k + ')">' + k + ' km</button>').join('') +
+    '<div class="pills c-red" style="display:grid;grid-template-columns:repeat(4,1fr);margin:0">' + [5, 10, 21].map(k => '<button class="' + (c && c.km === k ? 'on' : '') + '" onclick="guardarCarrera(' + k + ')">' + k + ' km</button>').join('') +
     '<button onclick="guardarCarrera(0)">Ninguna</button></div></div>' +
-    '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Respaldo</div><div class="muted">Descarga lo que tiene la app en este celular</div></div>' +
-    '<button class="btn ghost sm" onclick="descargarRespaldo()">Descargar</button></div>' +
-    '<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none;margin-top:8px" href="' + DATA.resumen.sheetUrl + '" target="_blank" rel="noopener">Abrir mi hoja de Google</a>' +
+    '<div class="opt tarj"><span class="aic" style="--c:var(--ok)">' + AIC.nube + '</span><div class="txt"><div class="t1" style="font-size:15px">Respaldo</div><div class="muted">Descarga lo que tiene la app en este celular</div></div>' +
+    '<button class="btn sm verde" onclick="descargarRespaldo()">⬇ Descargar</button></div>' +
+    '<a class="btn ghost block hoja" href="' + DATA.resumen.sheetUrl + '" target="_blank" rel="noopener">' + AIC.tabla + ' Abrir mi hoja de Google</a>' +
     (NATIVO ? '' : '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Pasar a la app nativa (APK)</div><div class="muted">Copia tu link y pégalo en la app la primera vez</div></div>' +
       '<button class="btn ghost sm" onclick="copiarLinkConfig()">Copiar</button></div>') +
-    '<div class="muted" style="text-align:center;margin-top:10px;font-size:12px">Gym ' + VERSION_APP + (NATIVO ? ' (app)' : '') + ' · ' + esc(DATA.nombre || '') + '</div>';
-  abrirModal();
+    '<div class="muted" style="text-align:center;margin-top:14px;font-size:12px">Gym ' + VERSION_APP + (NATIVO ? ' (app)' : '') + ' · ' + esc(DATA.nombre || '') + '</div>';
+  abrirModal('completa');
 }
 async function toggleAjuste(k, d) {
   const nuevo = !ajuste(k, d);
@@ -3162,38 +3443,60 @@ function descargarRespaldo() {
 function graficaPeso(s) {
   if (!s || s.length < 2) return '<div class="muted" style="margin-top:8px">La gráfica aparece cuando tengas al menos 2 días de peso.</div>';
   const prom = s.map((p, i) => { const v = s.slice(Math.max(0, i - 6), i + 1).map(x => x.v); return { d: p.d, v: v.reduce((a, b) => a + b, 0) / v.length }; });
-  return linea(prom, s) + '<div class="legend"><span><i></i>Promedio 7 días</span><span><i class="p"></i>Peso de cada día</span></div>';
+  return linea(prom, s, 'var(--cyan)') + '<div class="legend"><span><i></i>Promedio 7 días</span><span><i class="p"></i>Peso de cada día</span></div>';
 }
-// Línea con puntos; si se pasa "puntos", la línea es el promedio y los puntos son los valores diarios
-function linea(serie, puntos) {
-  const W = 340, H = 160, pl = 38, pr = 8, pt = 12, pb = 22;
+// Curva suave que pasa por todos los puntos (Catmull-Rom convertida a Bézier)
+function curva(pts) {
+  if (pts.length < 3) return 'M' + pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' L');
+  let d = 'M' + pts[0][0].toFixed(1) + ',' + pts[0][1].toFixed(1);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    d += ' C' + (p1[0] + (p2[0] - p0[0]) / 6).toFixed(1) + ',' + (p1[1] + (p2[1] - p0[1]) / 6).toFixed(1) + ' ' +
+      (p2[0] - (p3[0] - p1[0]) / 6).toFixed(1) + ',' + (p2[1] - (p3[1] - p1[1]) / 6).toFixed(1) + ' ' + p2[0].toFixed(1) + ',' + p2[1].toFixed(1);
+  }
+  return d;
+}
+let GRAF_ID = 0;
+// Línea suavizada con área en degradado; si se pasa "puntos", la línea es el promedio y los puntos son los valores diarios.
+// color: color de la línea (por defecto el morado de la app); de: color de inicio para una línea en degradado
+function linea(serie, puntos, color, de) {
+  const W = 340, H = 160, pl = 38, pr = 10, pt = 14, pb = 22, id = 'g' + (++GRAF_ID);
+  color = color || 'var(--pri)';
   const todos = serie.map(p => p.v).concat(puntos ? puntos.map(p => p.v) : []);
   let mn = Math.min.apply(null, todos), mx = Math.max.apply(null, todos);
   if (mx - mn < 1) { mn -= 0.5; mx += 0.5; }
   const n = serie.length;
   const x = i => pl + (W - pl - pr) * (n === 1 ? 0.5 : i / (n - 1));
   const y = v => pt + (H - pt - pb) * (1 - (v - mn) / (mx - mn));
-  let g = '<svg viewBox="0 0 ' + W + ' ' + H + '">';
+  const xy = serie.map((p, i) => [x(i), y(p.v)]), d = curva(xy), ult = xy[n - 1];
+  let g = '<svg viewBox="0 0 ' + W + ' ' + H + '"><defs>' +
+    '<linearGradient id="' + id + 'a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + color + '" stop-opacity=".32"/><stop offset="1" stop-color="' + color + '" stop-opacity="0"/></linearGradient>' +
+    '<linearGradient id="' + id + 'l" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="' + (de || color) + '"/><stop offset="1" stop-color="' + color + '"/></linearGradient></defs>';
   [mn, (mn + mx) / 2, mx].forEach(v => {
     g += '<line class="grid" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y(v) + '" y2="' + y(v) + '"/>' +
       '<text class="ax" x="' + (pl - 5) + '" y="' + (y(v) + 3) + '" text-anchor="end">' + v.toFixed(1) + '</text>';
   });
+  if (n > 1) g += '<path d="' + d + ' L' + ult[0].toFixed(1) + ',' + (H - pb) + ' L' + xy[0][0].toFixed(1) + ',' + (H - pb) + ' Z" fill="url(#' + id + 'a)"/>';
   if (puntos) puntos.forEach((p, i) => { g += '<circle class="pt" cx="' + x(i) + '" cy="' + y(p.v) + '" r="3.2"/>'; });
-  g += '<polyline class="avg" points="' + serie.map((p, i) => x(i) + ',' + y(p.v)).join(' ') + '"/>';
-  if (!puntos) serie.forEach((p, i) => { g += '<circle cx="' + x(i) + '" cy="' + y(p.v) + '" r="3.5" fill="var(--pri)"/>'; });
+  g += '<path d="' + d + '" fill="none" stroke="url(#' + id + 'l)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';
+  if (!puntos) {
+    g += '<circle cx="' + xy[0][0] + '" cy="' + xy[0][1] + '" r="4" fill="var(--card)" stroke="' + (de || color) + '" stroke-width="2"/>';
+    if (n > 1) g += '<circle cx="' + ult[0] + '" cy="' + ult[1] + '" r="9" fill="' + color + '" opacity=".22"/>' +
+      '<circle cx="' + ult[0] + '" cy="' + ult[1] + '" r="4.5" fill="#fff" stroke="' + color + '" stroke-width="2.5"/>';
+  }
   g += '<text class="ax" x="' + pl + '" y="' + (H - 5) + '">' + serie[0].d + '</text>' +
-    '<text class="ax" x="' + (W - pr) + '" y="' + (H - 5) + '" text-anchor="end">' + serie[n - 1].d + '</text></svg>';
+    '<text class="ax" x="' + (W - pr) + '" y="' + (H - 5) + '" text-anchor="end" style="fill:' + color + '">' + serie[n - 1].d + '</text></svg>';
   return g;
 }
 function barras(semanas) {
-  const W = 340, H = 120, pb = 20, pt = 16, n = semanas.length, mx = Math.max.apply(null, semanas.map(s => s.km).concat([1]));
+  const W = 340, H = 130, pb = 20, pt = 18, n = semanas.length, mx = Math.max.apply(null, semanas.map(s => s.km).concat([1]));
   const bw = (W - 10) / n;
-  let g = '<svg viewBox="0 0 ' + W + ' ' + H + '">';
+  let g = '<svg viewBox="0 0 ' + W + ' ' + H + '"><defs><linearGradient id="barAcc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB46E"/><stop offset="1" stop-color="var(--acc)"/></linearGradient></defs>';
   semanas.forEach((s, i) => {
-    const h = (H - pb - pt) * s.km / mx, x = 5 + i * bw + 4, yy = H - pb - h;
-    g += '<rect x="' + x + '" y="' + yy + '" width="' + (bw - 8) + '" height="' + Math.max(h, s.km ? 2 : 0) + '" rx="5" fill="' + (i === n - 1 ? 'var(--acc)' : 'var(--pri)') + '" opacity="' + (i === n - 1 ? 1 : 0.75) + '"/>' +
-      (s.km ? '<text class="ax" x="' + (x + (bw - 8) / 2) + '" y="' + (yy - 4) + '" text-anchor="middle">' + s.km + '</text>' : '') +
-      '<text class="ax" x="' + (x + (bw - 8) / 2) + '" y="' + (H - 5) + '" text-anchor="middle">' + s.d + '</text>';
+    const actual = i === n - 1, h = (H - pb - pt) * s.km / mx, x = 5 + i * bw + 4, yy = H - pb - Math.max(h, 4);
+    g += '<rect x="' + x + '" y="' + yy + '" width="' + (bw - 8) + '" height="' + Math.max(h, 4) + '" rx="6" fill="' + (actual ? 'url(#barAcc)' : 'var(--line)') + '"/>' +
+      (s.km && (actual || s.km === mx) ? '<text class="ax" x="' + (x + (bw - 8) / 2) + '" y="' + (yy - 5) + '" text-anchor="middle" style="fill:' + (actual ? 'var(--acc)' : 'var(--muted)') + ';font-weight:700">' + s.km + '</text>' : '') +
+      '<text class="ax" x="' + (x + (bw - 8) / 2) + '" y="' + (H - 5) + '" text-anchor="middle"' + (actual ? ' style="fill:var(--acc);font-weight:700"' : '') + '>' + s.d + '</text>';
   });
   return g + '</svg>';
 }
