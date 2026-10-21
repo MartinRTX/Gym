@@ -1,6 +1,6 @@
 // Plugin nativo de la app Gym (widgets y accesos directos). Lo incluye Capacitor al sincronizar.
 ext {
-    androidxCoreVersion = project.hasProperty('androidxCoreVersion') ? rootProject.ext.androidxCoreVersion : '1.17.0'
+    androidxAppCompatVersion = project.hasProperty('androidxAppCompatVersion') ? rootProject.ext.androidxAppCompatVersion : '1.7.1'
 }
 
 buildscript {
@@ -43,4 +43,6 @@ repositories {
 
 dependencies {
     implementation project(':capacitor-android')
+    // Plugin.getActivity() devuelve AppCompatActivity: hace falta para compilar
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
 }
