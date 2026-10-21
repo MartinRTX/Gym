@@ -15,7 +15,7 @@ const SE_QUEDAN = ['READ_STEPS', 'READ_DISTANCE', 'READ_SLEEP', 'READ_EXERCISE']
 
 let m = fs.readFileSync(MANIFEST, 'utf8');
 if (!m.includes('xmlns:tools=')) m = m.replace('<manifest ', '<manifest xmlns:tools="http://schemas.android.com/tools" ');
-const delPlugin = [...fs.readFileSync(PLUGIN, 'utf8').matchAll(/android:name="(android\.permission\.health\.[A-Z_]+)"/g)].map(x => x[1]);
+const delPlugin = [...fs.readFileSync(PLUGIN, 'utf8').matchAll(/android:name="(android\.permission\.health\.[A-Z0-9_]+)"/g)].map(x => x[1]);
 const quitar = [...new Set(delPlugin.concat(['WRITE_EXERCISE', 'READ_HEALTH_DATA_HISTORY', 'READ_HEALTH_DATA_IN_BACKGROUND'].map(p => 'android.permission.health.' + p)))]
   .filter(p => !SE_QUEDAN.includes(p));
 const lineas = quitar.map(p => `    <uses-permission android:name="${p}" tools:node="remove" />`).join('\n');

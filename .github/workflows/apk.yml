@@ -84,11 +84,13 @@ jobs:
           "$BT/apksigner" verify --print-certs Gym.apk | grep -i "SHA-256" || true
           rm -f gym.jks
 
-      - name: Revisar permisos (Health Connect sin escritura)
+      - name: Revisar permisos (Health Connect solo lectura de pasos, distancia, sueño y ejercicio)
         run: |
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
-          "$BT/aapt" dump permissions Gym.apk | grep -i "health" || true
-          if "$BT/aapt" dump permissions Gym.apk | grep -q "permission.health.WRITE_"; then echo "El APK pide escribir en Health Connect"; exit 1; fi
+          SALUD=$("$BT/aapt" dump permissions Gym.apk | grep -o "android.permission.health.[A-Z0-9_]*" | sort -u || true)
+          echo "$SALUD"
+          DE_MAS=$(echo "$SALUD" | grep -v -E "health\.READ_(STEPS|DISTANCE|SLEEP|EXERCISE)$" | grep . || true)
+          if [ -n "$DE_MAS" ]; then echo "Permisos de salud que no deben estar: $DE_MAS"; exit 1; fi
 
       - name: Guardar el APK de prueba (ramas que no son main)
         if: github.ref != 'refs/heads/main'
