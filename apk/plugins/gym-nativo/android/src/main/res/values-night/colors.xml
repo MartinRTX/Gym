@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="w_fondo">#18151F</color>
+    <color name="w_borde">#2A2536</color>
+    <color name="w_texto">#EEEAF7</color>
+    <color name="w_suave">#A29CB6</color>
+    <color name="w_pista">#2A2536</color>
+    <color name="w_morado">#9B7BFF</color>
+    <color name="w_rojo">#F43F5E</color>
+    <color name="w_cian">#06B6D4</color>
+    <color name="w_ok">#4ADE80</color>
+    <color name="w_ambar">#FF9A55</color>
+    <color name="w_boton">#8B6CFF</color>
+    <color name="w_boton_texto">#FFFFFF</color>
+</resources>

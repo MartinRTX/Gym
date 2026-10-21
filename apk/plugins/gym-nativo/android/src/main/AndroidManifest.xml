@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Widgets de la pantalla de inicio: leen lo que la app guarda en el celular -->
+        <receiver android:name=".ProteinaWidget" android:exported="false" android:label="@string/w_proteina">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/w_proteina_info" />
+        </receiver>
+        <receiver android:name=".HoyWidget" android:exported="false" android:label="@string/w_hoy">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/w_hoy_info" />
+        </receiver>
+        <receiver android:name=".CarreraWidget" android:exported="false" android:label="@string/w_carrera">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/w_carrera_info" />
+        </receiver>
+        <receiver android:name=".SemanaWidget" android:exported="false" android:label="@string/w_semana">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/w_semana_info" />
+        </receiver>
+    </application>
+</manifest>

@@ -1,6 +1,8 @@
 # Compila el APK de la app Gym en los servidores de GitHub (no necesitas Android Studio).
 # Se corre solo cuando cambias algo en la carpeta apk/ o este archivo, o a mano desde la pestaña Actions.
-# Resultado: en "Releases" del repo aparece Gym.apk para instalar desde el celular.
+# Resultado: en "Releases" del repo aparece Gym.apk para instalar desde el celular (solo desde main;
+# en otras ramas queda como artefacto de prueba y no reemplaza el APK que instalas).
+# Siempre se firma con la misma keystore (secretos KEYSTORE_B64 / KEYSTORE_PASS, alias gym): se instala encima.
 name: APK Android
 
 on:
@@ -37,6 +39,9 @@ jobs:
       - name: Crear el proyecto Android
         run: npx cap add android
 
+      - name: Health Connect solo lectura y minSdk 26
+        run: node preparar-android.js
+
       - name: Ícono de la app
         run: |
           mkdir -p assets
@@ -56,7 +61,7 @@ jobs:
       - name: Número de versión (sube solo en cada compilación)
         run: |
           sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/" android/app/build.gradle
-          sed -i -E "s/versionName \"[^\"]*\"/versionName \"5.9.${{ github.run_number }}\"/" android/app/build.gradle
+          sed -i -E "s/versionName \"[^\"]*\"/versionName \"7.3.${{ github.run_number }}\"/" android/app/build.gradle
 
       - name: Sincronizar
         run: npx cap sync android
@@ -76,9 +81,25 @@ jobs:
           "$BT/zipalign" -p -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk alineado.apk
           "$BT/apksigner" sign --ks gym.jks --ks-key-alias gym --ks-pass env:KS_PASS --key-pass env:KS_PASS --out Gym.apk alineado.apk
           "$BT/apksigner" verify Gym.apk
+          "$BT/apksigner" verify --print-certs Gym.apk | grep -i "SHA-256" || true
           rm -f gym.jks
 
+      - name: Revisar permisos (Health Connect sin escritura)
+        run: |
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/aapt" dump permissions Gym.apk | grep -i "health" || true
+          if "$BT/aapt" dump permissions Gym.apk | grep -q "permission.health.WRITE_"; then echo "El APK pide escribir en Health Connect"; exit 1; fi
+
+      - name: Guardar el APK de prueba (ramas que no son main)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gym-apk-prueba
+          path: apk/Gym.apk
+          retention-days: 7
+
       - name: Publicar en Releases
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

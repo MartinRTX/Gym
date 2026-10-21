@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_raiz"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/w_fondo"
+    android:gravity="center_vertical"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <TextView
+        android:id="@+id/w_etiqueta"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="HOY TOCA"
+        android:textColor="@color/w_rojo"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/w_grupo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Entrenar"
+        android:textColor="@color/w_texto"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/w_ruta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:text=""
+        android:textColor="@color/w_suave"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/w_aviso"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/w_abre"
+        android:textColor="@color/w_suave"
+        android:textSize="10sp"
+        android:visibility="gone" />
+</LinearLayout>

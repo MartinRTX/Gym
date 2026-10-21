@@ -1,0 +1,14 @@
+{
+  "name": "gym-nativo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Plugin nativo de la app Gym: widgets de Android, accesos directos del ícono y la cola de proteína del widget",
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=8.0.0"
+  }
+}

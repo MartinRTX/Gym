@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Colores de los widgets en modo claro (values-night: modo oscuro, la paleta de la app) -->
+<resources>
+    <color name="w_fondo">#FFFFFF</color>
+    <color name="w_borde">#E8E3F3</color>
+    <color name="w_texto">#1A1530</color>
+    <color name="w_suave">#6B6680</color>
+    <color name="w_pista">#ECE8F5</color>
+    <color name="w_morado">#7C5CFA</color>
+    <color name="w_rojo">#E11D48</color>
+    <color name="w_cian">#0891B2</color>
+    <color name="w_ok">#16A34A</color>
+    <color name="w_ambar">#EA7A2C</color>
+    <color name="w_boton">#7C5CFA</color>
+    <color name="w_boton_texto">#FFFFFF</color>
+</resources>

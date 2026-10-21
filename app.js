@@ -55,6 +55,138 @@ const NATIVO = !!(window.Capacitor && window.Capacitor.isNativePlatform && windo
 function nativo(plugin, metodo, opts) {
   try { return window.Capacitor.nativePromise(plugin, metodo, opts || {}).catch(() => null); } catch (e) { return Promise.resolve(null); }
 }
+/* ----- APK: widgets, accesos directos del ícono y Health Connect (solo existen en la app nativa; sin ellos todo sigue igual) ----- */
+let WIDGET_T = null;
+// Lo que muestran los widgets de la pantalla de inicio; se guarda en el celular después de cada cambio
+function actualizarWidgets() {
+  if (!NATIVO || !DATA) return;
+  clearTimeout(WIDGET_T);
+  WIDGET_T = setTimeout(() => { try { nativo('GymNativo', 'guardarWidgets', { datos: datosWidgets() }); } catch (e) { registrarError('Widgets: ' + e.message); } }, 600);
+}
+function datosWidgets() {
+  const r = DATA.resumen || {}, dia = hoy(), cuenta = LS.get('gym_food_counts', {}), vistas = {};
+  const botones = misComidas().concat(FOODS).filter(f => f.g > 0 && !vistas[f.k] && (vistas[f.k] = true))
+    .sort((a, b) => ((cuenta[b.k] || 0) + (b.fav ? 2 : 0)) - ((cuenta[a.k] || 0) + (a.fav ? 2 : 0))).slice(0, 2)
+    .map(f => ({ k: f.k, t: f.fav ? f.t : f.k, g: f.g }));
+  const g = grupoDeHoy(), entrena = (DATA.dias || [1, 2, 3, 4, 5]).includes(new Date().getDay());
+  let ruta = [];
+  try { ruta = rutaAceptada(g) || (GRUPOS3.includes(g) ? calcularRuta(g).items : []); } catch (e) { ruta = []; }
+  const nombres = ruta.slice(0, 3).map(x => exDe(x.name)).filter(Boolean).map(e => e.ejercicio.split(' (')[0]);
+  // Semana (lunes a domingo): lo de hoy que la hoja aún no tiene también cuenta
+  const semana = (r.semana || []).slice(), hoyIdx = (new Date().getDay() + 6) % 7;
+  let gym = r.diasSemana || 0;
+  if (sesion().log.length && !semana[hoyIdx]) gym++;
+  const kmSem = DATA.trotes && DATA.trotes.semanas && DATA.trotes.semanas.length ? DATA.trotes.semanas[DATA.trotes.semanas.length - 1].km : r.km7;
+  const sal = LS.get('gym_salud', null), anoche = sal && sal.sueno ? sal.sueno.find(x => x.k === dia) : null;
+  return {
+    v: 1, ts: Date.now(), dia: dia,
+    prot: { dia: dia, g: protTotal(cargarProt(dia)), meta: metaProt(), botones: botones },
+    hoy: { dia: dia, grupo: g, hora: String(DATA.recordatorio || '').replace(/^0/, ''), entrena: entrena, proximo: DATA.sugGrupo || g,
+           ruta: nombres.length ? nombres.join(' → ') : '' },
+    carrera: DATA.carrera ? { fecha: DATA.carrera.fecha, nombre: DATA.carrera.nombre || DATA.carrera.km + 'K', dia: dia, hoy: troteDeHoy() } : null,
+    semana: { gym: gym, meta: META_DIAS, km: Math.round((kmSem || 0) * 10) / 10, peso: r.promedio7 === undefined ? null : r.promedio7,
+              cambio: r.cambioSemana === undefined ? null : r.cambioSemana, sueno: anoche ? anoche.h : null }
+  };
+}
+// "✓ 5.0 km hoy" si ya corriste; si no, la siguiente salida del plan
+function troteDeHoy() {
+  const dia = hoy(), hecho = ((DATA.trotes && DATA.trotes.ult7) || []).filter(t => t.k === dia).concat(trotesPendientes().filter(t => claveDia(new Date(t.ts)) === dia));
+  if (hecho.length) return '✓ ' + Math.round(hecho.reduce((a, t) => a + Number(t.km || 0), 0) * 10) / 10 + ' km hoy';
+  const ses = sesionesPlan(), sig = ses && ses.find(x => !x.hecho);
+  return sig ? 'Toca: ' + sig.tipo + ' · ' + sig.min + ' min' : '';
+}
+// Widget o acceso directo: gymmb://accion/peso | comida | entrenar | trote | progreso
+async function consumirAccion() {
+  if (!NATIVO) return;
+  const r = await nativo('GymNativo', 'consumirAccion');
+  if (r && r.url) abrirAccion(r.url);
+}
+function abrirAccion(url) {
+  const a = String(url || '').replace(/^gymmb:\/\/accion\//, '').split(/[/?#]/)[0];
+  if (!DATA || !a) return;
+  cerrarModal(); cerrarTeclado();
+  if (FECHA) cambiarFecha(null);
+  if (a === 'peso') { verTab('Entrenar'); PESO_TMP = ''; tecladoPeso(); }
+  else if (a === 'comida') verTab('Comida');
+  else if (a === 'progreso') verTab('Progreso');
+  else if (a === 'trote') { verTab('Entrenar'); elegirGrupo('Trote'); }
+  else if (a === 'entrenar') {
+    verTab('Entrenar');
+    if (GRUPO === 'Trote' || !GRUPO_MANUAL) GRUPO = grupoDeHoy();
+    OPEN = siguiente(GRUPO, ''); ANIM_ABRE = OPEN; pintarEntrenar();
+    if (OPEN) irA(OPEN);
+  }
+}
+// Comidas que sumaste desde el widget de proteína: se agregan a su día y se suben a la hoja (cada una una sola vez)
+async function tomarColaWidget() {
+  if (!NATIVO || !DATA) return;
+  const r = await nativo('GymNativo', 'tomarCola'), items = (r && r.items) || [];
+  if (!items.length) return;
+  const vistos = LS.get('gym_widget_ids', []), porDia = {};
+  items.forEach(x => { if (!x || !x.id || !x.k || vistos.includes(x.id)) return; vistos.push(x.id); (porDia[x.dia] = porDia[x.dia] || []).push(x.k); });
+  LS.set('gym_widget_ids', vistos.slice(-300));
+  let g = 0;
+  Object.keys(porDia).forEach(dia => {
+    const enPantalla = dia === diaComida(), lista = (enPantalla ? prot : cargarProt(dia)).concat(porDia[dia]);
+    if (enPantalla) prot = lista;
+    LS.set('gym_prot_' + dia, lista);
+    encolar('saveProteina', [protTotal(lista), lista.join(', '), dia], 'prot-' + dia);
+    const c = LS.get('gym_food_counts', {}); porDia[dia].forEach(k => { c[k] = (c[k] || 0) + 1; g += gDe(k); }); LS.set('gym_food_counts', c);
+  });
+  if (g) toast('Del widget: +' + g + ' g de proteína');
+  pintarTab(); programarAvisoProt(); actualizarWidgets();
+}
+// Health Connect (solo lectura): pasos, distancia, sueño y sesiones de ejercicio
+const SALUD_TIPOS = ['steps', 'distance', 'sleep', 'workouts'];
+const hc = (metodo, opts) => { try { return window.Capacitor.nativePromise('Health', metodo, opts || {}).catch(() => null); } catch (e) { return Promise.resolve(null); } };
+async function conectarSalud() {
+  const d = await hc('isAvailable');
+  if (!d || !d.available) { toast('Health Connect no está disponible en este celular'); return false; }
+  const r = await hc('requestAuthorization', { read: SALUD_TIPOS, write: [] });
+  if (!r || !(r.readAuthorized || []).length) { toast('Sin permiso: la app sigue igual, sin Health Connect'); return false; }
+  return true;
+}
+async function leerSalud(forzar) {
+  if (!NATIVO || !DATA || !ajuste('salud', false)) return;
+  const ult = LS.get('gym_salud', null);
+  if (!forzar && ult && Date.now() - ult.ts < 60 * 60 * 1000) return;   // máximo una lectura por hora
+  const ini = new Date(); ini.setDate(ini.getDate() - 7); ini.setHours(0, 0, 0, 0);
+  const fin = new Date(), iso = d => d.toISOString(), kLocal = t => claveDia(new Date(t));
+  const [pasosR, suenoR, runsR] = await Promise.all([
+    hc('queryAggregated', { dataType: 'steps', startDate: iso(ini), endDate: iso(fin), bucket: 'day', aggregation: 'sum' }),
+    hc('readSamples', { dataType: 'sleep', startDate: iso(new Date(ini.getTime() - 12 * 3600e3)), endDate: iso(fin), limit: 60 }),
+    hc('queryWorkouts', { startDate: iso(ini), endDate: iso(fin), limit: 60 })
+  ]);
+  if (!pasosR && !suenoR && !runsR) return;   // sin permiso o sin Health Connect: todo sigue igual
+  const pasos = ((pasosR && pasosR.samples) || []).map(x => ({ k: kLocal(x.startDate), v: Math.round(Number(x.value || (x.values || {}).sum) || 0) })).filter(x => x.v > 0);
+  // Sueño: se cuenta lo dormido (sin despierto ni "en cama") y va al día en que despertaste
+  const noches = {};
+  ((suenoR && suenoR.samples) || []).forEach(x => {
+    const min = x.stages && x.stages.length ? x.stages.filter(st => !/awake|inBed/.test(st.stage)).reduce((a, st) => a + (st.durationMinutes || 0), 0) : Number(x.value) || 0;
+    if (min > 0) { const k = kLocal(x.endDate); noches[k] = (noches[k] || 0) + min / 60; }
+  });
+  const sueno = Object.keys(noches).sort().map(k => ({ k: k, h: Math.round(noches[k] * 10) / 10 }));
+  const runs = ((runsR && runsR.workouts) || []).filter(w => /^running/.test(w.workoutType || '') && Number(w.totalDistance) >= 500).map(w => ({
+    uid: 'hc-' + (w.platformId || w.startDate), ts: w.startDate, k: kLocal(w.startDate),
+    km: Math.round(Number(w.totalDistance) / 10) / 100, min: Math.round(Number(w.duration) / 6) / 10, fuente: String(w.sourceName || '').slice(0, 60) }));
+  LS.set('gym_salud', { ts: Date.now(), pasos: pasos, sueno: sueno, runs: runs });
+  // A la hoja: un renglón por día en "Salud" y las carreras que falten en Trotes (el script evita duplicados)
+  const dias = {};
+  pasos.forEach(x => { (dias[x.k] = dias[x.k] || { k: x.k }).pasos = x.v; });
+  sueno.forEach(x => { (dias[x.k] = dias[x.k] || { k: x.k }).sueno = x.h; });
+  const firma = JSON.stringify([dias, runs.map(x => x.uid)]);
+  if (firma !== LS.get('gym_salud_firma', '')) {
+    encolar('saveSalud', [{ dias: Object.values(dias), trotes: runs }], 'salud');
+    LS.set('gym_salud_firma', firma);
+  }
+  actualizarWidgets();
+  if (TAB === 'Progreso') pintarProgreso();
+}
+function iniciarNativo() {
+  if (!NATIVO) return;
+  try { window.Capacitor.addListener('GymNativo', 'accion', () => consumirAccion()); } catch (e) { /* APK anterior: sin widgets */ }
+  consumirAccion(); tomarColaWidget(); leerSalud();
+}
 // Vibración con intención: ligera al teclear, golpe fuerte al marcar serie, patrón de éxito en récord
 const HAPTICOS = {
   tecla: [['impact', { style: 'LIGHT' }], 6],
@@ -585,6 +717,15 @@ const CSS_V72 = `
   .ruta.corta { display: flex; gap: 10px; align-items: center; padding: 10px 14px; margin: 0 0 12px; border-radius: 14px; border: 1px solid var(--line);
                 background: color-mix(in srgb, var(--ok) 7%, transparent); font-size: 14px; }
   .ruta.corta .i { font-size: 17px; }
+  .tipico-ed { display: block; margin: -4px 2px 14px; font-size: 13.5px; }
+  .tipico-lista { display: grid; gap: 6px; max-height: 52vh; overflow: auto; margin: 0 -4px; padding: 0 4px; }
+  .tipico-lista .tl { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; border: 1px solid var(--line); background: var(--card2); }
+  .tipico-lista .tl.on { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+  .tipico-lista .ic { font-size: 20px; } .tipico-lista .nm { flex: 1; min-width: 0; font-size: 14px; }
+  .tipico-lista .nm small { display: block; color: var(--muted); font-size: 12px; }
+  .tipico-lista b { min-width: 18px; text-align: center; }
+  .tipico-lista button.mini { border: 1.5px solid var(--line); background: var(--card); color: var(--text); border-radius: 10px; width: 34px; height: 34px; font-weight: 800; font-size: 17px; }
+  .tipico-lista button.mini:disabled { opacity: .35; }
   .prot6 .botones { display: flex; gap: 8px; } .prot6 .botones .btn { flex: 1; padding-left: 8px; padding-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .prot6 .botones .ghost { flex: none; }
   .prot6 { border-color: color-mix(in srgb, var(--acc) 40%, var(--line)); background: linear-gradient(160deg, color-mix(in srgb, var(--acc) 9%, var(--card)), var(--card)); }
@@ -633,7 +774,7 @@ const tsReg = () => FECHA ? new Date(FECHA + 'T07:00:00').getTime() : Date.now()
 // Nombres para avisar qué dato rechazó la hoja
 const NOMBRE_OP = { saveExercise: 'Ejercicio', savePeso: 'Peso', saveProteina: 'Proteína', saveCintura: 'Cintura', saveTrote: 'Trote', saveMedia: 'Video', saveAjuste: 'Ajuste de máquina',
                     saveFoto: 'Foto', saveConfig: 'Ajuste', undoById: 'Borrado', undoTrote: 'Borrado de trote', borrarFoto: 'Borrado de foto',
-                    cambiarVariante: 'Cambio de equipo (actualiza el script)' };
+                    cambiarVariante: 'Cambio de equipo (actualiza el script)', saveSalud: 'Health Connect (actualiza el script)' };
 
 /* ===================== API ===================== */
 async function apiGet(action, clave) {
@@ -743,7 +884,7 @@ function arrancar() {
   if (!API || !KEY) { $('loading').classList.add('hide'); $('setup').classList.remove('hide'); return; }
 
   DATA = LS.get('gym_data', null);
-  if (DATA) pintarTodo();
+  if (DATA) { pintarTodo(); iniciarNativo(); }
   actualizar();
   enviar();
   window.addEventListener('online', () => { pintarSync(); enviar(); actualizar(); });
@@ -751,6 +892,7 @@ function arrancar() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       enviar(); actualizar(); tickRest();
+      if (NATIVO && DATA) { consumirAccion(); tomarColaWidget(); leerSalud(); }
       if (sesionActiva()) pedirPantalla();
     }
   });
@@ -760,7 +902,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v7.2';
+const VERSION_APP = 'v7.3';
 // Tu link de configuración (lleva tu clave): para configurar el APK sin escribir nada
 function copiarLinkConfig() {
   const link = location.origin + location.pathname + '?api=' + encodeURIComponent(API) + '&key=' + encodeURIComponent(KEY);
@@ -948,7 +1090,7 @@ function pintarTodo() {
   pintarFecha();
   $('loading').classList.add('hide'); $('app').classList.remove('hide'); $('nav').classList.remove('hide');
   pintarTab(); pintarSync();
-  programarAvisoProt();
+  programarAvisoProt(); actualizarWidgets();
 }
 // Lo que te toca hoy: lo que ya empezaste hoy; si los datos son de otro día, el siguiente de la rotación
 function grupoDeHoy() {
@@ -1160,6 +1302,7 @@ function guardarPeso() {
   const dia = diaReg();
   LS.set('gym_peso_' + dia, v);
   encolar('savePeso', [v, dia], 'peso-' + dia);
+  actualizarWidgets();
   hap('ok'); toast('Peso guardado ✓'); pintarFecha(); pintarEntrenar();
 }
 function guardarCintura(confirmada) {
@@ -1178,6 +1321,7 @@ function guardarCintura(confirmada) {
   }
   LS.set('gym_cint_' + hoy(), Number(v));
   encolar('saveCintura', [Number(v), hoy()], 'cintura-' + hoy());
+  programarAvisoProt();
   hap('ok'); toast('Cintura guardada ✓'); pintarEntrenar();
 }
 
@@ -2092,6 +2236,7 @@ function guardar(name, auto, silencioso) {
     ses.log.push({ name: name, ej: ex.ejercicio, sets: sets, unit: st.unit, prs: prs, uid: st.uid, cambio: cambioPct,
                    vol: sets.filter(s => s.t !== 'C').reduce((a, s) => a + cargaReal(ex, s.w, st.unit) * s.r, 0) });
     guardarSesion(ses);
+    actualizarWidgets();
   }
   const deshacerUlt = { txt: 'Deshacer', fn: () => corregir(name) };
   const vsUlt = textoCambio(cambioPct);
@@ -2613,6 +2758,7 @@ function guardarTrote() {
               notas: (nota + (TROTE.ia && TROTE.ia.analisis ? (nota ? ' · ' : '') + 'IA: ' + TROTE.ia.analisis : '')).slice(0, 480),
               tipo: TROTE.tipo === 'Libre' ? '' : TROTE.tipo, ts: tsReg(), uid: uid() };
   encolar('saveTrote', [t]);
+  actualizarWidgets();
   TROTE = { km: '', min: '', fc: '', cad: '', tipo: null, ia: null, leyendo: false };
   hap('ok'); toast('Trote guardado ✓'); pintarEntrenar();
   // Consejo de hidratación con el clima real del momento (solo para salidas de hoy)
@@ -2656,7 +2802,10 @@ function comidaDe(dia) {
   verTab('Comida');
 }
 function diaTipicoLista() {
-  // Martin: licuado + tupper con carne + cena nueva + 2.º scoop
+  // El que armaste tú (se guarda en el celular y en tu configuración de la hoja)
+  const propio = ajuste('diaTipico', null) || DATA.diaTipico;
+  if (Array.isArray(propio)) return propio.filter(k => gDe(k) > 0);
+  // Si nunca lo has editado: el de antes (Martin) o lo que más registras
   if (DATA.dueno) return ['Licuado', 'Tupper carne', 'Cena huevos', 'Scoop'];
   const cuenta = LS.get('gym_food_counts', {});
   return FOODS.slice().sort((a, b) => (cuenta[b.k] || 0) - (cuenta[a.k] || 0)).filter(f => cuenta[f.k]).slice(0, 3).map(f => f.k);
@@ -2688,7 +2837,8 @@ function pintarComida() {
     '<div class="consejo">💡 ' + (falta > 0 ? textoCompletar(falta) : 'Bien hecho hoy') + '</div></div>';
   h += tarjetaComidaIA();
   if (!prot.length && tipico.length) h += '<button class="tipico" onclick="diaTipico()"><span class="ic">🍽️</span><span style="flex:1"><b>Mi día típico</b> <span class="pill ok">+' +
-    protTotal(tipico) + ' g</span><small>Tócalo en la noche y luego cambia lo que fue diferente</small></span><span class="mas">＋</span></button>';
+    protTotal(tipico) + ' g</span><small>' + esc(tipico.map(k => FOODS.some(f => f.k === k) ? k : tDe(k).split(' · ')[0]).join(' · ')) + '</small></span><span class="mas">＋</span></button>';
+  if (!COMIDA_DIA) h += '<button class="link tipico-ed" onclick="editarTipico(true)">✏️ ' + (tipico.length ? 'Editar mi día típico' : 'Arma tu día típico: lo agregas con un toque') + '</button>';
   if (top.length) h += '<div class="row between"><h2>Lo que más comes</h2><span class="muted" style="font-size:12px">Frecuentes</span></div><div class="foods tops">' + top.map(f => botonComida(f, true)).join('') + '</div>';
   const favs = misComidas().filter(f => !top.some(t => t.k === f.k));
   if (favs.length || QUITAR_FAV) h += '<div class="row between"><h2>Mis comidas</h2><button class="link" onclick="QUITAR_FAV=!QUITAR_FAV;pintarComida()">' + (QUITAR_FAV ? 'Listo' : 'Editar') + '</button></div>' +
@@ -2718,7 +2868,7 @@ function cambiarProt() {
   const dia = diaComida();
   LS.set('gym_prot_' + dia, prot);
   encolar('saveProteina', [protTotal(), prot.join(', '), dia], 'prot-' + dia);
-  if (dia === hoy()) programarAvisoProt();
+  if (dia === hoy()) { programarAvisoProt(); actualizarWidgets(); }
   pintarComida();
 }
 function addProt(k) {
@@ -2727,6 +2877,34 @@ function addProt(k) {
   cambiarProt();
 }
 function diaTipico() { prot = prot.concat(diaTipicoLista()); cambiarProt(); }
+// Editor del día típico: cuántas veces va cada comida (la misma puede ir 2 veces)
+let TIPICO_TMP = null;
+function editarTipico(nuevo) {
+  if (nuevo || !TIPICO_TMP) TIPICO_TMP = diaTipicoLista().slice();
+  const vistas = {}, todas = misComidas().concat(FOODS).filter(f => !vistas[f.k] && (vistas[f.k] = true));
+  const cuantas = k => TIPICO_TMP.filter(x => x === k).length, tot = protTotal(TIPICO_TMP);
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">Mi día típico</div><button class="btn ghost sm" onclick="TIPICO_TMP=null;cerrarModal()">✕</button></div>' +
+    '<div class="muted" style="margin:4px 0 10px">Lo que comes casi todos los días. Con un toque en Comida se agrega todo junto. Total: <b class="num" style="color:' +
+    (tot >= metaProt() ? 'var(--ok)' : 'var(--text)') + '">' + tot + ' g</b> de ' + metaProt() + ' g.</div><div class="tipico-lista">' +
+    todas.map(f => { const n = cuantas(f.k); return '<div class="tl' + (n ? ' on' : '') + '"><span class="ic">' + iconoComida(f) + '</span><span class="nm">' + esc(f.t) + '<small>' + f.g + ' g</small></span>' +
+      '<button class="mini" onclick="tipicoMas(\'' + jsq(f.k) + '\',-1)"' + (n ? '' : ' disabled') + ' aria-label="Menos">−</button><b class="num">' + n + '</b>' +
+      '<button class="mini" onclick="tipicoMas(\'' + jsq(f.k) + '\',1)" aria-label="Más">+</button></div>'; }).join('') + '</div>' +
+    '<div class="acts"><button class="btn ghost" onclick="TIPICO_TMP=[];editarTipico()">Vaciar</button><button class="btn" onclick="guardarTipico()">Guardar</button></div>';
+  if (!$('modal').classList.contains('show')) abrirModal();
+}
+function tipicoMas(k, d) {
+  if (d > 0) TIPICO_TMP.push(k);
+  else { const i = TIPICO_TMP.lastIndexOf(k); if (i > -1) TIPICO_TMP.splice(i, 1); }
+  hap('tecla'); editarTipico();
+}
+function guardarTipico() {
+  const l = TIPICO_TMP || [];
+  setAjuste('diaTipico', l); DATA.diaTipico = l; LS.set('gym_data', DATA);
+  encolar('saveConfig', [{ diaTipico: l }], 'cfg-tipico');
+  TIPICO_TMP = null; cerrarModal(); hap('ok');
+  toast(l.length ? 'Día típico guardado: ' + protTotal(l) + ' g' : 'Día típico vacío');
+  pintarComida(); actualizarWidgets();
+}
 
 /* ----- Proteína a las 6 pm: cuánto llevas, cuánto falta y qué de lo que sí comes la completa ----- */
 const AVISO_PROT = 80;   // un aviso por día de la semana: ids 80 (dom) a 86 (sáb)
@@ -2759,9 +2937,14 @@ function tarjetaProt6() {
 // APK: hoy a las 6 pm con tus números; sábado y domingo que vienen, un recordatorio aunque no abras la app
 function programarAvisoProt() {
   if (!NATIVO || !DATA) return;
-  nativo('LocalNotifications', 'cancel', { notifications: [0, 1, 2, 3, 4, 5, 6].map(d => ({ id: AVISO_PROT + d })) }).then(() => {
-    if (!ajuste('avisoProt', true)) return;
+  nativo('LocalNotifications', 'cancel', { notifications: [0, 1, 2, 3, 4, 5, 6].map(d => ({ id: AVISO_PROT + d })).concat([{ id: AVISO_CINTURA }]) }).then(() => {
     const ahora = new Date(), lista = [];
+    // Domingo 8 am: medir la cintura con el protocolo (si ese domingo aún no la guardas)
+    const dom = new Date(); dom.setDate(dom.getDate() + (7 - dom.getDay()) % 7); dom.setHours(8, 0, 0, 0);
+    if (dom <= ahora || LS.get('gym_cint_' + claveDia(dom), null) !== null) dom.setDate(dom.getDate() + 7);
+    lista.push({ id: AVISO_CINTURA, channelId: 'proteina', schedule: { at: dom, allowWhileIdle: true }, title: '📏 Hoy toca medir tu cintura',
+                 body: 'A la altura del ombligo, en ayunas, al soltar el aire y sin apretar la cinta.' });
+    if (!ajuste('avisoProt', true)) return canalProt().then(() => nativo('LocalNotifications', 'schedule', { notifications: lista }));
     for (let d = 0; d < 7; d++) {
       const f = new Date(); f.setDate(f.getDate() + d); f.setHours(18, 0, 0, 0);
       if (f <= ahora) continue;
@@ -2773,11 +2956,11 @@ function programarAvisoProt() {
         lista.push(Object.assign(base, { title: '¿Cómo vas de proteína?', body: 'Meta ' + metaProt() + ' g. Anota lo que llevas: el fin de semana es cuando más se escapa.' }));
       }
     }
-    if (!lista.length) return;
-    return nativo('LocalNotifications', 'createChannel', { id: 'proteina', name: 'Proteína del día', description: 'A las 6 pm: cuánto llevas y qué te falta', importance: 3, visibility: 1 })
-      .then(() => nativo('LocalNotifications', 'schedule', { notifications: lista }));
+    return canalProt().then(() => nativo('LocalNotifications', 'schedule', { notifications: lista }));
   });
 }
+const AVISO_CINTURA = 90;
+const canalProt = () => nativo('LocalNotifications', 'createChannel', { id: 'proteina', name: 'Proteína y cintura', description: 'A las 6 pm: cuánto llevas de proteína. Domingo: medir la cintura', importance: 3, visibility: 1 });
 
 /* ----- Comida con IA: escribes lo que comiste y calcula la proteína ----- */
 let COMIDA_IA = null, QUITAR_FAV = false, RING_FALTA = false;
@@ -3054,7 +3237,7 @@ function progresoSemana() {
     (DATA.plan && DATA.plan.sesiones
       ? kpi(DATA.plan.sesiones.filter(x => x.hecho).length + '/' + DATA.plan.sesiones.length, 'Trotes del plan', 'Semana ' + DATA.plan.semana + ' de ' + DATA.plan.total, DATA.plan.sesiones.every(x => x.hecho))
       : kpi(fmt(r.km7), 'Km trotados (7 días)', '', false)) +
-    kpi(r.protProm7 !== null ? r.protProm7 + ' g' : '—', 'Proteína promedio', 'Meta: ' + metaProt() + ' g', r.protProm7 !== null && r.protProm7 >= metaProt()) + '</div>';
+    kpi(r.protProm7 !== null ? r.protProm7 + ' g' : '—', 'Proteína promedio', 'Meta: ' + metaProt() + ' g', r.protProm7 !== null && r.protProm7 >= metaProt()) + kpisSalud() + '</div>';
   h += '<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none;margin-top:6px" href="' + r.sheetUrl + '" target="_blank" rel="noopener">Abrir dashboard completo</a>';
   const boton = '<button class="btn block reporte" onclick="copiarReporte()">📋 COPIAR REPORTE DEL DOMINGO</button>';
   return new Date().getDay() === 0 ? boton + h : h + boton;
@@ -3074,7 +3257,7 @@ function textoReporte() {
     'Días de gym: ' + gym,
     'Km corridos: ' + v(r.km7, ' km'),
     'Proteína promedio: ' + v(r.protProm7, ' g') + ' (meta ' + metaProt() + ' g)',
-    'Pasos promedio: ' + v(pasos === null ? null : Math.round(pasos), ''),
+    'Pasos promedio: ' + v(pasos === null ? null : Math.round(pasos).toLocaleString('es-MX'), ''),
     'Sueño promedio: ' + v(sueno, ' h')].join('\n');
 }
 async function copiarReporte() {
@@ -3085,6 +3268,15 @@ async function copiarReporte() {
     document.body.appendChild(a); a.select(); try { document.execCommand('copy'); } catch (e2) {} a.remove();
   }
   hap('ok'); toast('Reporte copiado ✓ Pégalo donde quieras');
+}
+// Health Connect: promedio de 7 días de pasos y sueño (solo si lo conectaste en el APK)
+function kpisSalud() {
+  const s = LS.get('gym_salud', null);
+  if (!s) return '';
+  const prom = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  const p = prom((s.pasos || []).map(x => x.v)), h = prom((s.sueno || []).map(x => x.h));
+  return (p !== null ? kpi(Math.round(p).toLocaleString('es-MX'), 'Pasos promedio', 'Health Connect · 7 días', p >= 8000) : '') +
+    (h !== null ? kpi(Math.round(h * 10) / 10 + ' h', 'Sueño promedio', 'Health Connect · 7 días', h >= 7) : '');
 }
 function progresoCuerpo() {
   const r = DATA.resumen;
@@ -3523,9 +3715,10 @@ function seguirRuta() {
   });
   OPEN = r.items[0].name; ANIM_ABRE = OPEN; hap('ok');
   pintarEntrenar(); irA(OPEN);
+  actualizarWidgets();
   toast('Ruta de hoy: ' + r.items.map(x => exDe(x.name).ejercicio.split(' (')[0]).join(' → '));
 }
-function quitarRuta() { LS.del(claveRuta(GRUPO)); LS.set(claveRuta(GRUPO) + '_no', true); pintarEntrenar(); }
+function quitarRuta() { LS.del(claveRuta(GRUPO)); LS.set(claveRuta(GRUPO) + '_no', true); pintarEntrenar(); actualizarWidgets(); }
 
 /* ----- Descarga anticipada: la fuerza estimada baja 2 sesiones seguidas en 2+ ejercicios y vienes con poco sueño o energía ----- */
 function descargaActiva() { const d = LS.get('gym_descarga', null); return !!(d && d.hasta >= hoy() && !(DATA && DATA.descargaCarrera)); }
@@ -3821,6 +4014,9 @@ function abrirAjustes() {
     tog('autoDescanso', false, 'Iniciar el descanso solo', 'Si está apagado, solo te sugiere tiempos al marcar una serie', AIC.reloj, 'ok') +
     tog('iaPlan', true, 'Plan del día con IA', 'Al abrir Entrenar: un foco para la sesión y una meta por ejercicio', AIC.chispa, 'pri') +
     tog('ia', true, 'La IA afina el consejo entre series', 'El motor te dice al instante qué hacer en la siguiente serie (sin señal); con señal, Gemini elige entre sus opciones y te explica por qué', AIC.cerebro, 'pri') +
+    (NATIVO ? tog('salud', false, 'Health Connect (solo lectura)', 'Lee tus pasos, sueño y carreras de los últimos 7 días y los pasa a tu hoja. Nunca escribe nada', AIC.corre, 'ok') +
+      '<div class="opt"><span class="aic" style="--c:var(--cyan)">' + AIC.cel + '</span><div class="txt"><div class="t1" style="font-size:15px">Widgets y accesos directos</div>' +
+      '<div class="muted">Widgets: mantén presionada la pantalla de inicio → Widgets → Gym. Accesos: mantén presionado el ícono de la app</div></div></div>' : '') +
     tog('ruta', true, 'Ruta de hoy', 'Te dice qué zona te falta en la semana y cuáles 2–4 ejercicios la cierran', AIC.flechas, 'ok') +
     tog('avisoProt', true, 'Aviso de proteína a las 6 pm', 'Cuánto llevas y qué de lo que comes la completa (sábado y domingo aunque no abras la app)', AIC.cubiertos, 'acc') +
     tog('calentamiento', false, 'Calentamiento automático', 'En los básicos con barra agrega 2 series ligeras (50 % y 70 %) al abrirlos', AIC.flama, 'red') +
@@ -3861,8 +4057,11 @@ async function toggleAjuste(k, d) {
     if (p !== 'granted') return toast('Necesito permiso de notificaciones para avisarte');
   }
   if (k === 'avisoProt' && nuevo && NATIVO) await nativo('LocalNotifications', 'requestPermissions');
+  if (k === 'salud' && nuevo && !(await conectarSalud())) return abrirAjustes();
   setAjuste(k, nuevo);
   if (k === 'avisoProt') programarAvisoProt();
+  if (k === 'salud' && nuevo) leerSalud(true);
+  if (k === 'salud' && !nuevo) { LS.del('gym_salud'); LS.del('gym_salud_firma'); actualizarWidgets(); }
   if (k === 'pantalla') { if (nuevo && sesionActiva()) pedirPantalla(); if (!nuevo) soltarPantalla(); }
   abrirAjustes();
 }

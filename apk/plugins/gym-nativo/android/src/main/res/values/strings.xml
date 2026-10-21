@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="w_proteina">Proteína</string>
+    <string name="w_proteina_desc">Lo que llevas hoy y 2 botones para sumar tus comidas</string>
+    <string name="w_hoy">Hoy toca</string>
+    <string name="w_hoy_desc">Grupo, hora y la ruta corta del día</string>
+    <string name="w_carrera">Carrera</string>
+    <string name="w_carrera_desc">Días para tu carrera y el trote de hoy</string>
+    <string name="w_semana">Tu semana</string>
+    <string name="w_semana_desc">Días de gym, km, peso promedio de 7 días y sueño</string>
+    <string name="w_abre">Abre la app para actualizar</string>
+</resources>
