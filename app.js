@@ -24,6 +24,31 @@ function jsq(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); 
 function mmss(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + pad(s % 60); }
 function minutos(ms) { const m = Math.floor(ms / 60000); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + pad(m % 60) + ' min'; }
 function vibrar(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
+/* ----- Errores de la app: se guardan en el celular y se suben a la pestaña "Errores" de tu hoja ----- */
+let ERR_TIMER = null;
+function registrarError(msg, donde, pila) {
+  try {
+    msg = String(msg || '').slice(0, 300);
+    if (!msg || /ResizeObserver loop|^Script error\.?$|Failed to fetch|NetworkError|Load failed|^Promesa: tiempo$/i.test(msg)) return;
+    const l = LS.get('gym_jserr', []), dia = hoy();
+    if (l.filter(x => x.dia === dia).length >= 15 || l.some(x => x.dia === dia && x.msg === msg)) return;   // sin repetir y sin inundar la hoja
+    l.push({ dia: dia, ts: new Date().toISOString(), msg: msg, donde: String(donde || '').slice(0, 200), pila: String(pila || '').slice(0, 800),
+             ver: (typeof VERSION_APP === 'string' ? VERSION_APP : '') + (NATIVO ? ' apk' : ' web'), tab: typeof TAB === 'string' ? TAB : '', ua: navigator.userAgent.slice(0, 160) });
+    LS.set('gym_jserr', l.slice(-40));
+    clearTimeout(ERR_TIMER); ERR_TIMER = setTimeout(subirErrores, 4000);
+  } catch (e) { /* el registro de errores nunca debe romper la app */ }
+}
+async function subirErrores() {
+  const nuevos = LS.get('gym_jserr', []).filter(x => !x.subido);
+  if (!nuevos.length || !API || !KEY || !navigator.onLine) return;
+  try {
+    const res = await apiPost('batch', [nuevos.map(x => ({ id: 'err-' + x.ts, action: 'logError', args: [x] }))]);
+    const ok = new Set(res.filter(r => r.ok).map(r => r.id));   // si el script aún no tiene logError, se quedan para la próxima
+    LS.set('gym_jserr', LS.get('gym_jserr', []).map(x => ok.has('err-' + x.ts) ? Object.assign(x, { subido: true }) : x));
+  } catch (e) { /* sin señal: se intenta al volver a abrir */ }
+}
+window.addEventListener('error', e => registrarError(e.message, (e.filename || '').split('/').pop() + ':' + e.lineno + ':' + e.colno, e.error && e.error.stack));
+window.addEventListener('unhandledrejection', e => { const r = e.reason || {}; registrarError('Promesa: ' + (r.message || r), '', r.stack); });
 /* ----- App nativa (APK con Capacitor): mismos archivos; si corre dentro del APK usa el motor háptico y alarmas reales ----- */
 const NATIVO = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 function nativo(plugin, metodo, opts) {
@@ -538,6 +563,33 @@ const CSS_V7 = `
   #nEntrenar.on { color: var(--rut); }
   #nEntrenar:active .bola { transform: scale(.94); }
 `;
+/* v7.2: ruta de hoy, cambio de equipo, avisos */
+const CSS_V72 = `
+  .equipo { margin-left: 6px; padding: 2px 8px; border-radius: 7px; border: 1px solid color-mix(in srgb, var(--rut) 45%, transparent);
+            background: color-mix(in srgb, var(--rut) 12%, transparent); color: var(--rut); font-size: 10.5px; font-weight: 800; letter-spacing: .05em; vertical-align: 1px; }
+  .lista.vars button { border-color: color-mix(in srgb, var(--rut) 35%, var(--line)); }
+  .lista.vars .mod { margin-right: 6px; }
+  #kpSheet .anota { color: var(--text); font-weight: 800; }
+  .ia.pide { border-left-style: dashed; color: var(--muted); }
+  .protocolo { margin-top: 10px; padding: 9px 12px; border-radius: 12px; background: color-mix(in srgb, var(--cyan) 9%, transparent); font-size: 13px; color: var(--muted); line-height: 1.45; }
+  .protocolo b { color: var(--text); font-weight: 700; }
+  .ruta.card { border-color: color-mix(in srgb, var(--ok) 35%, var(--line)); background: linear-gradient(160deg, color-mix(in srgb, var(--ok) 8%, var(--card)), var(--card)); }
+  .ruta .msg { margin: 6px 0 10px; font-size: 15px; line-height: 1.4; }
+  .ruta ol { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+  .ruta li button { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--card2); color: var(--text); }
+  .ruta li b { display: block; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ruta li small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .ruta li .n { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px;
+                background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+  .ruta.corta { display: flex; gap: 10px; align-items: center; padding: 10px 14px; margin: 0 0 12px; border-radius: 14px; border: 1px solid var(--line);
+                background: color-mix(in srgb, var(--ok) 7%, transparent); font-size: 14px; }
+  .ruta.corta .i { font-size: 17px; }
+  .prot6 .botones { display: flex; gap: 8px; } .prot6 .botones .btn { flex: 1; padding-left: 8px; padding-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prot6 .botones .ghost { flex: none; }
+  .prot6 { border-color: color-mix(in srgb, var(--acc) 40%, var(--line)); background: linear-gradient(160deg, color-mix(in srgb, var(--acc) 9%, var(--card)), var(--card)); }
+  .descarga { border-color: color-mix(in srgb, var(--red) 35%, var(--line)); }
+  .btn.reporte { margin-top: 12px; letter-spacing: .04em; font-weight: 800; }
+`;
 
 /* ===================== Configuración y datos ===================== */
 let API = LS.get('gym_api', ''), KEY = LS.get('gym_key', '');
@@ -579,7 +631,8 @@ const diaReg = () => FECHA || hoy();
 const tsReg = () => FECHA ? new Date(FECHA + 'T07:00:00').getTime() : Date.now();
 // Nombres para avisar qué dato rechazó la hoja
 const NOMBRE_OP = { saveExercise: 'Ejercicio', savePeso: 'Peso', saveProteina: 'Proteína', saveCintura: 'Cintura', saveTrote: 'Trote', saveMedia: 'Video', saveAjuste: 'Ajuste de máquina',
-                    saveFoto: 'Foto', saveConfig: 'Ajuste', undoById: 'Borrado', undoTrote: 'Borrado de trote', borrarFoto: 'Borrado de foto' };
+                    saveFoto: 'Foto', saveConfig: 'Ajuste', undoById: 'Borrado', undoTrote: 'Borrado de trote', borrarFoto: 'Borrado de foto',
+                    cambiarVariante: 'Cambio de equipo (actualiza el script)' };
 
 /* ===================== API ===================== */
 async function apiGet(action, clave) {
@@ -662,7 +715,7 @@ function avisoErrores() {
 
 /* ===================== Arranque ===================== */
 function arrancar() {
-  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7; document.head.appendChild(st);
+  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72; document.head.appendChild(st);
   const p = new URLSearchParams(location.search);
   if (p.get('api') && p.get('k')) {
     const nuevaClave = p.get('k').trim();
@@ -702,10 +755,11 @@ function arrancar() {
   });
   setInterval(enviar, 30000);
   setInterval(tickSesion, 15000);
+  setTimeout(subirErrores, 8000);
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v7.1';
+const VERSION_APP = 'v7.2';
 // Tu link de configuración (lleva tu clave): para configurar el APK sin escribir nada
 function copiarLinkConfig() {
   const link = location.origin + location.pathname + '?api=' + encodeURIComponent(API) + '&key=' + encodeURIComponent(KEY);
@@ -864,8 +918,10 @@ function ladoVisible(base) {
 }
 function verLado(base, lado) { QUIEN[base] = lado; ANIM_ABRE = base; hap('tecla'); pintarEntrenar(); }
 function nuevoEstado(ex, done, id) {
-  return { unit: ex.unit, sets: ex.sets.map(s => ({ w: s.w, r: s.r, t: s.t || 'T', ok: false })), rir: '', notas: '',
-           uid: id, done: done, edited: false };
+  const st = { unit: ex.unit, sets: ex.sets.map(s => ({ w: s.w, r: s.r, t: s.t || 'T', ok: false })), rir: '', notas: '',
+               uid: id, done: done, edited: false };
+  if (!done && !esPar(ex.name) && descargaActiva()) aplicarDescarga(ex, st);
+  return st;
 }
 function superserie() { const s = LS.get('gym_super_' + diaReg(), null); return s && s.length === 2 ? s : null; }
 function companero(name) { const s = superserie(); return s && s.includes(name) ? s.find(x => x !== name) : null; }
@@ -891,6 +947,7 @@ function pintarTodo() {
   pintarFecha();
   $('loading').classList.add('hide'); $('app').classList.remove('hide'); $('nav').classList.remove('hide');
   pintarTab(); pintarSync();
+  programarAvisoProt();
 }
 // Lo que te toca hoy: lo que ya empezaste hoy; si los datos son de otro día, el siguiente de la rotación
 function grupoDeHoy() {
@@ -949,10 +1006,20 @@ function pintarTab() {
 function ordenGrupo(g) {
   // Lo que añadiste hoy desde el mapa va al final de lo recomendado, sea del grupo que sea
   const extra = extrasHoy().map(x => exDe(x.name)).filter(Boolean), esX = e => extra.includes(e);
-  const exs = DATA.exercises.filter(ex => ex.group === g && !esX(ex));
-  if (g === 'Core') return [exs.concat(extra)];
-  const rec = DATA.bloquePara[g], otro = rec === 'A' ? 'B' : 'A';
-  return [exs.filter(e => e.bloque === rec).concat(extra), exs.filter(e => e.bloque === otro), exs.filter(e => e.bloque !== 'A' && e.bloque !== 'B')];
+  // Cambio de equipo "solo hoy": la variante toma el lugar del original
+  const cam = cambiosHoy(), puestos = Object.values(cam), pon = l => l.map(e => cam[e.name] ? exDe(cam[e.name]) || e : e);
+  const exs = DATA.exercises.filter(ex => ex.group === g && !esX(ex) && !puestos.includes(ex.name));
+  let secs;
+  if (g === 'Core') secs = [pon(exs).concat(extra)];
+  else {
+    const rec = DATA.bloquePara[g], otro = rec === 'A' ? 'B' : 'A';
+    secs = [pon(exs.filter(e => e.bloque === rec)).concat(extra), pon(exs.filter(e => e.bloque === otro)), pon(exs.filter(e => e.bloque !== 'A' && e.bloque !== 'B'))];
+  }
+  // Con la ruta de hoy aceptada, sus ejercicios van primero (y "siguiente" los sigue en ese orden)
+  const ruta = rutaAceptada(g);
+  if (!ruta) return secs;
+  const enRuta = ruta.map(x => exDe(x.name)).filter(Boolean);
+  return [enRuta].concat(secs.map(l => l.filter(e => !enRuta.includes(e))));
 }
 // "4×12 con 22.5" si todas las series son iguales; "85: 10, 10, 9, 8" si solo cambia la repetición
 function resumenSets(sets) {
@@ -978,6 +1045,10 @@ function pintarEntrenar() {
   if (FECHA) h += '<div class="otro">' + ICO.cal + '<span>Registrando para el ' + diaCorto(FECHA) + '</span><button class="btn" onclick="cambiarFecha(null)">Volver a hoy</button></div>';
   h += avisoErrores();
   if (!FECHA && DATA.descargaCarrera) h += '<div class="aviso">' + ICO.flame + '<span>Semana de carrera: descarga. Mitad de series con el mismo peso (ya viene así). Legs a más tardar el lunes; el viernes descansas.</span></div>';
+  else if (!FECHA && descargaActiva()) h += '<div class="aviso">' + ICO.flame + '<span>Descarga adelantada hasta el ' + diaCorto(LS.get('gym_descarga', {}).hasta) +
+    ': mitad de series y −10 % de peso, sin llegar al fallo. <button class="link" onclick="terminarDescarga()">Terminarla</button></span></div>';
+  else if (!FECHA && !activa) h += tarjetaDescarga();
+  if (!FECHA && !activa) h += tarjetaProt6();
   const diasSin = DATA.ultimoGrupoFecha ? difDias(DATA.ultimoGrupoFecha, hoy()) - 1 : 0;
   if (!FECHA && !activa && diasSin >= 3 && !sesion().log.length)
     h += '<div class="aviso">' + ICO.flame + '<span>Llevas ' + diasSin + ' días sin ir. Hoy toca ' + esc(DATA.sugGrupo) + ': aunque sean 30 minutos, cuenta.</span></div>';
@@ -999,13 +1070,14 @@ function pintarEntrenar() {
     (g === 'Trote' ? ICO.flame : '') + g + (g === DATA.sugGrupo ? '<span class="dot"></span>' : '') + '</button>').join('') + '</div>';
   if (GRUPO === 'Trote') { $('vEntrenar').innerHTML = h + vistaTrote() + pieFecha(); return; }
   h += tarjetaFoco();
+  h += tarjetaRuta();
   const hechos = ordenGrupo(GRUPO).flat().filter(e => cardDone(e.name));
   if (hechos.length) h += '<details class="sec hechos"' + (PLEG['hechos' + GRUPO] || hechos.some(e => e.name === OPEN) ? ' open' : '') +
     ' ontoggle="PLEG[\'hechos' + GRUPO + '\']=this.open"><summary>✓ Completados · ' + hechos.length + '</summary>' + hechos.map(tarjetaEjercicio).join('') + '</details>';
   const secs = ordenGrupo(GRUPO).map(items => items.filter(e => !cardDone(e.name)));
   if (hechos.length && !secs.some(x => x.length)) h += '<div class="tip">' + ICO.check + ' Terminaste todo ' + esc(GRUPO) + '. Toca «Terminar» arriba para ver tu resumen.</div>';
-  const titulos = GRUPO === 'Core' ? ['Elige 1 o 2 al final de cualquier día']
-    : ['Recomendado · bloque ' + DATA.bloquePara[GRUPO], 'Bloque ' + (DATA.bloquePara[GRUPO] === 'A' ? 'B' : 'A'), 'Más ejercicios'];
+  const titulos = (rutaAceptada(GRUPO) ? ['🧭 Tu ruta de hoy'] : []).concat(GRUPO === 'Core' ? ['Elige 1 o 2 al final de cualquier día']
+    : ['Recomendado · bloque ' + DATA.bloquePara[GRUPO], 'Bloque ' + (DATA.bloquePara[GRUPO] === 'A' ? 'B' : 'A'), 'Más ejercicios']);
   let primera = true;
   secs.forEach((items, i) => {
     if (!items.length) return;
@@ -1068,9 +1140,16 @@ function tarjetaCintura() {
   if (LS.get('gym_cint_' + hoy(), null) !== null) return '';
   const ult = DATA.cuerpo && DATA.cuerpo.serie && DATA.cuerpo.serie[DATA.cuerpo.serie.length - 1];
   if (ult && ult.cint !== null && ult.d === ddmm(hoy())) return '';      // ya está en la hoja (desde otro celular o desde el chat)
-  return '<div class="card"><div class="peso"><div class="lbl"><div class="t1">Cintura</div><div class="muted">Domingo: a la altura del ombligo</div></div>' +
+  const ant = cinturaAnterior();
+  return '<div class="card"><div class="peso"><div class="lbl"><div class="t1">Cintura del domingo</div><div class="muted">' + (ant !== null ? 'La vez pasada: <b class="num">' + ant + '</b> cm' : 'Una vez por semana') + '</div></div>' +
     '<input id="cintura" class="in num" type="number" inputmode="decimal" step="0.5" placeholder="cm">' +
-    '<button class="okmark" onclick="guardarCintura()" aria-label="Guardar cintura">' + ICO.check + '</button></div></div>';
+    '<button class="okmark" onclick="guardarCintura()" aria-label="Guardar cintura">' + ICO.check + '</button></div>' +
+    '<div class="protocolo">📏 A la altura del <b>ombligo</b> · <b>en ayunas</b> · <b>al soltar el aire</b> · cinta pegada <b>sin apretar</b></div></div>';
+}
+function cinturaAnterior() {
+  const s = (DATA.cuerpo && DATA.cuerpo.serie) || [];
+  for (let i = s.length - 1; i >= 0; i--) if (s[i].cint !== null && s[i].cint !== undefined && s[i].d !== ddmm(hoy())) return s[i].cint;
+  return DATA.cuerpo && DATA.cuerpo.actual !== undefined ? DATA.cuerpo.actual : null;
 }
 function guardarPeso() {
   const v = Number(PESO_TMP);
@@ -1082,9 +1161,20 @@ function guardarPeso() {
   encolar('savePeso', [v, dia], 'peso-' + dia);
   hap('ok'); toast('Peso guardado ✓'); pintarFecha(); pintarEntrenar();
 }
-function guardarCintura() {
-  const v = $('cintura').value;
+function guardarCintura(confirmada) {
+  const v = confirmada || $('cintura').value;
   if (!v) return toast('Escribe tu cintura');
+  if (Number(v) < 40 || Number(v) > 200) return toast('Revisa la cintura: ' + v + ' cm no parece correcto');
+  const ant = cinturaAnterior(), dif = ant !== null ? Math.round((Number(v) - ant) * 10) / 10 : 0;
+  // Más de 2 cm en una semana casi siempre es la medición, no tu cuerpo: vibra y pide confirmar
+  if (!confirmada && Math.abs(dif) > 2) {
+    hap('atencion'); vibrar([120, 80, 120]);
+    $('sheet').innerHTML = '<div class="t2">¿' + v + ' cm?</div><div class="muted" style="margin:6px 0 12px">Son <b>' + (dif > 0 ? '+' : '') + dif + ' cm</b> contra la vez pasada (' + ant +
+      ' cm). En una semana casi nunca cambia tanto. Revisa: ombligo, en ayunas, al soltar el aire, sin apretar la cinta.</div>' +
+      '<div class="acts"><button class="btn ghost" onclick="cerrarModal();setTimeout(()=>{const c=$(\'cintura\');if(c){c.value=\'\';c.focus();}},50)">Medir otra vez</button>' +
+      '<button class="btn" onclick="cerrarModal();guardarCintura(' + Number(v) + ')">Sí, guardar ' + v + '</button></div>';
+    return abrirModal();
+  }
   LS.set('gym_cint_' + hoy(), Number(v));
   encolar('saveCintura', [Number(v), hoy()], 'cintura-' + hoy());
   hap('ok'); toast('Cintura guardada ✓'); pintarEntrenar();
@@ -1129,7 +1219,7 @@ function tarjetaEjercicio(ex) {
   let h = '<div class="ex' + (abierto ? ' open' : '') + (st.done ? ' done' : '') + (enCurso ? ' prog' : '') + '" id="ex-' + esc(ex.name) + '" style="view-transition-name:ex' + DATA.exercises.indexOf(ex) + '">' +
     '<div class="ex-head" onclick="abrir(\'' + n + '\')"><div class="ex-ico">' + ico + '</div>' +
     '<div style="flex:1;min-width:0"><div class="ex-name">' + esc(ex.ejercicio) + botonTecnica(ex) + (par && !st.done ? '<span class="sstag">Superserie</span>' : '') + '</div><div class="ex-meta">' + badgeMod(ex) + meta + '</div></div>' +
-    (ex.up && !st.done ? '<span class="pill acc">' + ICO.up + 'Sube</span>' : '') +
+    (ex.up && !st.done && (esPar(ex.name) || !descargaActiva()) ? '<span class="pill acc">' + ICO.up + 'Sube</span>' : '') +
     (abierto ? '<button class="swapbtn" onclick="event.stopPropagation();elegirCambio(\'' + n + '\')" aria-label="Máquina ocupada: cambiar ejercicio">⇄</button>' +
       '<button class="menubtn" onclick="event.stopPropagation();menuEjercicio(\'' + n + '\')" aria-label="Más opciones">⋮</button>' : '') + '</div>';
   if (st.done && OPEN === ex.name) {
@@ -1343,7 +1433,8 @@ function menuEjercicio(k) {
   h += item('📝', st.notas ? 'Editar nota de hoy' : 'Nota de hoy', st.notas || 'Solo de esta sesión: «hombro cargado», «dormí mal»', "notaDeHoy('" + n + "')");
   if (!esPar(k)) h += par ? item('⇆', 'Quitar superserie', 'Con ' + exDe(par).ejercicio, "cerrarModal();quitarSuper()")
                           : item('⇆', 'Superserie', 'Alterna con otro ejercicio y descansa al final del par', "elegirSuper('" + n + "')");
-  h += item('⇄', 'Cambiar ejercicio', 'Máquina ocupada o molestia' + (parOn() ? ' (para los dos o solo uno)' : ''), "elegirCambio('" + jsq(base) + "')");
+  h += item('⇄', 'Cambiar ejercicio', (variantesDe(base).length ? 'Otro equipo, ' : '') + 'máquina ocupada o molestia' + (parOn() ? ' (para los dos o solo uno)' : ''), "elegirCambio('" + jsq(base) + "')");
+  if (originalDe(base)) h += item('↩', 'Volver a ' + exDe(originalDe(base)).ejercicio.split(' (')[0], 'Solo hoy lo cambiaste por este', "volverOriginal('" + jsq(base) + "')");
   if (parejaDisponible()) { const a = asignadoDe(base); h += item('👥', 'Quién lo hace: ' + (a ? 'solo ' + a : 'los dos'), 'En pareja, al otro se le marca «no lo hace hoy» de entrada', "menuAsignado('" + jsq(base) + "')"); }
   if (esExtra(baseDe(k)) && !state[baseDe(k)].sets.some(s => s.ok)) h += item('✕', 'Quitar de hoy', 'Lo añadiste desde el mapa de músculos', "quitarDeHoy('" + jsq(baseDe(k)) + "')");
   $('sheet').innerHTML = h + '</div>';
@@ -1403,12 +1494,15 @@ function tarjetaPareja(ex) {
 }
 function cuerpoEjercicio(ex, st) {
   const n = jsq(ex.name);
-  let h = '<div class="row between" style="margin-bottom:10px"><div class="muted">' + ex.min + '–' + ex.max + ' reps · ' + esc(ex.howTo) + '</div>' +
+  const vars = esPar(ex.name) ? [] : variantesDe(ex.name);
+  let h = '<div class="row between" style="margin-bottom:10px"><div class="muted">' + ex.min + '–' + ex.max + ' reps · ' + esc(ex.howTo) +
+    (vars.length ? ' <button class="equipo" onclick="elegirCambio(\'' + n + '\')">' + esc((ex.modalidad || 'Equipo').toUpperCase()) + ' ⇄</button>' : '') + '</div>' +
     '<div class="unit">' + ['lb', 'kg'].map(u => '<button class="' + (st.unit === u ? 'on' : '') + '" onclick="setUnit(\'' + n + '\',\'' + u + '\')">' + u + '</button>').join('') + '</div></div>';
   const trabAnt = ex.anterior.filter(a => a.t !== 'C');
   const pesoAnt = trabAnt.length ? Math.max.apply(null, trabAnt.map(a => Number(a.w) || 0)) : null;
   const meta = !esPar(ex.name) && planHoy() ? (planHoy().ej || {})[ex.name] : null;
   if (meta) h += '<div class="tip plan">🎯 ' + esc(meta) + '</div>';
+  else if (ex.up && !esPar(ex.name) && descargaActiva()) h += '<div class="tip">Semana de descarga: estas series ya vienen con −10 % y la mitad. Sin llegar al fallo.</div>';
   else if (ex.up) h += '<div class="tip acc">' + ICO.up + esc(ex.hint) + '</div>';
   else if (ex.hint && /al fallo/.test(ex.hint)) h += '<div class="tip">' + esc(ex.hint) + '</div>';
   else if (ex.sugerido && (pesoAnt === null || ex.sugerido.w > pesoAnt)) h += '<div class="sug">Sugerido hoy: ' + ex.sugerido.w + ' ' + ex.unit + ' × ' + ex.sugerido.r + ' (RPE 8)' +
@@ -1474,6 +1568,7 @@ function cambioDiscos(ex, de, a, unit) {
     [quitar.length ? 'quita ' + fmt(quitar) : '', poner.length ? 'pon ' + fmt(poner) : ''].filter(Boolean).join(' y ') : '');
 }
 function tipIA(n, st) {
+  if (st.ia && st.ia.pideRir) return '<div class="ia pide' + (ANIM_IA === n ? ' entra' : '') + '"><span>👆 Toca cómo terminó y te digo peso y reps de la siguiente</span></div>';
   if (!st.ia || !st.ia.mensaje) return '';
   const p = st.ia.motor ? st.ia.motor.paso : null;
   const sAct = st.sets[st.ia.i], disc = sAct ? cambioDiscos(exDe(n), sAct.w, st.ia.peso, st.unit) : '';
@@ -1540,6 +1635,7 @@ function setRir(name, v) {
   st.rir = s.e;
   // Con todas las series hechas, elegir el esfuerzo es el último paso: guarda y pasa al siguiente
   if (s.e && st.sets.every(x => x.ok) && !st.done) { cambio(name, false); return setTimeout(() => guardar(name, true), 250); }
+  if (!s.e && s.t !== 'C') decidirSerie(name, k);
   cambio(name);
   if (s.e && s.t !== 'C') { clearTimeout(IA_TIMER[name]); consejoIA(name, k); }
   // En pareja ya no se cambia de pestaña solo: el otro puede estar en otro ejercicio o no hacer este
@@ -1602,7 +1698,7 @@ function guardarAjuste(name) {
   pintarEntrenar();
 }
 // Básicos con barra o por lado: ahí sí vale la pena calentar con series de aproximación
-function esBasico(ex) { return ex.barra > 0 || ex.mult === 2; }
+function esBasico(ex) { return ex.barra > 0 || ex.mult === 2 || ex.modalidad === 'Barra fija'; }
 function agregarCalentamiento(name, silencioso) {
   const ex = exDe(name), st = state[name];
   const t = st.sets.find(s => s.t === 'T' && !vacio(s.w) && Number(s.w) > 0);
@@ -1632,10 +1728,16 @@ function elegirCambio(name, todos) {
   const musc = libres.filter(e => e.musculo === ex.musculo && !mismo.includes(e)).sort(orden);
   const fila = e => '<button onclick="usarCambio(\'' + jsq(e.name) + '\')"><b style="flex:1">' + esc(e.ejercicio) + '</b><span class="muted">' +
     (e.anterior.length ? resumenSets(e.anterior) : 'nuevo') + '</span></button>';
-  const top = (mismo.length ? mismo : musc).slice(0, 3), resto = mismo.concat(musc).filter(e => !top.includes(e));
+  const vars = esPar(name) ? [] : variantesDe(name).filter(e => libres.includes(e));
+  const filaVar = e => '<button onclick="elegirVariante(\'' + jsq(name) + '\',\'' + jsq(e.name) + '\')"><b style="flex:1">' + badgeMod(e) + esc(e.ejercicio) + '</b><span class="muted">' +
+    (e.anterior.length ? resumenSets(e.anterior) + ' ' + e.unit : 'nuevo') + '</span></button>';
+  const sinVar = l => l.filter(e => !vars.includes(e));
+  const top = sinVar(mismo.length ? mismo : musc).slice(0, 3), resto = sinVar(mismo.concat(musc)).filter(e => !top.includes(e));
   const q = parOn() ? '<div class="cquien">' + [['ambos', 'Los dos'], ['yo', 'Solo yo'], ['par', 'Solo ' + PAR.nombre]].map(o =>
     '<button class="' + (CAMBIO.quien === o[0] ? 'on' : '') + '" onclick="CAMBIO.quien=\'' + o[0] + '\';elegirCambio(\'' + jsq(name) + '\',' + !!todos + ')">' + esc(o[1]) + '</button>').join('') + '</div>' : '';
-  $('sheet').innerHTML = '<div class="t2">Cambiar ' + esc(ex.ejercicio) + '</div>' + q + '<div class="muted" style="margin:4px 0 8px">' +
+  $('sheet').innerHTML = '<div class="t2">Cambiar ' + esc(ex.ejercicio) + '</div>' + q +
+    (vars.length ? '<div class="muted" style="margin:4px 0 6px">Mismo ejercicio, otro equipo (ahora: ' + esc(ex.modalidad || ex.howTo) + ')</div><div class="lista vars">' + vars.map(filaVar).join('') + '</div>' +
+      '<div class="muted" style="margin:12px 0 0">O algo parecido:</div>' : '') + '<div class="muted" style="margin:4px 0 8px">' +
     (mismo.length ? 'Mismo movimiento (' + esc(ex.patron.toLowerCase()) + '). ' : 'Mismo músculo (' + esc(ex.musculo) + '). ') + 'Te carga tu peso de la última vez.</div>' +
     '<div class="lista">' + (top.length ? top.map(fila).join('') : '<div class="muted" style="padding:12px 0">No hay otro ejercicio equivalente en tu catálogo.</div>') +
     (todos && resto.length ? '<div class="muted" style="padding:10px 2px 2px">Otros de ' + esc(ex.musculo) + '</div>' + resto.map(fila).join('') : '') + '</div>' +
@@ -1665,6 +1767,50 @@ function usarCambio(name) {
   toast((quien === 'yo' ? 'Solo tú: ' : 'Cambiado: ') + exDe(name).ejercicio);
 }
 
+/* ----- Mismo ejercicio, otro equipo (Catálogo V "Variante de"): barra ⇄ mancuerna ⇄ máquina ----- */
+function variantesDe(name) {
+  const ex = exDe(name);
+  if (!ex || !ex.variante) return [];
+  return DATA.exercises.filter(e => e.name !== ex.name && e.variante === ex.variante).sort((a, b) => (b.anterior.length ? 1 : 0) - (a.anterior.length ? 1 : 0));
+}
+function cambiosHoy() {
+  if (FECHA) return {};
+  const c = LS.get('gym_cambio_' + hoy(), {});
+  Object.keys(c).forEach(k => { if (!exDe(k) || !exDe(c[k])) delete c[k]; });
+  return c;
+}
+const originalDe = name => Object.keys(cambiosHoy()).find(k => cambiosHoy()[k] === name) || '';
+function elegirVariante(de, a) {
+  const ex = exDe(de), v = exDe(a), enRutina = ex.bloque === 'A' || ex.bloque === 'B';
+  if (parOn()) { CAMBIO = { de: de, quien: CAMBIO.quien }; return usarCambio(a); }   // en pareja: el cambio de siempre (los dos, solo yo o solo él)
+  $('sheet').innerHTML = '<div class="t2">' + esc(v.ejercicio) + '</div><div class="muted" style="margin:4px 0 12px">En lugar de ' + esc(ex.ejercicio) +
+    '. ' + esc(MOTOR.comoAnotar(v).texto) + '.</div><div class="menu">' +
+    '<button onclick="usarVariante(\'' + jsq(de) + '\',\'' + jsq(a) + '\',false)"><span class="i">📅</span><span><b>Solo hoy</b><small>Mañana vuelve ' + esc(ex.ejercicio.split(' (')[0]) + '</small></span></button>' +
+    (enRutina ? '<button onclick="usarVariante(\'' + jsq(de) + '\',\'' + jsq(a) + '\',true)"><span class="i">📌</span><span><b>Siempre en mi rutina</b><small>Queda en tu bloque ' + ex.bloque + ' (también en tu hoja)</small></span></button>' : '') +
+    '</div><div class="acts"><button class="btn ghost" onclick="elegirCambio(\'' + jsq(de) + '\')">Atrás</button></div>';
+  abrirModal();
+}
+function usarVariante(de, a, siempre) {
+  cerrarModal();
+  const st = state[de];
+  if (st && st.sets.some(s => s.ok)) { CAMBIO = { de: de, quien: 'ambos' }; return usarCambio(a); }   // ya empezaste: solo te lleva al otro
+  const c = cambiosHoy(); delete c[a]; c[de] = a; LS.set('gym_cambio_' + hoy(), c);
+  if (siempre) {
+    const ex = exDe(de), v = exDe(a), b = ex.bloque;
+    ex.bloque = v.bloque; v.bloque = b;
+    LS.set('gym_data', DATA);
+    encolar('cambiarVariante', [de, a], 'var-' + de);
+  }
+  BUSCA = ''; OPEN = a; ANIM_ABRE = a; hap('ok');
+  pintarEntrenar(); irA(a);
+  toast((siempre ? 'En tu rutina: ' : 'Solo hoy: ') + exDe(a).ejercicio);
+}
+function volverOriginal(a) {
+  const c = cambiosHoy(), de = originalDe(a);
+  delete c[de]; LS.set('gym_cambio_' + hoy(), c);
+  cerrarModal(); OPEN = de; ANIM_ABRE = de; pintarEntrenar(); irA(de);
+}
+
 /* ----- Superserie: dos ejercicios alternados; el descanso se sugiere al terminar el par ----- */
 function elegirSuper(name) {
   const ex = exDe(name);
@@ -1690,13 +1836,17 @@ function platos(porLado, unit) {
 function teclado(name, i, f) {
   const st = state[name], ex = exDe(name), s = st.sets[i];
   KP = { name: name, i: i, f: f, val: vacio(s[f]) ? '' : String(s[f]), nuevo: true };
-  const quick = f === 'w' ? [-10, -5, -ex.step, ex.step, 5, 10].map(v => Math.round(v * 100) / 100) : [-2, -1, 1, 2];
+  // Con el paso del equipo confirmado (ej. barra fija de 10 en 10), los ± solo ofrecen pesos que existen
+  const pf = pasoEj(ex, st);
+  const quick = f === 'w' ? (ex.pasoFijo ? [-2 * pf, -pf, pf, 2 * pf] : [-10, -5, -ex.step, ex.step, 5, 10]).map(v => Math.round(v * 100) / 100) : [-2, -1, 1, 2];
   const unicos = quick.filter((v, k) => quick.indexOf(v) === k);
   const num = st.sets.slice(0, i + 1).filter(x => x.t !== 'C').length;
-  const titulo = (s.t === 'C' ? 'Calentamiento' : s.t === 'D' ? 'Drop' : 'Serie ' + num) + ' · ' + (f === 'w' ? 'peso (' + st.unit + ')' : 'repeticiones');
+  const como = MOTOR.comoAnotar(ex);
+  const titulo = (s.t === 'C' ? 'Calentamiento' : s.t === 'D' ? 'Drop' : 'Serie ' + num) + ' · ' + (f === 'w' ? '<b class="anota">' + esc(como.texto || 'Peso') + ' (' + st.unit + ')</b>' : 'repeticiones');
   $('kpSheet').innerHTML = '<div class="row between"><div class="t1">' + esc(ex.ejercicio) + '</div><button class="btn ghost sm" onclick="cerrarTeclado()">✕</button></div>' +
     '<div class="muted" style="text-align:center;margin-top:8px">' + titulo + '</div><div class="disp num" id="kpDisp"></div>' +
     (f === 'w' && ex.mult === 2 ? '<div class="platos" id="kpPlatos"></div>' : '') +
+    (f === 'w' && como.corto === 'total' ? '<div class="platos">Es el total' + (ex.modalidad === 'Barra fija' ? ' de la barra fija' : '') + ': no lo dividas entre 2</div>' : '') +
     '<div class="quick" style="grid-template-columns:repeat(' + unicos.length + ',1fr)">' + unicos.map(v => '<button onclick="kpSumar(' + v + ')">' + (v > 0 ? '+' : '−') + Math.abs(v) + '</button>').join('') + '</div>' +
     teclas() +
     '<div class="acts"><button class="btn ghost" onclick="kpListo(false)">Listo</button>' +
@@ -1775,7 +1925,11 @@ function marcar(name, i) {
     return;
   }
   // Coach IA: espera unos segundos por si marcas el esfuerzo de esta serie; si lo marcas, pregunta al momento
-  if (s.t !== 'C') { decidirSerie(name, i); clearTimeout(IA_TIMER[name]); IA_TIMER[name] = setTimeout(() => consejoIA(name, i), 4000); pintarEntrenar(); }
+  if (s.t !== 'C') {
+    decidirSerie(name, i); clearTimeout(IA_TIMER[name]);
+    if (st.ia && !st.ia.pideRir) IA_TIMER[name] = setTimeout(() => consejoIA(name, i), 4000);
+    pintarEntrenar();
+  }
   if (s.t === 'C' || FECHA) return;
   const p = companero(name);
   if (p && !state[p].done) {
@@ -1823,62 +1977,29 @@ function pasoEj(ex, st) {
   return st.unit === 'kg' ? (p >= 10 ? 5 : p >= 5 ? 2.5 : 1.25) : (p >= 5 ? 10 : 5);
 }
 const alPaso = (w, p, modo) => { const f = modo === 'abajo' ? Math.floor : modo === 'arriba' ? Math.ceil : Math.round; return Math.round(f(Number(w) / p + 1e-9) * p * 100) / 100; };
-// Opciones para la serie que sigue. Modelo: Epley (1 rep ≈ 3.3 % de carga) + cuántas reps pierdes TÚ de serie a serie
-// (aprendido de tu historial: ex.caida; mientras haya pocos datos: 2 después de un fallo, 1 con 1–2 en reserva).
+// Opciones para la serie que sigue: la matemática vive en motor.js (probada en tests/motor.test.js)
 function motorSerie(name, i) {
   const ex = exDe(name), st = state[name], s = st && st.sets[i];
   if (!ex || !s || s.t === 'C' || vacio(s.r) || st.sets.every(x => x.ok)) return null;
-  const r = Number(s.r), w = Number(s.w) || 0, min = ex.min, max = ex.max;
-  const rir = s.e ? RIR_DE[s.e] : null, rirE = rir === null ? 2 : rir;
-  const c = ex.caida || {};
-  const caida = rirE === 0 ? (c.nf >= 3 ? Math.max(1, c.fallo) : 2) : rirE <= 1.5 ? (c.nn >= 3 ? Math.max(0.5, c.normal) : 1) : (c.nn >= 3 ? Math.max(0, c.normal - 0.5) : 0.5);
-  const pred = Math.max(1, Math.round(r + rirE - 1.5 - caida));         // reps con el mismo peso dejando 1–2 en reserva
-  const r2 = x => Math.max(1, Math.min(max + 2, Math.round(x)));
-  const bajos = recuperacion() ? ['Mal', 'Baja', 'Adolorido'].filter(v => Object.values(recuperacion()).includes(v)).length : 0;
-  const ops = [];
-  if (ex.sinPeso || (!w && ex.inc === 0)) {
-    // Sin carga: solo reps y descanso
-    ops.push({ id: 'A', accion: 'mantener', peso: w, reps: r2(Math.max(min, pred)), mensaje: pred < min
-      ? 'Descansa 2–3 min: con ' + r + ' al fallo la siguiente te saldría ~' + pred + '. Haz las que salgan con buena técnica.'
-      : 'Busca ~' + pred + ' en la siguiente; deja 1 en reserva.' });
-    return { opciones: ops, eleccion: 'A' };
-  }
-  const p = pasoEj(ex, st), inv = ex.inc < 0;                            // inv: máquina asistida (más número = más fácil)
-  const conv = st.unit === 'kg' ? KG_A_LB : 1;
-  const corp = (Number(DATA.ultimoPeso) || 72) * KG_A_LB;
-  const carga = inv ? Math.max(20, corp - w * conv) : Math.max(5, cargaReal(ex, w, st.unit));
-  const repsPaso = Math.max(0.7, 30 * p * (inv ? 1 : ex.mult) * conv / carga);   // reps que ganas por cada paso que bajas
-  const mover = k => alPaso(inv ? w + k * p : w - k * p, p);
-  ops.push({ id: 'A', accion: 'mantener', peso: w, reps: r2(Math.min(pred, max)) });
-  if (pred < min || rir === 0) {
-    const k = Math.max(1, Math.ceil((min + 1 - pred) / repsPaso));
-    const wB = mover(k), caidaPct = 1 - (inv ? (corp - wB * conv) : cargaReal(ex, wB, st.unit)) / carga;
-    if (wB >= 0 && caidaPct <= 0.3) ops.push({ id: 'B', accion: 'bajar', peso: wB, reps: r2(Math.min(max, pred + k * repsPaso)), k: k });
-  }
-  if (rirE >= 3 && r >= min && !bajos && !DATA.descargaCarrera) {
-    const wC = mover(-1), rC = Math.round(pred - repsPaso);
-    if (rC >= min) ops.push({ id: 'C', accion: 'subir', peso: wC, reps: r2(rC) });
-    else ops.push({ id: 'C', accion: 'mas_reps', peso: w, reps: r2(Math.min(max + 2, r + 2)) });
-  }
-  const B = ops.find(o => o.id === 'B'), C = ops.find(o => o.id === 'C'), A = ops[0];
-  const basico = ex.modalidad === 'Barra' || ex.modalidad === 'Discos';
-  let el = 'A';
-  if (B && (pred < min || (rir === 0 && basico) || (rir === 0 && bajos >= 2))) el = 'B';
-  else if (C) el = 'C';
-  const u = ' ' + st.unit;
-  A.mensaje = rir === 0 ? 'Mantén ' + w + ': con ' + r + ' al fallo, la siguiente te sale ~' + A.reps + ' (sigues en ' + min + '–' + max + '). Descansa 2–3 min y deja 1 en reserva.'
-    : pred < min ? 'Mantén ' + w + ' si quieres, pero la siguiente te saldría ~' + A.reps + ', abajo de ' + min + '.'
-    : 'Mantén ' + w + u + ' y busca ' + A.reps + (A.reps < r ? ' (es normal perder ' + (r - A.reps) + ')' : '') + '.';
-  if (B) B.mensaje = 'Baja a ' + B.peso + u + (pred < min ? ': con ' + w + ' la siguiente te saldría ~' + Math.max(1, pred) + ', abajo de ' + min + '. Así sacas ~' + B.reps + '.'
-    : ': fuiste al fallo' + (basico ? ' en un básico; por técnica y seguridad' : '') + ', así sacas ~' + B.reps + ' de calidad.');
-  if (C) C.mensaje = C.accion === 'subir' ? 'Sube a ' + C.peso + u + ': te sobraron 3+ con ' + r + '. Busca ' + C.reps + '.'
-    : 'Te sobraron 3+, pero el siguiente peso es mucho salto: mantén ' + w + ' y busca ' + C.reps + '.';
-  return { opciones: ops, eleccion: el, paso: p, pasoDudoso: !ex.pasoFijo && (el === 'B' || (el === 'C' && C.accion === 'subir')) };
+  const pend = st.sets.filter(x => !x.ok && x.t !== 'C');
+  const rec = esPar(name) ? null : recuperacion();
+  const m = MOTOR.siguienteSerie({
+    peso: Number(s.w) || 0, reps: Number(s.r), rir: s.e ? RIR_DE[s.e] : null, min: ex.min, max: ex.max,
+    paso: pasoEj(ex, st), unidad: st.unit, mult: ex.mult, barra: ex.barra, inc: ex.inc, modalidad: ex.modalidad, sinPeso: ex.sinPeso,
+    corpKg: (esPar(name) && PAR && PAR.data ? PAR.data.ultimoPeso : DATA.ultimoPeso) || 72, ultima: pend.length === 1,
+    recMala: !!(rec && (rec.sueno === 'Mal' || rec.energia === 'Baja')), sinSubir: !!DATA.descargaCarrera || (!esPar(name) && descargaActiva()), caida: ex.caida
+  });
+  if (!m || m.pideRir) return m;
+  const op = m.opciones.find(o => o.id === m.eleccion);
+  m.pasoDudoso = !ex.pasoFijo && (op.accion === 'bajar' || op.accion === 'subir');
+  return m;
 }
 // Lo que se ve debajo de la serie: el motor responde al instante; si hay IA y señal, la IA elige y explica
 function decidirSerie(name, i) {
   const st = state[name], m = motorSerie(name, i);
   if (!m) { if (st) st.ia = null; return; }
+  // Sin el esfuerzo de la serie no hay consejo: primero un toque en "¿Cómo terminó?"
+  if (m.pideRir) { st.ia = { pideRir: true, i: i }; return; }
   const op = m.opciones.find(o => o.id === m.eleccion);
   const dudo = m.pasoDudoso && op.accion !== 'mantener';
   st.ia = { mensaje: op.mensaje + (dudo ? ' Si tu equipo no sube de ' + m.paso + ' en ' + m.paso + ', elige su paso abajo.' : ''), peso: op.peso, reps: op.reps, fuente: 'reglas', motor: m, i: i, pasoDudoso: dudo,
@@ -1892,7 +2013,7 @@ async function consejoIA(name, i) {
   if (!st || st.done || FECHA || st.sets.every(x => x.ok)) return;
   decidirSerie(name, i);
   if (TAB === 'Entrenar' && OPEN === baseVista(name)) pintarEntrenar();
-  if (!st.ia || !ajuste('ia', true) || !navigator.onLine || !DATA.ia) return;
+  if (!st.ia || st.ia.pideRir || !ajuste('ia', true) || !navigator.onLine || !DATA.ia) return;
   const seq = ++IA_SEQ, m = st.ia.motor;
   st.ia.afinando = true;
   try {
@@ -1901,7 +2022,8 @@ async function consejoIA(name, i) {
     const r = await conLimite(apiPost('ia', [pl], claveDe(name)), 12000);
     if (seq !== IA_SEQ || !state[name] || state[name].done || !state[name].ia) return;
     const op = m.opciones.find(o => o.id === r.opcion) || m.opciones.find(o => o.id === m.eleccion);   // la IA solo elige; los números son del motor
-    Object.assign(state[name].ia, { mensaje: r.mensaje || op.mensaje, peso: op.peso, reps: op.reps, fuente: r.ia === false ? 'reglas' : 'ia', afinando: false,
+    // Todo consejo lleva números: si el texto de la IA no trae ninguno, se queda el del motor
+    Object.assign(state[name].ia, { mensaje: r.mensaje && /\d/.test(r.mensaje) ? r.mensaje : op.mensaje, peso: op.peso, reps: op.reps, fuente: r.ia === false ? 'reglas' : 'ia', afinando: false,
       pasoDudoso: m.pasoDudoso && op.accion !== 'mantener', usar: usarAplica(state[name], op) });
     ANIM_IA = jsq(name);
   } catch (e) {
@@ -2556,7 +2678,7 @@ function pintarComida() {
     (verFalta ? '' : '<small>/' + meta + '</small>') + '</div><div class="muted">gramos</div></div></button>' +
     '<div class="row between falta"><div class="t1">' + (falta > 0 ? 'Te faltan ~' + falta + ' g' : '¡Meta cumplida!') + '</div>' +
     (falta > meta / 2 ? '<span class="pill prio">Prioritario</span>' : falta <= 0 ? '<span class="pill ok">✓ Listo</span>' : '') + '</div>' +
-    '<div class="consejo">💡 ' + (falta > 0 ? (prot.includes('Scoop') ? 'Fácil: 2 huevos (12 g), yogurt (15 g) o atún (20 g)' : 'Lo más barato: un scoop con agua (22 g)') : 'Bien hecho hoy') + '</div></div>';
+    '<div class="consejo">💡 ' + (falta > 0 ? textoCompletar(falta) : 'Bien hecho hoy') + '</div></div>';
   h += tarjetaComidaIA();
   if (!prot.length && tipico.length) h += '<button class="tipico" onclick="diaTipico()"><span class="ic">🍽️</span><span style="flex:1"><b>Mi día típico</b> <span class="pill ok">+' +
     protTotal(tipico) + ' g</span><small>Tócalo en la noche y luego cambia lo que fue diferente</small></span><span class="mas">＋</span></button>';
@@ -2589,6 +2711,7 @@ function cambiarProt() {
   const dia = diaComida();
   LS.set('gym_prot_' + dia, prot);
   encolar('saveProteina', [protTotal(), prot.join(', '), dia], 'prot-' + dia);
+  if (dia === hoy()) programarAvisoProt();
   pintarComida();
 }
 function addProt(k) {
@@ -2597,6 +2720,57 @@ function addProt(k) {
   cambiarProt();
 }
 function diaTipico() { prot = prot.concat(diaTipicoLista()); cambiarProt(); }
+
+/* ----- Proteína a las 6 pm: cuánto llevas, cuánto falta y qué de lo que sí comes la completa ----- */
+const AVISO_PROT = 80;   // un aviso por día de la semana: ids 80 (dom) a 86 (sáb)
+function completarProt(falta) {
+  if (falta <= 0) return [];
+  const cuenta = LS.get('gym_food_counts', {}), vistas = {};
+  const lista = misComidas().concat(FOODS).filter(f => f.g > 0 && !vistas[f.k] && (vistas[f.k] = true))
+    .sort((a, b) => ((cuenta[b.k] || 0) + (b.fav ? 2 : 0)) - ((cuenta[a.k] || 0) + (a.fav ? 2 : 0))).slice(0, 6);
+  // Una sola que alcance (la más chica), o la pareja que alcanza con menos de sobra
+  const una = lista.filter(f => f.g >= falta).sort((a, b) => a.g - b.g)[0];
+  let par = null;
+  lista.forEach((a, i) => lista.slice(i + 1).forEach(b => { const t = a.g + b.g; if (t >= falta && (!par || t < par.t)) par = { t: t, l: [a, b] }; }));
+  if (una && (!par || una.g <= par.t)) return [una];
+  return par ? par.l : lista.sort((a, b) => b.g - a.g).slice(0, 2);
+}
+const nombreComida = f => (f.fav ? f.t : f.k.toLowerCase()) + ' (' + f.g + ' g)';
+function textoCompletar(falta) {
+  const c = completarProt(falta), suma = c.reduce((a, f) => a + f.g, 0);
+  return c.length ? 'Con ' + c.map(nombreComida).join(' + ') + (suma >= falta ? ' la cierras' : ' te acercas') : 'Te faltan ' + falta + ' g';
+}
+function tarjetaProt6() {
+  if (new Date().getHours() < 18 || !ajuste('avisoProt', true)) return '';
+  const tot = protTotal(cargarProt(hoy())), falta = metaProt() - tot;
+  if (falta <= 0) return '';
+  const c = completarProt(falta);
+  return '<div class="card prot6"><div class="t1">🥩 Llevas ' + tot + ' g, te faltan ' + falta + '</div><div class="muted" style="margin:4px 0 10px">' + esc(textoCompletar(falta)) + ' · meta ' + metaProt() + ' g</div>' +
+    '<div class="botones">' + c.map(f => '<button class="btn sm" onclick="prot=cargarProt(hoy());addProt(\'' + jsq(f.k) + '\');pintarTab()">+' + f.g + ' g ' + esc(f.fav ? f.t : f.k) + '</button>').join('') +
+    '<button class="btn ghost sm" onclick="verTab(\'Comida\')">Otra…</button></div></div>';
+}
+// APK: hoy a las 6 pm con tus números; sábado y domingo que vienen, un recordatorio aunque no abras la app
+function programarAvisoProt() {
+  if (!NATIVO || !DATA) return;
+  nativo('LocalNotifications', 'cancel', { notifications: [0, 1, 2, 3, 4, 5, 6].map(d => ({ id: AVISO_PROT + d })) }).then(() => {
+    if (!ajuste('avisoProt', true)) return;
+    const ahora = new Date(), lista = [];
+    for (let d = 0; d < 7; d++) {
+      const f = new Date(); f.setDate(f.getDate() + d); f.setHours(18, 0, 0, 0);
+      if (f <= ahora) continue;
+      const dow = f.getDay(), base = { id: AVISO_PROT + dow, channelId: 'proteina', schedule: { at: f, allowWhileIdle: true } };
+      if (d === 0) {
+        const tot = protTotal(cargarProt(hoy())), falta = metaProt() - tot;
+        if (falta > 0) lista.push(Object.assign(base, { title: 'Llevas ' + tot + ' g, te faltan ' + falta, body: textoCompletar(falta) + ' · meta ' + metaProt() + ' g' }));
+      } else if (dow === 0 || dow === 6) {
+        lista.push(Object.assign(base, { title: '¿Cómo vas de proteína?', body: 'Meta ' + metaProt() + ' g. Anota lo que llevas: el fin de semana es cuando más se escapa.' }));
+      }
+    }
+    if (!lista.length) return;
+    return nativo('LocalNotifications', 'createChannel', { id: 'proteina', name: 'Proteína del día', description: 'A las 6 pm: cuánto llevas y qué te falta', importance: 3, visibility: 1 })
+      .then(() => nativo('LocalNotifications', 'schedule', { notifications: lista }));
+  });
+}
 
 /* ----- Comida con IA: escribes lo que comiste y calcula la proteína ----- */
 let COMIDA_IA = null, QUITAR_FAV = false, RING_FALTA = false;
@@ -2875,7 +3049,35 @@ function progresoSemana() {
       : kpi(fmt(r.km7), 'Km trotados (7 días)', '', false)) +
     kpi(r.protProm7 !== null ? r.protProm7 + ' g' : '—', 'Proteína promedio', 'Meta: ' + metaProt() + ' g', r.protProm7 !== null && r.protProm7 >= metaProt()) + '</div>';
   h += '<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none;margin-top:6px" href="' + r.sheetUrl + '" target="_blank" rel="noopener">Abrir dashboard completo</a>';
-  return h;
+  const boton = '<button class="btn block reporte" onclick="copiarReporte()">📋 COPIAR REPORTE DEL DOMINGO</button>';
+  return new Date().getDay() === 0 ? boton + h : h + boton;
+}
+// Texto para pegar donde quieras: promedios de los últimos 7 días; lo que la app no tiene se queda en blanco
+function textoReporte() {
+  const r = DATA.resumen || {}, v = (x, u) => x === null || x === undefined || x === '' ? '' : x + u;
+  const cint = LS.get('gym_cint_' + hoy(), null) !== null ? LS.get('gym_cint_' + hoy(), null) : r.cintura;
+  const hoyContado = DATA.todayKey === hoy() && DATA.exercises.some(e => e.done);
+  const gym = (r.gymDias7 || 0) + (!hoyContado && sesion().log.length ? 1 : 0);
+  const sal = LS.get('gym_salud', null);             // Health Connect (APK), cuando esté conectado
+  const prom = a => a && a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
+  const pasos = sal && sal.pasos ? prom(sal.pasos.map(x => x.v)) : null, sueno = sal && sal.sueno ? prom(sal.sueno.map(x => x.h)) : null;
+  return ['Reporte semanal · ' + ddmm(sumarDias(hoy(), -6)) + ' al ' + ddmm(hoy()),
+    'Peso promedio (7 días): ' + v(r.promedio7, ' kg') + (r.cambioSemana !== null && r.cambioSemana !== undefined ? ' (' + (r.cambioSemana > 0 ? '+' : '') + r.cambioSemana + ' vs semana anterior)' : ''),
+    'Cintura: ' + v(cint, ' cm'),
+    'Días de gym: ' + gym,
+    'Km corridos: ' + v(r.km7, ' km'),
+    'Proteína promedio: ' + v(r.protProm7, ' g') + ' (meta ' + metaProt() + ' g)',
+    'Pasos promedio: ' + v(pasos === null ? null : Math.round(pasos), ''),
+    'Sueño promedio: ' + v(sueno, ' h')].join('\n');
+}
+async function copiarReporte() {
+  const t = textoReporte();
+  try { await navigator.clipboard.writeText(t); }
+  catch (e) {
+    const a = document.createElement('textarea'); a.value = t; a.style.position = 'fixed'; a.style.opacity = '0';
+    document.body.appendChild(a); a.select(); try { document.execCommand('copy'); } catch (e2) {} a.remove();
+  }
+  hap('ok'); toast('Reporte copiado ✓ Pégalo donde quieras');
 }
 function progresoCuerpo() {
   const r = DATA.resumen;
@@ -3211,6 +3413,166 @@ function elegirMusculo(m) {
   if (!$('modal').classList.contains('show')) abrirModal();
   if (m) setTimeout(() => { const el = document.querySelector('#sheet .msel'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 30);
 }
+/* ----- Ruta de hoy: qué te falta de la semana en este día y con cuáles ejercicios se cierra -----
+   Máximo 4 ejercicios, mínimo 3 series cada uno, uno por familia (Catálogo V), prefiere la variante con historial
+   y castiga lo que pasaría a una zona de su tope. */
+const famDe = e => e.variante || e.ejercicio;
+const claveRuta = g => 'gym_ruta_' + hoy() + '_' + g;
+let RUTA_TMP = null;
+function rutaAceptada(g) {
+  if (FECHA || !GRUPOS3.includes(g)) return null;
+  const r = LS.get(claveRuta(g), null);
+  return r && r.length ? r.filter(x => exDe(x.name)) : null;
+}
+// Series de la semana por zona, contando las series ya marcadas de lo que estás haciendo
+function zonasSemanaYa() {
+  const z = zonasVivas(), enLog = {};
+  if (FECHA) return z;
+  sesion().log.forEach(l => { enLog[l.name] = true; });
+  Object.keys(state).forEach(n => {
+    const st = state[n], e = exDe(n);
+    if (esPar(n) || !e || st.done || enLog[n]) return;
+    const ok = st.sets.filter(x => x.ok && x.t !== 'C').length;
+    if (ok) (e.zonas || []).forEach(x => { z[x.z] = (z[x.z] || 0) + ok * x.w; });
+  });
+  return z;
+}
+function calcularRuta(g) {
+  const z = zonasSemanaYa(), hoyZ = zonasHoy();
+  const delDia = DATA.exercises.filter(e => e.group === g && (e.zonas || []).some(x => x.w >= 1) && !/^Otro ejercicio/.test(e.ejercicio) && (parOn() || !esDeOtro(e)));
+  const zonasG = [];
+  delDia.forEach(e => e.zonas.forEach(x => { if (x.w >= 1 && !zonasG.includes(x.z)) zonasG.push(x.z); }));
+  const falta = {};
+  zonasG.forEach(m => { falta[m] = Math.max(0, metaZona(m).meta - (z[m] || 0)); });
+  const empezado = e => { const st = state[e.name]; return !!st && (st.done || cardDone(e.name) || st.sets.some(x => x.ok)); };
+  const fams = new Set(delDia.filter(empezado).map(famDe));
+  const D = Object.assign({}, falta), suma = {}, items = [];
+  while (items.length < 4) {
+    let mejor = null;
+    delDia.forEach(e => {
+      if (empezado(e) || fams.has(famDe(e))) return;
+      const prim = e.zonas.filter(x => x.w >= 1);
+      const n = Math.max(3, Math.min(Math.max(3, e.series || 4), Math.ceil(Math.max.apply(null, prim.map(x => (D[x.z] || 0) / x.w)))));
+      let gana = 0, castigo = 0;
+      e.zonas.forEach(x => {
+        const aporta = n * x.w, t = metaZona(x.z), topeDia = Math.ceil(t.tope / 2);
+        gana += Math.min(D[x.z] || 0, aporta) * (x.w >= 1 ? 1 : 0.5);
+        const semana = (z[x.z] || 0) + (suma[x.z] || 0) + aporta, dia = (hoyZ[x.z] || 0) + (suma[x.z] || 0) + aporta;
+        if (semana > t.tope) castigo += (semana - t.tope) * 1.5;
+        if (dia > topeDia) castigo += (dia - topeDia) * 0.5;
+      });
+      const pts = gana - castigo + (e.anterior.length ? 1.5 : 0) + (e.bloque === DATA.bloquePara[g] ? 0.5 : 0);
+      if (gana >= 2 && pts > 0 && (!mejor || pts > mejor.pts))
+        mejor = { name: e.name, n: n, pts: pts, zona: prim.slice().sort((a, b) => (D[b.z] || 0) / b.w - (D[a.z] || 0) / a.w)[0].z };
+    });
+    if (!mejor) break;
+    const e = exDe(mejor.name);
+    mejor.antes = (z[mejor.zona] || 0) + (suma[mejor.zona] || 0);
+    items.push(mejor); fams.add(famDe(e));
+    e.zonas.forEach(x => { D[x.z] = Math.max(0, (D[x.z] || 0) - mejor.n * x.w); suma[x.z] = (suma[x.z] || 0) + mejor.n * x.w; });
+  }
+  const total = zonasG.reduce((a, m) => a + falta[m], 0), quedan = zonasG.reduce((a, m) => a + D[m], 0);
+  items.sort((a, b) => falta[b.zona] - falta[a.zona]);   // primero lo de la zona que más falta (la del mensaje)
+  return { g: g, items: items, falta: falta, zonasG: zonasG, total: total, quedan: quedan };
+}
+// "Hoy te falta más hombro que pecho": por región; en pierna y brazos, por músculo
+const PALABRA_REGION = { Pecho: 'pecho', Hombro: 'hombro', Espalda: 'espalda', Core: 'core' };
+const PALABRA_ZONA = { 'Isquiosurales': 'femoral', 'Glúteo medio': 'glúteo medio' };
+function textoRuta(r) {
+  const porReg = {};
+  r.zonasG.forEach(m => { if (!r.falta[m]) return; const k = PALABRA_REGION[regionDe(m)] || PALABRA_ZONA[m] || m.toLowerCase(); porReg[k] = (porReg[k] || 0) + r.falta[m]; });
+  const orden = Object.keys(porReg).sort((a, b) => porReg[b] - porReg[a]), n = r.items.length;
+  const que = orden.length >= 2 ? 'Hoy te falta más ' + orden[0] + ' que ' + orden[1] + '.' : 'Hoy lo que te falta es ' + orden[0] + '.';
+  return que + ' Haz ' + (n === 1 ? 'este' : 'estos ' + n) + (r.quedan <= 1 ? ' y cierras ' + r.g + ' de la semana.' : '; lo que quede va en tu próximo ' + r.g + '.');
+}
+function tarjetaRuta() {
+  if (FECHA || !GRUPOS3.includes(GRUPO) || !ajuste('ruta', true) || !DATA.exercises.some(e => (e.zonas || []).length)) return '';
+  const k = claveRuta(GRUPO), acep = rutaAceptada(GRUPO);
+  if (acep) {
+    const hechos = acep.filter(x => cardDone(x.name) || (state[x.name] && state[x.name].done)).length;
+    return '<div class="ruta corta"><span class="i">🧭</span><div style="flex:1"><b>Ruta de hoy: ' + hechos + ' de ' + acep.length + '</b>' +
+      (hechos === acep.length ? ' · ✓ cerraste lo que faltaba' : '') + '</div><button class="link" onclick="quitarRuta()">Quitar</button></div>';
+  }
+  if (LS.get(k + '_no', false)) return '';
+  const r = RUTA_TMP = calcularRuta(GRUPO);
+  if (!r.total) return '<div class="ruta corta"><span class="i">✓</span><div style="flex:1">' + esc(GRUPO) + ' de la semana ya está en meta: si entrenas, no pases de 3 series por ejercicio.</div></div>';
+  if (!r.items.length) return '';
+  return '<div class="card ruta' + (ANIM_PLAN ? ' entra' : '') + '"><div class="row between"><div class="t1">🧭 Ruta de hoy</div><button class="link" onclick="LS.set(\'' + k + '_no\', true);pintarEntrenar()">Ocultar</button></div>' +
+    '<div class="msg">' + esc(textoRuta(r)) + '</div><ol>' + r.items.map((x, i) => {
+      const e = exDe(x.name), w = (e.zonas.find(y => y.z === x.zona) || { w: 1 }).w, t = metaZona(x.zona);
+      return '<li><button onclick="irAEjercicio(\'' + jsq(x.name) + '\')"><span class="n num">' + (i + 1) + '</span><span style="flex:1;min-width:0"><b>' + esc(e.ejercicio) + '</b><small>' +
+        x.n + ' series · ' + esc(x.zona.toLowerCase()) + ' ' + fmtSer(x.antes) + ' → ' + fmtSer(x.antes + x.n * w) + ' de ' + t.meta + '</small></span>' + badgeMod(e) + '</button></li>';
+    }).join('') + '</ol><button class="btn block" onclick="seguirRuta()">Seguir esta ruta</button></div>';
+}
+function seguirRuta() {
+  const r = RUTA_TMP;
+  if (!r || !r.items.length) return;
+  LS.set(claveRuta(r.g), r.items.map(x => ({ name: x.name, n: x.n })));
+  // Cada ejercicio de la ruta viene con las series que te recomendó (mínimo 3)
+  r.items.forEach(x => {
+    const st = state[x.name];
+    if (st && !st.done && !st.edited && st.sets.filter(y => y.t !== 'C').length > x.n) { let q = x.n; st.sets = st.sets.filter(y => y.t === 'C' || q-- > 0); }
+  });
+  OPEN = r.items[0].name; ANIM_ABRE = OPEN; hap('ok');
+  pintarEntrenar(); irA(OPEN);
+  toast('Ruta de hoy: ' + r.items.map(x => exDe(x.name).ejercicio.split(' (')[0]).join(' → '));
+}
+function quitarRuta() { LS.del(claveRuta(GRUPO)); LS.set(claveRuta(GRUPO) + '_no', true); pintarEntrenar(); }
+
+/* ----- Descarga anticipada: la fuerza estimada baja 2 sesiones seguidas en 2+ ejercicios y vienes con poco sueño o energía ----- */
+function descargaActiva() { const d = LS.get('gym_descarga', null); return !!(d && d.hasta >= hoy() && !(DATA && DATA.descargaCarrera)); }
+function e1De(ex, sets, unit) {
+  let m = 0;
+  (sets || []).forEach(x => { if (x.t === 'C' || !x.r) return; const L = cargaReal(ex, x.w, unit); if (L > 0) m = Math.max(m, L * (1 + x.r / 30)); });
+  return Math.round(m * 10) / 10;
+}
+function fuerzaBajando() {
+  const lista = [];
+  DATA.exercises.forEach(e => {
+    if (!(e.inc > 0) || !e.hist) return;
+    const h = e.hist.map(x => x.e1);
+    const l = sesion().log.find(x => x.name === e.name && x.uid !== e.uid);   // lo de hoy que la hoja aún no devuelve
+    if (l) { const v = e1De(e, l.sets, l.unit || e.unit); if (v) h.push(v); }
+    const n = h.length;
+    if (n >= 3 && h[n - 1] < h[n - 2] && h[n - 2] < h[n - 3]) lista.push(e.ejercicio.split(' (')[0]);
+  });
+  return lista;
+}
+function recuperacionBaja() {
+  const malo = x => x && !x.saltado && (x.sueno === 'Mal' || x.energia === 'Baja');
+  if (malo(readyHoy())) return true;
+  let n = 0;
+  for (let d = 1; d <= 6; d++) if (malo(LS.get('gym_ready_' + sumarDias(hoy(), -d), null))) n++;
+  const sal = LS.get('gym_salud', null), noches = sal && sal.sueno ? sal.sueno.slice(-3) : [];
+  if (noches.length >= 2 && noches.filter(x => x.h < 6).length >= 2) n += 2;   // Health Connect: 2 de las últimas 3 noches con menos de 6 h
+  return n >= 2;
+}
+const lunesDe = k => sumarDias(k, -((new Date(k + 'T12:00:00').getDay() + 6) % 7));
+function tarjetaDescarga() {
+  if (DATA.descargaCarrera || LS.get('gym_descarga_no_' + lunesDe(hoy()), false)) return '';
+  const bajan = fuerzaBajando();
+  if (bajan.length < 2 || !recuperacionBaja()) return '';
+  return '<div class="card descarga"><div class="t1">📉 Te propongo adelantar la descarga</div><div class="muted" style="margin:4px 0 10px">' +
+    esc(bajan.slice(0, 3).join(', ')) + (bajan.length > 3 ? ' y ' + (bajan.length - 3) + ' más' : '') + ' bajaron 2 sesiones seguidas y vienes con poco sueño o energía. ' +
+    'Esta semana: mitad de series y −10 % de peso, sin llegar al fallo. La fuerza suele volver más alta la siguiente.</div>' +
+    '<div class="acts"><button class="btn ghost" onclick="LS.set(\'gym_descarga_no_' + lunesDe(hoy()) + '\', true);pintarEntrenar()">Ahora no</button>' +
+    '<button class="btn" onclick="empezarDescarga()">Hacer descarga esta semana</button></div></div>';
+}
+function aplicarDescarga(ex, st) {
+  if (!st || st.done || st.edited || st.sets.some(x => x.ok) || st.descarga) return;
+  const lim = Math.ceil(st.sets.filter(x => x.t !== 'C').length / 2), p = pasoEj(ex, st);
+  let n = 0;
+  st.sets = st.sets.filter(x => x.t === 'C' || ++n <= lim).map(x => x.t === 'C' || !(ex.inc > 0) || vacio(x.w) || !Number(x.w) ? x
+    : Object.assign({}, x, { w: Math.max(0, alPaso(Number(x.w) * 0.9, p) < Number(x.w) ? alPaso(Number(x.w) * 0.9, p) : Number(x.w) - p) }));
+  st.descarga = true;
+}
+function empezarDescarga() {
+  LS.set('gym_descarga', { desde: hoy(), hasta: sumarDias(lunesDe(hoy()), 6) });
+  Object.keys(state).forEach(k => { if (!esPar(k)) aplicarDescarga(exDe(k), state[k]); });
+  hap('ok'); toast('Descarga hasta el domingo: mitad de series y −10 %'); pintarEntrenar();
+}
+function terminarDescarga() { LS.del('gym_descarga'); toast('Descarga terminada: desde el próximo ejercicio, todo normal'); pintarTodo(); }
+
 /* ----- Quién hace cada ejercicio en pareja (Catálogo U): "Ambos" o el nombre de uno ----- */
 const mismoNombre = (a, b) => { const n = x => String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim().split(' ')[0]; return !!a && n(a) === n(b); };
 function asignadoDe(name) { const e = DATA.exercises.find(x => x.name === baseDe(name)); return e ? e.asignado || '' : ''; }
@@ -3451,6 +3813,8 @@ function abrirAjustes() {
     tog('autoDescanso', false, 'Iniciar el descanso solo', 'Si está apagado, solo te sugiere tiempos al marcar una serie', AIC.reloj, 'ok') +
     tog('iaPlan', true, 'Plan del día con IA', 'Al abrir Entrenar: un foco para la sesión y una meta por ejercicio', AIC.chispa, 'pri') +
     tog('ia', true, 'La IA afina el consejo entre series', 'El motor te dice al instante qué hacer en la siguiente serie (sin señal); con señal, Gemini elige entre sus opciones y te explica por qué', AIC.cerebro, 'pri') +
+    tog('ruta', true, 'Ruta de hoy', 'Te dice qué zona te falta en la semana y cuáles 2–4 ejercicios la cierran', AIC.flechas, 'ok') +
+    tog('avisoProt', true, 'Aviso de proteína a las 6 pm', 'Cuánto llevas y qué de lo que comes la completa (sábado y domingo aunque no abras la app)', AIC.cubiertos, 'acc') +
     tog('calentamiento', false, 'Calentamiento automático', 'En los básicos con barra agrega 2 series ligeras (50 % y 70 %) al abrirlos', AIC.flama, 'red') +
     '<div class="opt" style="display:block">' + sec(AIC.reloj, 'cyan', 'Descanso predeterminado') + '<div class="pills c-cyan" style="margin:0;display:grid;grid-template-columns:repeat(4,1fr)">' +
     DESCANSOS.map(s => '<button class="' + (s === def ? 'on' : '') + '" onclick="setAjuste(\'descanso\',' + s + ');abrirAjustes()">' + mmss(s) + '</button>').join('') + '</div></div>' +
@@ -3488,7 +3852,9 @@ async function toggleAjuste(k, d) {
     const p = await Notification.requestPermission();
     if (p !== 'granted') return toast('Necesito permiso de notificaciones para avisarte');
   }
+  if (k === 'avisoProt' && nuevo && NATIVO) await nativo('LocalNotifications', 'requestPermissions');
   setAjuste(k, nuevo);
+  if (k === 'avisoProt') programarAvisoProt();
   if (k === 'pantalla') { if (nuevo && sesionActiva()) pedirPantalla(); if (!nuevo) soltarPantalla(); }
   abrirAjustes();
 }
