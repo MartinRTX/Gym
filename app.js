@@ -4015,7 +4015,7 @@ function abrirAjustes() {
     tog('iaPlan', true, 'Plan del día con IA', 'Al abrir Entrenar: un foco para la sesión y una meta por ejercicio', AIC.chispa, 'pri') +
     tog('ia', true, 'La IA afina el consejo entre series', 'El motor te dice al instante qué hacer en la siguiente serie (sin señal); con señal, Gemini elige entre sus opciones y te explica por qué', AIC.cerebro, 'pri') +
     (NATIVO ? tog('salud', false, 'Health Connect (solo lectura)', 'Lee tus pasos, sueño y carreras de los últimos 7 días y los pasa a tu hoja. Nunca escribe nada', AIC.corre, 'ok') +
-      '<div class="opt"><span class="aic" style="--c:var(--cyan)">' + AIC.cel + '</span><div class="txt"><div class="t1" style="font-size:15px">Widgets y accesos directos</div>' +
+      '<div class="opt tarj"><span class="aic" style="--c:var(--cyan)">' + AIC.cel + '</span><div class="txt"><div class="t1" style="font-size:15px">Widgets y accesos directos</div>' +
       '<div class="muted">Widgets: mantén presionada la pantalla de inicio → Widgets → Gym. Accesos: mantén presionado el ícono de la app</div></div></div>' : '') +
     tog('ruta', true, 'Ruta de hoy', 'Te dice qué zona te falta en la semana y cuáles 2–4 ejercicios la cierran', AIC.flechas, 'ok') +
     tog('avisoProt', true, 'Aviso de proteína a las 6 pm', 'Cuánto llevas y qué de lo que comes la completa (sábado y domingo aunque no abras la app)', AIC.cubiertos, 'acc') +
