@@ -26,6 +26,7 @@ function minutos(ms) { const m = Math.floor(ms / 60000); return m < 60 ? m + ' m
 function vibrar(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
 /* ----- Errores de la app: se guardan en el celular y se suben a la pestaña "Errores" de tu hoja ----- */
 let ERR_TIMER = null;
+const leerSeguro = f => { try { return f() || ''; } catch (e) { return ''; } };
 function registrarError(msg, donde, pila) {
   try {
     msg = String(msg || '').slice(0, 300);
@@ -33,7 +34,7 @@ function registrarError(msg, donde, pila) {
     const l = LS.get('gym_jserr', []), dia = hoy();
     if (l.filter(x => x.dia === dia).length >= 15 || l.some(x => x.dia === dia && x.msg === msg)) return;   // sin repetir y sin inundar la hoja
     l.push({ dia: dia, ts: new Date().toISOString(), msg: msg, donde: String(donde || '').slice(0, 200), pila: String(pila || '').slice(0, 800),
-             ver: (typeof VERSION_APP === 'string' ? VERSION_APP : '') + (NATIVO ? ' apk' : ' web'), tab: typeof TAB === 'string' ? TAB : '', ua: navigator.userAgent.slice(0, 160) });
+             ver: leerSeguro(() => VERSION_APP) + (leerSeguro(() => NATIVO) ? ' apk' : ' web'), tab: leerSeguro(() => TAB), ua: navigator.userAgent.slice(0, 160) });
     LS.set('gym_jserr', l.slice(-40));
     clearTimeout(ERR_TIMER); ERR_TIMER = setTimeout(subirErrores, 4000);
   } catch (e) { /* el registro de errores nunca debe romper la app */ }
@@ -920,7 +921,7 @@ function verLado(base, lado) { QUIEN[base] = lado; ANIM_ABRE = base; hap('tecla'
 function nuevoEstado(ex, done, id) {
   const st = { unit: ex.unit, sets: ex.sets.map(s => ({ w: s.w, r: s.r, t: s.t || 'T', ok: false })), rir: '', notas: '',
                uid: id, done: done, edited: false };
-  if (!done && !esPar(ex.name) && descargaActiva()) aplicarDescarga(ex, st);
+  if (!done && !FECHA && !esPar(ex.name) && descargaActiva()) aplicarDescarga(ex, st);
   return st;
 }
 function superserie() { const s = LS.get('gym_super_' + diaReg(), null); return s && s.length === 2 ? s : null; }
@@ -1018,7 +1019,7 @@ function ordenGrupo(g) {
   // Con la ruta de hoy aceptada, sus ejercicios van primero (y "siguiente" los sigue en ese orden)
   const ruta = rutaAceptada(g);
   if (!ruta) return secs;
-  const enRuta = ruta.map(x => exDe(x.name)).filter(Boolean);
+  const enRuta = pon(ruta.map(x => exDe(x.name)).filter(Boolean));
   return [enRuta].concat(secs.map(l => l.filter(e => !enRuta.includes(e))));
 }
 // "4×12 con 22.5" si todas las series son iguales; "85: 10, 10, 9, 8" si solo cambia la repetición
@@ -1219,7 +1220,7 @@ function tarjetaEjercicio(ex) {
   let h = '<div class="ex' + (abierto ? ' open' : '') + (st.done ? ' done' : '') + (enCurso ? ' prog' : '') + '" id="ex-' + esc(ex.name) + '" style="view-transition-name:ex' + DATA.exercises.indexOf(ex) + '">' +
     '<div class="ex-head" onclick="abrir(\'' + n + '\')"><div class="ex-ico">' + ico + '</div>' +
     '<div style="flex:1;min-width:0"><div class="ex-name">' + esc(ex.ejercicio) + botonTecnica(ex) + (par && !st.done ? '<span class="sstag">Superserie</span>' : '') + '</div><div class="ex-meta">' + badgeMod(ex) + meta + '</div></div>' +
-    (ex.up && !st.done && (esPar(ex.name) || !descargaActiva()) ? '<span class="pill acc">' + ICO.up + 'Sube</span>' : '') +
+    (ex.up && !st.done && (FECHA || esPar(ex.name) || !descargaActiva()) ? '<span class="pill acc">' + ICO.up + 'Sube</span>' : '') +
     (abierto ? '<button class="swapbtn" onclick="event.stopPropagation();elegirCambio(\'' + n + '\')" aria-label="Máquina ocupada: cambiar ejercicio">⇄</button>' +
       '<button class="menubtn" onclick="event.stopPropagation();menuEjercicio(\'' + n + '\')" aria-label="Más opciones">⋮</button>' : '') + '</div>';
   if (st.done && OPEN === ex.name) {
@@ -1364,7 +1365,7 @@ function planHoy() { return GRUPOS3.includes(GRUPO) ? LS.get(clavePlan(), null) 
 function planAplica() { return !!(DATA && DATA.ia && !FECHA && GRUPOS3.includes(GRUPO) && ajuste('iaPlan', true)); }
 async function pedirPlan() {
   if (!planAplica() || PLAN_CARGANDO || planHoy() || PLAN_FALLO[clavePlan()] || !navigator.onLine || pideReady()) return;
-  const exs = (ordenGrupo(GRUPO).find(x => x.length) || []).filter(e => (!state[e.name] || !state[e.name].done) && (parOn() || !esDeOtro(e)));
+  const exs = (recomendadosHoy(GRUPO).length ? recomendadosHoy(GRUPO) : ordenGrupo(GRUPO).find(x => x.length) || []).filter(e => (!state[e.name] || !state[e.name].done) && (parOn() || !esDeOtro(e)));
   if (!exs.length) return;
   const g = GRUPO, k = clavePlan();
   PLAN_CARGANDO = true;
@@ -1502,7 +1503,7 @@ function cuerpoEjercicio(ex, st) {
   const pesoAnt = trabAnt.length ? Math.max.apply(null, trabAnt.map(a => Number(a.w) || 0)) : null;
   const meta = !esPar(ex.name) && planHoy() ? (planHoy().ej || {})[ex.name] : null;
   if (meta) h += '<div class="tip plan">🎯 ' + esc(meta) + '</div>';
-  else if (ex.up && !esPar(ex.name) && descargaActiva()) h += '<div class="tip">Semana de descarga: estas series ya vienen con −10 % y la mitad. Sin llegar al fallo.</div>';
+  else if (ex.up && !FECHA && !esPar(ex.name) && descargaActiva()) h += '<div class="tip">Semana de descarga: estas series ya vienen con −10 % y la mitad. Sin llegar al fallo.</div>';
   else if (ex.up) h += '<div class="tip acc">' + ICO.up + esc(ex.hint) + '</div>';
   else if (ex.hint && /al fallo/.test(ex.hint)) h += '<div class="tip">' + esc(ex.hint) + '</div>';
   else if (ex.sugerido && (pesoAnt === null || ex.sugerido.w > pesoAnt)) h += '<div class="sug">Sugerido hoy: ' + ex.sugerido.w + ' ' + ex.unit + ' × ' + ex.sugerido.r + ' (RPE 8)' +
@@ -1635,7 +1636,7 @@ function setRir(name, v) {
   st.rir = s.e;
   // Con todas las series hechas, elegir el esfuerzo es el último paso: guarda y pasa al siguiente
   if (s.e && st.sets.every(x => x.ok) && !st.done) { cambio(name, false); return setTimeout(() => guardar(name, true), 250); }
-  if (!s.e && s.t !== 'C') decidirSerie(name, k);
+  if (s.t !== 'C') decidirSerie(name, k);
   cambio(name);
   if (s.e && s.t !== 'C') { clearTimeout(IA_TIMER[name]); consejoIA(name, k); }
   // En pareja ya no se cambia de pestaña solo: el otro puede estar en otro ejercicio o no hacer este
@@ -1767,6 +1768,8 @@ function usarCambio(name) {
   toast((quien === 'yo' ? 'Solo tú: ' : 'Cambiado: ') + exDe(name).ejercicio);
 }
 
+// Lo que toca hoy en un grupo: la ruta aceptada (si hay) y lo recomendado con lo añadido desde el mapa
+const recomendadosHoy = g => ordenGrupo(g).slice(0, rutaAceptada(g) ? 2 : 1).flat();
 /* ----- Mismo ejercicio, otro equipo (Catálogo V "Variante de"): barra ⇄ mancuerna ⇄ máquina ----- */
 function variantesDe(name) {
   const ex = exDe(name);
@@ -1781,7 +1784,7 @@ function cambiosHoy() {
 }
 const originalDe = name => Object.keys(cambiosHoy()).find(k => cambiosHoy()[k] === name) || '';
 function elegirVariante(de, a) {
-  const ex = exDe(de), v = exDe(a), enRutina = ex.bloque === 'A' || ex.bloque === 'B';
+  const ex = exDe(originalDe(de) || de), v = exDe(a), enRutina = ex.bloque === 'A' || ex.bloque === 'B';
   if (parOn()) { CAMBIO = { de: de, quien: CAMBIO.quien }; return usarCambio(a); }   // en pareja: el cambio de siempre (los dos, solo yo o solo él)
   $('sheet').innerHTML = '<div class="t2">' + esc(v.ejercicio) + '</div><div class="muted" style="margin:4px 0 12px">En lugar de ' + esc(ex.ejercicio) +
     '. ' + esc(MOTOR.comoAnotar(v).texto) + '.</div><div class="menu">' +
@@ -1794,13 +1797,17 @@ function usarVariante(de, a, siempre) {
   cerrarModal();
   const st = state[de];
   if (st && st.sets.some(s => s.ok)) { CAMBIO = { de: de, quien: 'ambos' }; return usarCambio(a); }   // ya empezaste: solo te lleva al otro
-  const c = cambiosHoy(); delete c[a]; c[de] = a; LS.set('gym_cambio_' + hoy(), c);
+  // Siempre se cambia desde el original (si hoy ya lo habías cambiado por otra variante)
+  const raiz = originalDe(de) || de, c = cambiosHoy();
+  delete c[raiz]; delete c[de]; delete c[a];
   if (siempre) {
-    const ex = exDe(de), v = exDe(a), b = ex.bloque;
+    // El bloque pasa a la variante: aparece sola en tu rutina, sin cambio "de hoy"
+    const ex = exDe(raiz), v = exDe(a), b = ex.bloque;
     ex.bloque = v.bloque; v.bloque = b;
     LS.set('gym_data', DATA);
-    encolar('cambiarVariante', [de, a], 'var-' + de);
-  }
+    encolar('cambiarVariante', [raiz, a], 'var-' + raiz);
+  } else if (a !== raiz) c[raiz] = a;
+  LS.set('gym_cambio_' + hoy(), c);
   BUSCA = ''; OPEN = a; ANIM_ABRE = a; hap('ok');
   pintarEntrenar(); irA(a);
   toast((siempre ? 'En tu rutina: ' : 'Solo hoy: ') + exDe(a).ejercicio);
@@ -1987,7 +1994,7 @@ function motorSerie(name, i) {
     peso: Number(s.w) || 0, reps: Number(s.r), rir: s.e ? RIR_DE[s.e] : null, min: ex.min, max: ex.max,
     paso: pasoEj(ex, st), unidad: st.unit, mult: ex.mult, barra: ex.barra, inc: ex.inc, modalidad: ex.modalidad, sinPeso: ex.sinPeso,
     corpKg: (esPar(name) && PAR && PAR.data ? PAR.data.ultimoPeso : DATA.ultimoPeso) || 72, ultima: pend.length === 1,
-    recMala: !!(rec && (rec.sueno === 'Mal' || rec.energia === 'Baja')), sinSubir: !!DATA.descargaCarrera || (!esPar(name) && descargaActiva()), caida: ex.caida
+    recMala: !!(rec && (rec.sueno === 'Mal' || rec.energia === 'Baja')), sinSubir: !!DATA.descargaCarrera || (!FECHA && !esPar(name) && descargaActiva()), caida: ex.caida
   });
   if (!m || m.pideRir) return m;
   const op = m.opciones.find(o => o.id === m.eleccion);
@@ -3308,6 +3315,7 @@ function anadirHoy(name, n) {
   // Si te recomendó menos series que las del catálogo, la tarjeta ya viene con esas
   if (st && !st.done && !st.edited && n && st.sets.filter(s => s.t !== 'C').length > n) {
     let quedan = n; st.sets = st.sets.filter(s => s.t === 'C' || quedan-- > 0);
+    cambio(name, false);
   }
   cerrarModal(); hap('ok');
   BUSCA = ''; OPEN = name; ANIM_ABRE = name;
@@ -3329,7 +3337,7 @@ function irAEjercicio(name) {
 }
 // Qué hacer para una zona: lo que ya tienes hoy y los mejores ejercicios para añadir
 function opcionesZona(m) {
-  const z = zonasVivas(), hoyEx = (GRUPO && GRUPO !== 'Trote' ? (ordenGrupo(GRUPO)[0] || []) : []).map(e => e.name);
+  const z = zonasVivas(), hoyEx = (GRUPO && GRUPO !== 'Trote' ? recomendadosHoy(GRUPO) : []).map(e => e.name);
   const peso = e => ((e.zonas || []).find(x => x.z === m) || {}).w || 0;
   let cands = DATA.exercises.filter(e => peso(e) > 0 && !/^Otro ejercicio/.test(e.ejercicio));
   const directos = cands.filter(e => peso(e) >= 1);
@@ -3511,7 +3519,7 @@ function seguirRuta() {
   // Cada ejercicio de la ruta viene con las series que te recomendó (mínimo 3)
   r.items.forEach(x => {
     const st = state[x.name];
-    if (st && !st.done && !st.edited && st.sets.filter(y => y.t !== 'C').length > x.n) { let q = x.n; st.sets = st.sets.filter(y => y.t === 'C' || q-- > 0); }
+    if (st && !st.done && !st.edited && st.sets.filter(y => y.t !== 'C').length > x.n) { let q = x.n; st.sets = st.sets.filter(y => y.t === 'C' || q-- > 0); cambio(x.name, false); }
   });
   OPEN = r.items[0].name; ANIM_ABRE = OPEN; hap('ok');
   pintarEntrenar(); irA(OPEN);
@@ -3659,7 +3667,7 @@ function pintarMusculos() {
   const zh = zonasHoy(), total = Object.values(zh).reduce((a, b) => a + b, 0);
   const col = ['var(--muted)', 'var(--acc)', 'var(--ok)', 'var(--bad)'];
   // Zonas que trabaja directo la rutina de hoy (lo recomendado + lo que añadiste desde el mapa)
-  const rutina = ordenGrupo(g)[0] || [], deHoy = [];
+  const rutina = recomendadosHoy(g), deHoy = [];
   rutina.forEach(e => (e.zonas || []).forEach(x => { if (x.w >= 1 && !deHoy.includes(x.z)) deHoy.push(x.z); }));
   const faltan = deHoy.filter(m => (zh[m] || 0) < metaHoy(m)), listas = ZONAS.filter(m => zonaHoyZ(zh[m] || 0, m) >= 2);
   const barra = m => '<span class="zbar w"><i style="width:' + Math.min(100, Math.round((zh[m] || 0) / metaHoy(m) * 100)) + '%;background:' + col[zonaHoyZ(zh[m] || 0, m)] + '"></i></span>';
