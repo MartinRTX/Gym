@@ -81,8 +81,11 @@ jobs:
           "$BT/zipalign" -p -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk alineado.apk
           "$BT/apksigner" sign --ks gym.jks --ks-key-alias gym --ks-pass env:KS_PASS --key-pass env:KS_PASS --out Gym.apk alineado.apk
           "$BT/apksigner" verify Gym.apk
-          "$BT/apksigner" verify --print-certs Gym.apk | grep -i "SHA-256" || true
           rm -f gym.jks
+          # La misma firma de siempre: si cambiara, Android no dejaría instalar encima (habría que desinstalar)
+          CERT=$("$BT/apksigner" verify --print-certs Gym.apk | grep -m1 "SHA-256 digest" | awk '{print $NF}')
+          echo "Certificado: $CERT"
+          if [ "$CERT" != "0c4ca3eb0e1e8e8f0a00f3be174033c7a8572dbed4871b5a121d3a044ca868a6" ]; then echo "La firma NO es la de siempre"; exit 1; fi
 
       - name: Revisar permisos (Health Connect solo lectura de pasos, distancia, sueño y ejercicio)
         run: |
