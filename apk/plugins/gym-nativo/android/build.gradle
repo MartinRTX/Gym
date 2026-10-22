@@ -1,4 +1,4 @@
-// Plugin nativo de la app Gym (widgets y accesos directos). Lo incluye Capacitor al sincronizar.
+// Plugin nativo de la app Gym (widgets, accesos directos y aviso de pasos). Lo incluye Capacitor al sincronizar.
 ext {
     androidxAppCompatVersion = project.hasProperty('androidxAppCompatVersion') ? rootProject.ext.androidxAppCompatVersion : '1.7.1'
 }
@@ -10,10 +10,12 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.21'
     }
 }
 
 apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
 
 android {
     namespace = "com.martinrtx.gym.nativo"
@@ -34,6 +36,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
     }
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_21.toString()
+    }
 }
 
 repositories {
@@ -45,4 +50,8 @@ dependencies {
     implementation project(':capacitor-android')
     // Plugin.getActivity() devuelve AppCompatActivity: hace falta para compilar
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    // Aviso de pasos: lee Health Connect en segundo plano (mismas versiones que @capgo/capacitor-health)
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.4.21'
+    implementation 'androidx.health.connect:connect-client:1.1.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0'
 }

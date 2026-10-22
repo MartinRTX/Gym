@@ -6,15 +6,18 @@ import android.content.pm.ShortcutInfo;
 import android.content.pm.ShortcutManager;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
+import androidx.activity.result.ActivityResult;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import java.util.ArrayList;
 import java.util.List;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 /**
  * Puente entre la app y lo nativo:
@@ -22,6 +25,8 @@ import org.json.JSONException;
  *  - tomarCola: comidas que agregaste desde el widget de proteína (la app las suma y las sube a la hoja).
  *  - consumirAccion: si la app se abrió desde un widget o un acceso directo (gymmb://accion/…), qué sección abrir.
  *  - Accesos directos del ícono (mantener presionado): Registrar peso, Añadir comida, Empezar entrenamiento.
+ *  - Health Connect (solo lectura): permisos, lectura de pasos/sueño/carreras y el estado para el diagnóstico.
+ *  - configurarPasos: el aviso de las 5 pm si vas atrasado en pasos.
  */
 @CapacitorPlugin(name = "GymNativo")
 public class GymNativoPlugin extends Plugin {
@@ -32,6 +37,7 @@ public class GymNativoPlugin extends Plugin {
     public void load() {
         if (getActivity() != null) tomarDeIntent(getActivity().getIntent());
         ponerAccesos(getContext());
+        PasosAviso.programar(getContext());
     }
 
     @Override
@@ -82,6 +88,60 @@ public class GymNativoPlugin extends Plugin {
         }
         Widgets.actualizarTodos(getContext());
         call.resolve(ret);
+    }
+
+    /** Diagnóstico: versión del APK, Health Connect, widgets puestos y aviso de pasos. */
+    @PluginMethod
+    public void estado(PluginCall call) {
+        SaludNativa.estado(getContext(), r -> responder(call, r));
+    }
+
+    /** Pasos por día, sueño por noche y carreras (con distancia) de los últimos días. */
+    @PluginMethod
+    public void leerSalud(PluginCall call) {
+        SaludNativa.leer(getContext(), call.getInt("dias", 7), r -> responder(call, r));
+    }
+
+    /** Abre la pantalla de permisos de Health Connect (con "en segundo plano" si se pide). */
+    @PluginMethod
+    public void conectarSalud(PluginCall call) {
+        Intent i = SaludNativa.intentPermisos(getContext(), Boolean.TRUE.equals(call.getBoolean("fondo", false)));
+        if (i == null) {
+            SaludNativa.estado(getContext(), r -> responder(call, r));
+            return;
+        }
+        try {
+            startActivityForResult(call, i, "permisosListos");
+        } catch (Exception e) {
+            call.reject("No se pudo abrir Health Connect");
+        }
+    }
+
+    @ActivityCallback
+    private void permisosListos(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+        SaludNativa.estado(getContext(), r -> responder(call, r));
+    }
+
+    @PluginMethod
+    public void configurarPasos(PluginCall call) {
+        PasosAviso.configurar(
+            getContext(),
+            Boolean.TRUE.equals(call.getBoolean("activo", false)),
+            call.getInt("meta", 7000),
+            call.getInt("hora", 17),
+            call.getInt("minuto", 0),
+            Boolean.TRUE.equals(call.getBoolean("laborales", true))
+        );
+        SaludNativa.estado(getContext(), r -> responder(call, r));
+    }
+
+    private static void responder(PluginCall call, JSONObject r) {
+        try {
+            call.resolve(JSObject.fromJSONObject(r));
+        } catch (JSONException e) {
+            call.reject(e.getMessage());
+        }
     }
 
     /** Accesos directos al mantener presionado el ícono (dinámicos: aparecen después de abrir la app una vez). */

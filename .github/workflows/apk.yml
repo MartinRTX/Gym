@@ -61,7 +61,7 @@ jobs:
       - name: Número de versión (sube solo en cada compilación)
         run: |
           sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/" android/app/build.gradle
-          sed -i -E "s/versionName \"[^\"]*\"/versionName \"7.3.${{ github.run_number }}\"/" android/app/build.gradle
+          sed -i -E "s/versionName \"[^\"]*\"/versionName \"7.5.${{ github.run_number }}\"/" android/app/build.gradle
 
       - name: Sincronizar
         run: npx cap sync android
@@ -87,12 +87,12 @@ jobs:
           echo "Certificado: $CERT"
           if [ "$CERT" != "0c4ca3eb0e1e8e8f0a00f3be174033c7a8572dbed4871b5a121d3a044ca868a6" ]; then echo "La firma NO es la de siempre"; exit 1; fi
 
-      - name: Revisar permisos (Health Connect solo lectura de pasos, distancia, sueño y ejercicio)
+      - name: Revisar permisos (Health Connect solo lectura de pasos, distancia, sueño y ejercicio, también en segundo plano)
         run: |
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           SALUD=$("$BT/aapt" dump permissions Gym.apk | grep -o "android.permission.health.[A-Z0-9_]*" | sort -u || true)
           echo "$SALUD"
-          DE_MAS=$(echo "$SALUD" | grep -v -E "health\.READ_(STEPS|DISTANCE|SLEEP|EXERCISE)$" | grep . || true)
+          DE_MAS=$(echo "$SALUD" | grep -v -E "health\.READ_(STEPS|DISTANCE|SLEEP|EXERCISE|HEALTH_DATA_IN_BACKGROUND)$" | grep . || true)
           if [ -n "$DE_MAS" ]; then echo "Permisos de salud que no deben estar: $DE_MAS"; exit 1; fi
 
       - name: Guardar el APK de prueba (ramas que no son main)
