@@ -100,10 +100,13 @@
     ops.push(A);
     if (baja) ops.push(Object.assign({ id: 'B', accion: 'bajar' }, { peso: baja.peso, reps: Math.max(1, baja.reps) }));
     if (sube) ops.push({ id: 'C', accion: 'subir', peso: sube.peso, reps: sube.reps });
-    else if (predMismo > max) ops.push({ id: 'C', accion: 'mas_reps', peso: w, reps: predMismo });
+    // Pasarte del rango solo si el peso de arriba es mucho salto; después de un fallo o en descarga, no
+    else if (predMismo > max && !fallo && !p.sinSubir) ops.push({ id: 'C', accion: 'mas_reps', peso: w, reps: predMismo });
     const B = ops.find(o => o.id === 'B'), C = ops.find(o => o.id === 'C');
 
-    const conArriba = predArriba !== null ? 'Con ' + nombre(arriba1) + ' te saldrían ~' + predArriba + ', abajo de ' + min + '.' : '';
+    const conArriba = predArriba === null ? ''
+      : predArriba < min ? 'Con ' + nombre(arriba1) + ' te saldrían ~' + predArriba + ', abajo de ' + min + '.'
+      : fallo ? 'Con ' + nombre(arriba1) + ' te saldrían ~' + predArriba + ', pero después de un fallo mejor mantén.' : '';
     // Si para subir necesitarías pasarte del rango, mejor subir solo la primera serie cuando llegues al tope
     const meta = !faltan ? '' : faltan.reps <= max + 2 ? ' Sube cuando saques ' + faltan.reps + ' con ' + w + ' (te faltan ' + faltan.faltan + ').'
       : ' Al llegar a ' + max + ' con ' + w + ', prueba ' + arriba1 + ' solo en la primera serie.';
@@ -221,9 +224,14 @@
       return { accion: 'mas_reps', base: w, peso: w, reps: max, objetivo: obj,
         mensaje: hiciste + ': ' + arriba + ' es un salto grande (+' + salto(arriba) + '\u00a0%). Haz la 1.ª serie con ' + arriba + ' y las demás con ' + w + '; cuando salgan ' + min + ' con ' + arriba + ', sube todas.' };
     }
+    // Ya no hay a dónde subir en este equipo (asistida en 0, o no hay más peso): más reps o la versión sin máquina
+    if (quiere) return { accion: 'mas_reps', base: w, peso: w, reps: max, objetivo: iguales(w, max),
+      mensaje: hiciste + ': ' + (inv ? 'ya no hay menos asistencia en esta máquina; pasa a la versión sin asistencia o agrega una serie.'
+        : 'no hay un peso más alto en este equipo; agrega una serie o baja más lento.') };
     // MANTENER: cuánto te falta (con números) y si el salto que sigue es grande
     const f = faltanEn(dos);
-    let msg = hiciste + ': te ' + (f === 1 ? 'falta 1 rep' : 'faltan ' + f + ' reps') + ' en las 2 primeras para ' + (inv ? 'bajar la asistencia a ' : 'subir a ') + arriba + u + '.';
+    let msg = !valido(arriba) ? hiciste + ': busca 1 rep más por serie, hasta ' + max + '.'
+      : hiciste + ': te ' + (f === 1 ? 'falta 1 rep' : 'faltan ' + f + ' reps') + ' en las 2 primeras para ' + (inv ? 'bajar la asistencia a ' : 'subir a ') + arriba + u + '.';
     if (valido(arriba) && pred(arriba, L0 * (1 + (max + 1) / 30)) < min - 2) msg += ' Es un salto de +' + salto(arriba) + '\u00a0%: al llegar a ' + max + ', pruébalo solo en la 1.ª serie.';
     else if (fallo) msg += ' Deja 1 en reserva en las primeras.';
     return { accion: 'mantener', base: w, peso: w, reps: Math.min(max, dos[0] + 1), objetivo: masUna(), mensaje: msg };

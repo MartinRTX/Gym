@@ -4,11 +4,21 @@
  */
 
 /* ===================== Utilidades ===================== */
+let SIN_ESPACIO = 0;   // cuándo falló por última vez guardar en el celular por falta de espacio
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+  set(k, v) {
+    const t = JSON.stringify(v);
+    try { localStorage.setItem(k, t); return true; } catch (e) { /* sin espacio: abajo */ }
+    try { limpiarDiasViejos(21); localStorage.setItem(k, t); return true; } catch (e) { SIN_ESPACIO = Date.now(); return false; }
+  },
   del(k) { try { localStorage.removeItem(k); } catch (e) {} }
 };
+// Lo de cada día (sesión, comida, peso, borradores…) lleva la fecha en la clave; lo de hace semanas ya está en tu hoja
+function limpiarDiasViejos(dias) {
+  const corte = sumarDias(hoy(), -dias);
+  try { Object.keys(localStorage).forEach(k => { const m = /^gym_.+_(\d{4}-\d{2}-\d{2})$/.exec(k); if (m && m[1] < corte) localStorage.removeItem(k); }); } catch (e) {}
+}
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2, '0');
 function claveDia(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
@@ -20,7 +30,8 @@ const DSEM = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 function diaCorto(k) { return DSEM[new Date(k + 'T12:00:00').getDay()] + ' ' + ddmm(k); }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-function jsq(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+// Texto dentro de un string de JavaScript en onclick="…": sin comillas ni caracteres de HTML (un nombre con " no rompe el botón)
+function jsq(s) { return String(s).replace(/[\\'"<>&]/g, c => '\\x' + c.charCodeAt(0).toString(16).padStart(2, '0')); }
 function mmss(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + pad(s % 60); }
 function minutos(ms) { const m = Math.floor(ms / 60000); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + pad(m % 60) + ' min'; }
 function vibrar(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
@@ -129,6 +140,7 @@ function abrirAccion(url) {
 // Comidas que sumaste desde el widget de proteína: se agregan a su día y se suben a la hoja (cada una una sola vez)
 async function tomarColaWidget() {
   if (!NATIVO || !DATA) return;
+  asegurarProt();
   const r = await nativo('GymNativo', 'tomarCola'), items = (r && r.items) || [];
   if (!items.length) return;
   const vistos = LS.get('gym_widget_ids', []), porDia = {};
@@ -137,7 +149,7 @@ async function tomarColaWidget() {
   let g = 0;
   Object.keys(porDia).forEach(dia => {
     const enPantalla = dia === diaComida(), antes = enPantalla ? prot : cargarProt(dia), lista = antes.concat(porDia[dia].map(x => x.k));
-    if (enPantalla) prot = lista;
+    if (enPantalla) { prot = lista; PROT_DIA = dia; }
     LS.set('gym_prot_' + dia, lista);
     LS.set('gym_protmeal_' + dia, etiquetas(dia, antes.length).concat(porDia[dia].map(x => comidaPorHora(new Date(x.ts || Date.now()).getHours()))));
     porDia[dia] = porDia[dia].map(x => x.k);
@@ -152,15 +164,22 @@ const SALUD_TIPOS = ['steps', 'distance', 'sleep', 'workouts'];
 const hc = (metodo, opts) => { try { return window.Capacitor.nativePromise('Health', metodo, opts || {}).catch(() => null); } catch (e) { return Promise.resolve(null); } };
 // APK 7.5 o más nuevo: lee Health Connect con su propio código (carreras con distancia), diagnóstico y aviso de pasos
 let APK_P = null, APK_OK = null, ESTADO_N = null;
-const apkNuevo = () => (APK_P = APK_P || (NATIVO ? nativo('GymNativo', 'estado').then(e => { ESTADO_N = e && e.ok ? e : null; return (APK_OK = !!ESTADO_N); }) : Promise.resolve(false)));
+// El APK 7.5+ siempre contesta "estado" (aunque Health Connect falle un momento); el anterior no tiene ese método
+const apkNuevo = () => (APK_P = APK_P || (NATIVO ? nativo('GymNativo', 'estado').then(e => { ESTADO_N = e || null; return (APK_OK = !!e); }) : Promise.resolve(false)));
 async function conectarSalud() {
   if (await apkNuevo()) {
     // Una sola pantalla de Health Connect: los 4 permisos de lectura y "en segundo plano" (para el aviso de las 5 pm)
+    await nativo('LocalNotifications', 'requestPermissions');   // el aviso de pasos es una notificación
     const e = await nativo('GymNativo', 'conectarSalud', { fondo: true });
-    if (e && e.ok) ESTADO_N = e;
+    if (e) ESTADO_N = e;
+    if (e && e.errorHC) { toast('Health Connect no respondió: ' + String(e.errorHC).slice(0, 80)); return false; }
     if (!e || e.sdk === 'no') { toast('Health Connect no está disponible en este celular'); return false; }
     if (e.sdk === 'actualizar') { toast('Actualiza Health Connect en Play Store y vuelve a intentar'); return false; }
-    if (!(e.permisos || []).length) { toast('Sin permiso: la app sigue igual, sin Health Connect'); return false; }
+    // Si ya los negaste 2 veces, Android ya no muestra la ventana: se abre la pantalla de permisos de Gym en Health Connect
+    const abrir = { txt: 'Abrir', fn: () => nativo('GymNativo', 'abrirPermisosSalud') };
+    if (!(e.permisos || []).length) { toast('Sin permiso de Health Connect: actívalo ahí para Gym', '', abrir); return false; }
+    const NOM = { READ_STEPS: 'pasos', READ_DISTANCE: 'distancia', READ_SLEEP: 'sueño', READ_EXERCISE: 'ejercicio' };
+    if ((e.faltan || []).length) toast('Falta permiso de ' + e.faltan.map(p => NOM[p] || p).join(', ') + ' en Health Connect', '', abrir);
     return true;
   }
   const d = await hc('isAvailable');
@@ -237,8 +256,15 @@ function configurarPasos() {
   if (!NATIVO) return;
   apkNuevo().then(ok => ok && nativo('GymNativo', 'configurarPasos', { activo: ajuste('salud', false) && ajuste('avisoPasos', true), meta: META_PASOS(), hora: HORA_PASOS, minuto: 0, laborales: true }));
 }
+let NATIVO_LISTO = false, RECARGA_PENDIENTE = false;
+// Hay algo a medias en pantalla: teclado abierto, una ventana, un campo con el cursor o una sesión en curso
+function ocupado() {
+  const a = document.activeElement;
+  return $('kp').classList.contains('show') || $('modal').classList.contains('show') || (a && /^(INPUT|TEXTAREA)$/.test(a.tagName)) || sesionActiva();
+}
 function iniciarNativo() {
-  if (!NATIVO) return;
+  if (!NATIVO || NATIVO_LISTO) return;
+  NATIVO_LISTO = true;
   try { window.Capacitor.addListener('GymNativo', 'accion', () => consumirAccion()); } catch (e) { /* APK anterior: sin widgets */ }
   consumirAccion(); tomarColaWidget(); leerSalud(); configurarPasos();
   apkNuevo().then(ok => { if (ok) repintarEntrenar(); });
@@ -262,6 +288,7 @@ function vacio(v) { return v === '' || v === null || v === undefined; }
 let toastFn = null;
 // toast(mensaje, tipo, {txt, fn}) — con acción (por ejemplo "Deshacer") dura 5 segundos
 function toast(msg, tipo, accion) {
+  if (Date.now() < TOAST_FIJO && !accion) return;   // el aviso de "sin espacio" no se tapa
   const t = $('toast');
   toastFn = accion ? accion.fn : null;
   t.innerHTML = '<span>' + esc(msg) + '</span>' + (accion ? '<button onclick="usarToast()">' + esc(accion.txt) + '</button>' : '');
@@ -872,43 +899,59 @@ async function apiPost(action, args, clave) {
 }
 
 /* ===================== Cola de cambios (funciona sin señal) ===================== */
-function cola() { return LS.get('gym_queue', []); }
+let COLA_MEM = null;   // si el celular se quedó sin espacio, la cola vive aquí hasta que se sube
+function cola() { return COLA_MEM || LS.get('gym_queue', []); }
 function guardarCola(q) {
-  if (!LS.set('gym_queue', q)) toast('El celular no tiene espacio para guardar esto sin señal');
+  if (LS.set('gym_queue', q)) COLA_MEM = null;
+  else { COLA_MEM = q; avisoEspacio(); }
   pintarSync();
+}
+// Sin espacio: el aviso se queda unos segundos (que un "Guardado ✓" no lo tape) y no cierres la app hasta que suba
+let TOAST_FIJO = 0;
+function avisoEspacio() {
+  TOAST_FIJO = 0;
+  toast('Tu celular no tiene espacio para la app: esto se sube en cuanto haya señal, no la cierres', 'error');
+  TOAST_FIJO = Date.now() + 4500;
 }
 function encolar(action, args, tag, clave) {
   let q = cola();
-  if (tag) q = q.filter(op => op.tag !== tag);
-  q.push({ id: uid(), action: action, args: args, tag: tag || null, k: clave || KEY });
+  const k = clave || KEY;
+  if (tag) q = q.filter(op => !(op.tag === tag && (op.k || KEY) === k));
+  q.push({ id: uid(), action: action, args: args, tag: tag || null, k: k });
   guardarCola(q);
   clearTimeout(flushTimer); flushTimer = setTimeout(enviar, 1200);
 }
+let ENVIOS = 0;   // lotes mandados: una lectura de la hoja que se cruzó con uno se vuelve a pedir
 async function enviar() {
   const q = cola();
-  if (flushing || !q.length || !API) return;
+  if (flushing || !q.length || !API || navigator.onLine === false) return;
   flushing = true; pintarSync();
   const errores = [];
+  let fallo = false;
   try {
-    // Cada cambio se manda con la clave con la que se hizo (por si alguien cambió de cuenta en este celular)
-    const claves = [...new Set(q.map(op => op.k || KEY))];
-    const listos = new Set();
-    for (const c of claves) {
-      const ops = q.filter(op => (op.k || KEY) === c).map(op => ({ id: op.id, action: op.action, args: op.args }));
-      const res = await apiPost('batch', [ops], c);
-      res.forEach(r => {
+    // Cada cambio se manda con la clave con la que se hizo (por si alguien cambió de cuenta en este celular);
+    // una clave rechazada no frena las demás
+    for (const c of [...new Set(q.map(op => op.k || KEY))]) {
+      const deClave = q.filter(op => (op.k || KEY) === c), ids = new Set(deClave.map(op => op.id));
+      // "En camino": si los deshaces mientras tanto, además se manda el borrado
+      guardarCola(cola().map(op => ids.has(op.id) ? Object.assign(op, { enviado: true }) : op));
+      ENVIOS++;
+      let res;
+      try { res = await apiPost('batch', [deClave.map(op => ({ id: op.id, action: op.action, args: op.args }))], c); }
+      catch (e) { fallo = true; if (/Clave/.test(e.message)) toast('La clave no coincide; revisa la configuración'); continue; }
+      const listos = new Set(), intentos = {};
+      (res || []).forEach(r => {
+        if (r.ok) return listos.add(r.id);
+        const op = q.find(o => o.id === r.id);
+        // Un error pasajero de Google no borra el dato: se reintenta (3 veces en total) antes de avisarte
+        if (op && (op.intentos || 0) < 2) { intentos[r.id] = (op.intentos || 0) + 1; fallo = true; return; }
         listos.add(r.id);
-        if (!r.ok) {
-          const op = q.find(o => o.id === r.id);
-          errores.push({ que: NOMBRE_OP[op && op.action] || 'Dato', msg: String(r.error || 'Error'), cuando: hoy() });
-        }
+        errores.push({ que: NOMBRE_OP[op && op.action] || 'Dato', msg: String(r.error || 'Error'), cuando: hoy() });
       });
+      guardarCola(cola().filter(op => !listos.has(op.id)).map(op => intentos[op.id] ? Object.assign(op, { intentos: intentos[op.id] }) : op));
     }
-    guardarCola(cola().filter(op => !listos.has(op.id)));
-  } catch (e) {
-    if (/Clave/.test(e.message)) toast('La clave no coincide; revisa la configuración');
-    clearTimeout(flushTimer); flushTimer = setTimeout(enviar, 20000);
   } finally { flushing = false; pintarSync(); }
+  if (fallo) { clearTimeout(flushTimer); flushTimer = setTimeout(enviar, 20000); }
   if (errores.length) {
     // El aviso se queda arriba en Entrenar hasta que tocas "Entendido"
     LS.set('gym_errores', LS.get('gym_errores', []).concat(errores).slice(-10));
@@ -920,7 +963,7 @@ function pintarSync() {
   const n = cola().length, el = $('sync');
   if (!el) return;
   if (flushing) { el.className = 'sync'; el.textContent = 'Subiendo…'; }
-  else if (n) { el.className = 'sync pend'; el.textContent = n + ' sin subir' + (navigator.onLine ? '' : ' · sin señal'); }
+  else if (n) { el.className = 'sync pend'; el.textContent = n + ' sin subir' + (navigator.onLine ? '' : ' · sin señal') + (COLA_MEM ? ' · sin espacio' : ''); }
   else { el.className = 'sync ok'; el.textContent = '✓ Al día'; }
 }
 function avisoErrores() {
@@ -936,40 +979,48 @@ function avisoErrores() {
 /* ===================== Arranque ===================== */
 function arrancar() {
   const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72 + CSS_V75; document.head.appendChild(st);
-  const p = new URLSearchParams(location.search);
-  if (p.get('api') && p.get('k')) {
-    const nuevaClave = p.get('k').trim();
-    if (KEY && nuevaClave !== KEY) {
-      // Otra persona en este celular: borra lo guardado de la cuenta anterior (los pendientes se suben con su clave)
-      Object.keys(localStorage).filter(k => /^gym_(data|ses_|wip_|prot_|protmeal_|food_meal|salud|peso_|cint_|super_|fotos|tipcount|errores|medallas|ayer_no_|food_counts)/.test(k)).forEach(k => LS.del(k));
+  // Link de configuración: ?api=…&k=… o #api=…&k=… (también acepta key=)
+  const p = new URLSearchParams(location.search), ph = new URLSearchParams(location.hash.slice(1));
+  const linkApi = (p.get('api') || ph.get('api') || '').trim(), linkKey = (p.get('k') || p.get('key') || ph.get('k') || ph.get('key') || '').trim();
+  if (linkApi && linkKey) {
+    // Solo un script de Google (script.google.com/macros/s/…/exec); si ya hay otra cuenta en este celular, se pregunta
+    const valido = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(linkApi);
+    const cambia = KEY && (linkKey !== KEY || linkApi !== API);
+    if (!valido) toast('Ese link de configuración no es válido');
+    else if (!cambia || confirm('Este link cambia la cuenta de la app en este celular. Lo que no se haya subido se sube con la cuenta anterior. ¿Continuar?')) {
+      if (cambia) cambiarDeCuenta();
+      API = linkApi; KEY = linkKey;
+      LS.set('gym_api', API); LS.set('gym_key', KEY);
+      toast('App configurada ✓');
     }
-    API = p.get('api').trim(); KEY = nuevaClave;
-    LS.set('gym_api', API); LS.set('gym_key', KEY);
-    toast('App configurada ✓');
   }
   const g = p.get('g');
   if (g) { GRUPO = g; OPEN = null; GRUPO_MANUAL = true; GRUPO_DIA = hoy(); }
-  if (p.toString()) history.replaceState(null, '', location.pathname);
+  if (p.toString() || location.hash) history.replaceState(null, '', location.pathname);
   ponerGuardia();
   if ('serviceWorker' in navigator) {
     const teniaVersion = !!navigator.serviceWorker.controller;
     let recargada = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (teniaVersion && !recargada) { recargada = true; location.reload(); }
+      if (!teniaVersion || recargada) return;
+      recargada = true;
+      if (ocupado()) RECARGA_PENDIENTE = true; else location.reload();
     });
     navigator.serviceWorker.register('sw.js').then(reg => reg.update()).catch(() => {});
   }
   if (!API || !KEY) { $('loading').classList.add('hide'); $('setup').classList.remove('hide'); return; }
 
+  limpiarDiasViejos(60);
   DATA = LS.get('gym_data', null);
   if (DATA) { pintarTodo(); iniciarNativo(); }
   actualizar();
   enviar();
-  window.addEventListener('online', () => { pintarSync(); enviar(); actualizar(); });
+  window.addEventListener('online', () => { pintarSync(); enviar(); refrescar(); });
   window.addEventListener('offline', pintarSync);
   document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && RECARGA_PENDIENTE) return location.reload();   // la versión nueva, al salir de la app
     if (document.visibilityState === 'visible') {
-      enviar(); actualizar(); tickRest();
+      revisarDia(); enviar(); refrescar(); tickRest();
       if (NATIVO && DATA) { consumirAccion(); tomarColaWidget(); leerSalud(); }
       if (sesionActiva()) pedirPantalla();
     }
@@ -981,28 +1032,47 @@ function arrancar() {
   if (sesionActiva()) pedirPantalla();
 }
 const VERSION_APP = 'v7.5';
-// Tu link de configuración (lleva tu clave): para configurar el APK sin escribir nada
+let ULT_LECTURA = 0;
+// Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
+function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
+// Otra persona en este celular: se borra todo lo de la cuenta anterior menos la cola (sus pendientes se suben con su clave)
+function cambiarDeCuenta() {
+  Object.keys(localStorage).filter(k => /^gym_/.test(k) && !['gym_queue', 'gym_api', 'gym_key'].includes(k)).forEach(k => LS.del(k));
+  if (NATIVO) nativo('GymNativo', 'tomarCola').then(r => {   // las comidas del widget eran de la otra cuenta
+    const ids = ((r && r.items) || []).map(x => x.id).filter(Boolean);
+    if (ids.length) nativo('GymNativo', 'confirmarCola', { ids: ids });
+  });
+}
+// Tu link de configuración (lleva tu clave): para configurar el APK sin escribir nada. Va después de "#": no llega a ningún servidor
 function copiarLinkConfig() {
-  const link = location.origin + location.pathname + '?api=' + encodeURIComponent(API) + '&key=' + encodeURIComponent(KEY);
+  const link = location.origin + location.pathname + '#api=' + encodeURIComponent(API) + '&k=' + encodeURIComponent(KEY);
   (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => toast('Link copiado: pégalo en la app (no lo compartas)'),
     () => toast('No pude copiar; tu link: ' + link.slice(0, 60) + '…'));
 }
 function guardarConfig() {
   // Si pegas el link completo (…?api=…&key=…) en la casilla de la URL, se toman los dos datos de ahí
   const pegado = $('cfgApi').value.trim();
-  if (/[?&]api=/.test(pegado)) {
-    try { const u = new URL(pegado); $('cfgApi').value = u.searchParams.get('api') || ''; $('cfgKey').value = u.searchParams.get('key') || $('cfgKey').value; } catch (e) {}
+  if (/[?&#]api=/.test(pegado)) {
+    try {
+      const u = new URL(pegado), q = new URLSearchParams(u.search.slice(1) + '&' + u.hash.slice(1));
+      $('cfgApi').value = q.get('api') || ''; $('cfgKey').value = q.get('k') || q.get('key') || $('cfgKey').value;
+    } catch (e) {}
   }
   const a = $('cfgApi').value.trim(), k = $('cfgKey').value.trim();
   if (!/^https:\/\/script\.google\.com\//.test(a) || !k) return toast('Revisa la URL y la clave');
   LS.set('gym_api', a); LS.set('gym_key', k);
   location.reload();
 }
-async function actualizar() {
+async function actualizar(intento) {
   try {
-    const d = await apiGet('data');
+    for (let i = 0; flushing && i < 60; i++) await new Promise(r => setTimeout(r, 250));
+    const n0 = ENVIOS, d = await apiGet('data');
+    if (ENVIOS !== n0 && (intento || 0) < 2) return actualizar((intento || 0) + 1);
+    ULT_LECTURA = Date.now();
+    const igual = DATA && JSON.stringify(d) === JSON.stringify(DATA);
     DATA = d; LS.set('gym_data', d);
-    pintarTodo();
+    if (!igual || DIA_PINTADO !== hoy()) pintarTodo();   // si no cambió nada, no se borra lo que estés escribiendo
+    if (!NATIVO_LISTO) iniciarNativo();                   // primera vez en este celular (sin datos guardados)
     precargarMedia();
     if (DATA.perfil === false && !LS.get('gym_bienvenida', false)) abrirBienvenida();
     else revisarMedallas();
@@ -1170,7 +1240,10 @@ function nuevoEstado(ex, done, id) {
 function superserie() { const s = LS.get('gym_super_' + diaReg(), null); return s && s.length === 2 ? s : null; }
 function companero(name) { const s = superserie(); return s && s.includes(name) ? s.find(x => x !== name) : null; }
 
+let DIA_PINTADO = null;
+function revisarDia() { if (DATA && DIA_PINTADO && DIA_PINTADO !== hoy()) { pintarTodo(); return true; } return false; }
 function pintarTodo() {
+  DIA_PINTADO = hoy();
   const pend = cola(), w = wip(), viejo = state, dia = diaReg();
   aplicarProgresion(DATA.exercises, DATA.ultimoPeso);
   state = {};
@@ -1185,7 +1258,7 @@ function pintarTodo() {
   } else if (!GRUPO) GRUPO = DATA.sugGrupo;
   if (OPEN === null || (OPEN && !exDe(OPEN))) OPEN = siguiente(GRUPO, '');
   if (COMIDA_DIA && COMIDA_DIA !== sumarDias(hoy(), -1)) COMIDA_DIA = null;   // pasó la medianoche
-  prot = cargarProt(diaComida());
+  usarProt(diaComida());
   asegurarTabCoach();
   $('brand').innerHTML = 'GYM <span>' + (DATA.dueno ? 'MB' : esc((DATA.nombre || '').toUpperCase())) + '</span>';
   document.title = 'Gym' + (DATA.nombre ? ' ' + DATA.nombre : '');
@@ -1202,6 +1275,10 @@ function grupoDeHoy() {
   return DATA.ultimoGrupoFecha === hoy() ? DATA.ultimoGrupo : GRUPOS3[(GRUPOS3.indexOf(DATA.ultimoGrupo) + 1) % 3];
 }
 // Lo que comiste un día: primero lo guardado en el celular, luego lo que tiene la hoja
+// La lista de comida en pantalla y de qué día es (si la app se quedó abierta de noche, se recarga antes de tocarla)
+let PROT_DIA = null;
+function usarProt(dia) { prot = cargarProt(dia); PROT_DIA = dia; }
+function asegurarProt() { if (PROT_DIA !== diaComida()) usarProt(diaComida()); }
 function cargarProt(dia) {
   const local = LS.get('gym_prot_' + dia, null);
   if (local) return local;
@@ -1222,11 +1299,11 @@ function pesoDe(dia) {
 function pintarFecha() {
   const p = pesoDe(hoy());
   $('fecha').innerHTML = esc(fresco() ? DATA.today : 'Sin conexión') + ' · ' + ((DATA.dias || [1, 2, 3, 4, 5]).includes(new Date().getDay()) ? 'hoy toca ' : 'próximo: ') + esc(DATA.sugGrupo) +
-    ' (' + DATA.bloquePara[DATA.sugGrupo] + ')' + (p !== null ? ' · <button class="link" style="font-size:inherit;font-weight:600" onclick="PESO_TMP=' + p + ';tecladoPeso()" aria-label="Corregir peso de hoy">' + p + ' kg ✓</button>' : '');
+    ' (' + DATA.bloquePara[DATA.sugGrupo] + ')' + (p !== null ? ' · <button class="link" style="font-size:inherit;font-weight:600" onclick="PESO_TMP=' + p + ';tecladoPeso(hoy())" aria-label="Corregir peso de hoy">' + p + ' kg ✓</button>' : '');
 }
 
 function verTab(t) {
-  if (t !== 'Comida' && COMIDA_DIA) { COMIDA_DIA = null; prot = cargarProt(hoy()); }
+  if (t !== 'Comida' && COMIDA_DIA) { COMIDA_DIA = null; usarProt(hoy()); }
   TAB = t;
   document.body.dataset.tab = t;
   ['Entrenar', 'Comida', 'Progreso', 'Musculos', 'Coach'].forEach(x => {
@@ -1237,7 +1314,7 @@ function verTab(t) {
   window.scrollTo(0, 0);
   if (!LS.get('gym_rest', null)) ocultarRest();
   pintarTab();
-  if (t === 'Progreso') enviar().then(actualizar);
+  if (t === 'Progreso') enviar().then(refrescar);
 }
 function pintarTab() {
   if (TAB === 'Entrenar') pintarEntrenar();
@@ -1266,6 +1343,12 @@ function ordenGrupo(g) {
   const enRuta = pon(ruta.map(x => exDe(x.name)).filter(Boolean));
   return [enRuta].concat(secs.map(l => l.filter(e => !enRuta.includes(e))));
 }
+// La unidad que va después: segundos en la plancha, nada si no hay peso, "lb por lado" en barra y discos
+function unidadSets(l) {
+  const ex = exDe(l.name), sinPeso = (l.sets || []).every(s => s.t === 'C' || !Number(s.w));
+  if (sinPeso) return ex && ex.sinPeso && ex.min >= 20 ? ' s' : '';
+  return ' ' + l.unit + (ex && ex.mult === 2 ? ' por lado' : '');
+}
 // "4×12 con 22.5" si todas las series son iguales; "85: 10, 10, 9, 8" si solo cambia la repetición
 function resumenSets(sets) {
   const t = (sets || []).filter(s => s.t !== 'C');
@@ -1291,7 +1374,7 @@ function pintarEntrenar() {
   h += avisoErrores();
   if (!FECHA && DATA.descargaCarrera) h += '<div class="aviso">' + ICO.flame + '<span>Semana de carrera: descarga. Mitad de series con el mismo peso (ya viene así). Legs a más tardar el lunes; el viernes descansas.</span></div>';
   else if (!FECHA && descargaActiva()) h += '<div class="aviso">' + ICO.flame + '<span>Descarga adelantada hasta el ' + diaCorto(LS.get('gym_descarga', {}).hasta) +
-    ': mitad de series y −10 % de peso, sin llegar al fallo. <button class="link" onclick="terminarDescarga()">Terminarla</button></span></div>';
+    ': mitad de series y ~10 % menos carga que la vez pasada, sin llegar al fallo. <button class="link" onclick="terminarDescarga()">Terminarla</button></span></div>';
   else if (!FECHA && !activa) h += tarjetaDescarga();
   if (!FECHA && !activa) h += tarjetaPostCarrera() + tarjetaProt6() + tarjetaPasos() + tarjetaPermisoFondo();
   const diasSin = DATA.ultimoGrupoFecha ? difDias(DATA.ultimoGrupoFecha, hoy()) - 1 : 0;
@@ -1301,19 +1384,19 @@ function pintarEntrenar() {
   else if (!FECHA && new Date().getDay() === 0 && !activa) h += tarjetaCintura();
   if (!FECHA && !activa) h += tarjetaAyer();               // después del peso: en la mañana lo primero es pesarte
   h += '<input class="buscar" id="buscar" type="search" placeholder="Buscar ejercicio…" value="' + esc(BUSCA) + '" oninput="buscar(this.value)">';
+  const corte = h.length;   // de aquí para abajo es lo que cambia al buscar
   if (BUSCA) {
     const q = BUSCA.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const res = DATA.exercises.filter(ex => (ex.ejercicio + ' ' + ex.musculo).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
     h += '<h2>' + res.length + ' resultado' + (res.length === 1 ? '' : 's') + '</h2>' + res.map(tarjetaEjercicio).join('');
-    $('vEntrenar').innerHTML = h;
-    return;
+    return ponerEntrenar(h, corte);
   }
   const comp = parejaDisponible();
   if (comp && !FECHA) h += '<button class="parbtn' + (parejaHoy() ? ' on' : '') + '" onclick="alternarPareja()"><span>👥 ' +
     (parejaHoy() ? 'Entrenando con ' + esc(comp.nombre) + (PAR && !PAR.exs ? ' · cargando…' : '') : '¿Entrenas con ' + esc(comp.nombre) + ' hoy?') + '</span><span class="sw"></span></button>';
   h += '<div class="chips">' + DATA.chips.concat(['Trote']).map(g => '<button class="chip r-' + g + (g === GRUPO ? ' on' : '') + '" onclick="elegirGrupo(\'' + g + '\')">' +
     (g === 'Trote' ? ICO.flame : '') + g + (g === DATA.sugGrupo ? '<span class="dot"></span>' : '') + '</button>').join('') + '</div>';
-  if (GRUPO === 'Trote') { $('vEntrenar').innerHTML = h + vistaTrote() + pieFecha(); return; }
+  if (GRUPO === 'Trote') return ponerEntrenar(h + vistaTrote() + pieFecha(), corte);
   h += tarjetaFoco();
   h += tarjetaRuta();
   const hechos = ordenGrupo(GRUPO).flat().filter(e => cardDone(e.name));
@@ -1335,17 +1418,24 @@ function pintarEntrenar() {
     primera = false;
   });
   if (!FECHA && DATA.exercises.some(e => (e.zonas || []).length)) h += '<button class="musbtn" onclick="elegirMusculo()">🎯 ¿Quieres trabajar un músculo? <span>Te digo qué hacer hoy</span></button>';
-  $('vEntrenar').innerHTML = h + pieFecha();
+  ponerEntrenar(h + pieFecha(), corte);
   ANIM_ABRE = ANIM_SET = ANIM_IA = null; ANIM_PLAN = false;
   if (!planHoy() && !PLAN_CARGANDO) setTimeout(pedirPlan, 0);
 }
 function pieFecha() {
   return FECHA ? '' : '<div style="text-align:center;margin:18px 0 4px"><button class="link" onclick="elegirFecha()">' + ICO.cal.replace('class="icon"', 'class="icon" style="width:16px;height:16px;vertical-align:-3px"') + ' ¿Se te olvidó registrar otro día?</button></div>';
 }
+// Mientras escribes en el buscador, la casilla no se vuelve a dibujar (el teclado de Google se confunde y repite letras):
+// solo cambia lo de abajo
+let SOLO_CUERPO = false;
+function ponerEntrenar(html, corte) {
+  if (SOLO_CUERPO && $('buscar') && $('entCuerpo')) { $('entCuerpo').innerHTML = html.slice(corte); return; }
+  $('vEntrenar').innerHTML = html.slice(0, corte) + '<div id="entCuerpo">' + html.slice(corte) + '</div>';
+}
 function buscar(v) {
   BUSCA = v;
-  pintarEntrenar();
-  const el = $('buscar'); el.focus(); el.setSelectionRange(v.length, v.length);
+  SOLO_CUERPO = true;
+  try { pintarEntrenar(); } finally { SOLO_CUERPO = false; }
 }
 
 /* ----- Registrar otro día ----- */
@@ -1371,7 +1461,7 @@ function cambiarFecha(f) {
 }
 
 /* ----- Peso y cintura ----- */
-let PESO_TMP = null;
+let PESO_TMP = null, PESO_DIA = null;   // PESO_DIA: el botón del encabezado corrige el de HOY aunque estés en otro día
 // La casilla empieza vacía: así nunca se guarda por error el peso de ayer
 function tarjetaPeso() {
   const dia = diaReg();
@@ -1387,7 +1477,7 @@ function tarjetaCintura() {
   if (ult && ult.cint !== null && ult.d === ddmm(hoy())) return '';      // ya está en la hoja (desde otro celular o desde el chat)
   const ant = cinturaAnterior();
   return '<div class="card"><div class="peso"><div class="lbl"><div class="t1">Cintura del domingo</div><div class="muted">' + (ant !== null ? 'La vez pasada: <b class="num">' + ant + '</b> cm' : 'Una vez por semana') + '</div></div>' +
-    '<input id="cintura" class="in num" type="number" inputmode="decimal" step="0.5" placeholder="cm">' +
+    '<input id="cintura" class="in num" type="number" inputmode="decimal" step="0.5" placeholder="cm" value="' + esc(BORR.cintura || '') + '" oninput="BORR.cintura=this.value">' +
     '<button class="okmark" onclick="guardarCintura()" aria-label="Guardar cintura">' + ICO.check + '</button></div>' +
     '<div class="protocolo">📏 A la altura del <b>ombligo</b> · <b>en ayunas</b> · <b>al soltar el aire</b> · cinta pegada <b>sin apretar</b></div></div>';
 }
@@ -1401,7 +1491,7 @@ function guardarPeso() {
   if (!v) return toast('Pon tu peso');
   if (v < 30 || v > 250) return toast('Revisa el peso: ' + v + ' kg no parece correcto');
   PESO_TMP = null;
-  const dia = diaReg();
+  const dia = PESO_DIA || diaReg(); PESO_DIA = null;
   LS.set('gym_peso_' + dia, v);
   encolar('savePeso', [v, dia], 'peso-' + dia);
   actualizarWidgets();
@@ -1417,11 +1507,11 @@ function guardarCintura(confirmada) {
     hap('atencion'); vibrar([120, 80, 120]);
     $('sheet').innerHTML = '<div class="t2">¿' + v + ' cm?</div><div class="muted" style="margin:6px 0 12px">Son <b>' + (dif > 0 ? '+' : '') + dif + ' cm</b> contra la vez pasada (' + ant +
       ' cm). En una semana casi nunca cambia tanto. Revisa: ombligo, en ayunas, al soltar el aire, sin apretar la cinta.</div>' +
-      '<div class="acts"><button class="btn ghost" onclick="cerrarModal();setTimeout(()=>{const c=$(\'cintura\');if(c){c.value=\'\';c.focus();}},50)">Medir otra vez</button>' +
+      '<div class="acts"><button class="btn ghost" onclick="cerrarModal();delete BORR.cintura;setTimeout(()=>{const c=$(\'cintura\');if(c){c.value=\'\';c.focus();}},50)">Medir otra vez</button>' +
       '<button class="btn" onclick="cerrarModal();guardarCintura(' + Number(v) + ')">Sí, guardar ' + v + '</button></div>';
     return abrirModal();
   }
-  LS.set('gym_cint_' + hoy(), Number(v));
+  LS.set('gym_cint_' + hoy(), Number(v)); delete BORR.cintura;
   encolar('saveCintura', [Number(v), hoy()], 'cintura-' + hoy());
   programarAvisoProt();
   hap('ok'); toast('Cintura guardada ✓'); pintarEntrenar();
@@ -1671,7 +1761,7 @@ function tarjetaFoco() {
 /* ----- Menú ⋮ del ejercicio: lo secundario, fuera de la vista mientras entrenas ----- */
 function menuEjercicio(k) {
   const ex = exDe(k), st = state[k], n = jsq(k), base = baseVista(k), par = esPar(k) ? null : companero(k);
-  const item = (ico, txt, sub, fn) => '<button onclick="' + fn + '"><span class="i">' + ico + '</span><span><b>' + txt + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></button>';
+  const item = (ico, txt, sub, fn) => '<button onclick="' + fn + '"><span class="i">' + ico + '</span><span><b>' + esc(txt) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></button>';
   let h = '<div class="row between"><div class="t2">' + esc(ex.ejercicio) + (esPar(k) ? ' · ' + esc(PAR.nombre) : '') + '</div><button class="btn ghost sm" onclick="cerrarModal()">✕</button></div><div class="menu">';
   h += item('▶', 'Técnica y video', ex.tecnica ? 'Cómo se hace, punto por punto' : 'Agrega un video o GIF', "verTecnica('" + n + "')");
   if (!st.sets.some(s => s.t === 'C') && calientaConSeries(ex)) h += item('🔥', 'Agregar calentamiento', 'Series ligeras antes del peso de trabajo', "cerrarModal();agregarCalentamiento('" + n + "')");
@@ -1758,7 +1848,7 @@ function cuerpoEjercicio(ex, st) {
   else if (!trabAnt.length) h += '<div class="tip">Elige un peso que te deje ' + ex.min + '–' + ex.max + ' reps con 1–2 de reserva</div>';
   else if (!/Semana de carrera/.test(ex.hint || '')) h += '<div class="tip">Meta de hoy: mismo peso y 1 rep más en alguna serie (la última vez: ' + trabAnt.map(a => a.r).join(', ') + ')</div>';
   else h += '<div class="tip">' + esc(ex.hint) + '</div>';
-  if (st.editAjuste) h += '<div class="ajuste-ed"><input id="aj-' + esc(ex.name) + '" maxlength="120" placeholder="Ej. banco a 30°, asiento en 4, agarre neutro" value="' + esc(ex.ajuste || '') + '">' +
+  if (st.editAjuste) h += '<div class="ajuste-ed"><input id="aj-' + esc(ex.name) + '" maxlength="120" placeholder="Ej. banco a 30°, asiento en 4, agarre neutro" value="' + esc(BORR['aj-' + ex.name] !== undefined ? BORR['aj-' + ex.name] : (ex.ajuste || '')) + '" oninput="BORR[\'aj-' + n + '\']=this.value">' +
     '<button class="btn sm" onclick="guardarAjuste(\'' + n + '\')">Guardar</button></div>';
   else if (ex.ajuste) h += '<button class="nota" onclick="editarAjuste(\'' + n + '\')">⚙️ ' + esc(ex.ajuste) + '<span class="ed">Editar</span></button>';
   if (ex.notaUlt) h += '<div class="muted" style="margin:-4px 2px 10px;font-size:13px">La última vez anotaste: «' + esc(ex.notaUlt) + '»</div>';
@@ -1800,7 +1890,7 @@ function cuerpoEjercicio(ex, st) {
 // Esfuerzo de la serie que acabas de marcar, justo debajo de ella (sin bajar al fondo de la tarjeta)
 const CORTO_E = { 'Al fallo': 'Al fallo', 'Casi (1–2 más)': 'Quedaban 1–2', 'Sobraban 3+': 'Sobraban 3+' };
 function filaEsfuerzo(n, st, s) {
-  const final = st.sets.every(x => x.ok);
+  const final = terminado(st);
   return '<div class="rirx' + (final && !s.e ? ' pide' : '') + '"><div class="q">' + (final ? (s.e ? 'Última serie: ' : '¿Cómo terminó? Toca uno y se guarda') : '¿Cómo terminó esta serie?') + '</div><div class="pills">' +
     Object.keys(RPE).map(v => '<button class="' + (s.e === v ? 'on' : '') + '" onclick="setRir(\'' + n + '\',\'' + v + '\')">' + CORTO_E[v] + '</button>').join('') + '</div></div>';
 }
@@ -1882,21 +1972,35 @@ function setRir(name, v) {
   s.e = s.e === v ? '' : v;
   st.rir = s.e;
   // Con todas las series hechas, elegir el esfuerzo es el último paso: guarda y pasa al siguiente
-  if (s.e && st.sets.every(x => x.ok) && !st.done) { cambio(name, false); return setTimeout(() => guardar(name, true), 250); }
+  if (s.e && terminado(st) && !st.done) { cambio(name, false); return setTimeout(() => guardar(name, true), 250); }
   if (s.t !== 'C') decidirSerie(name, k);
   cambio(name);
   if (s.e && s.t !== 'C') { clearTimeout(IA_TIMER[name]); consejoIA(name, k); }
   // En pareja ya no se cambia de pestaña solo: el otro puede estar en otro ejercicio o no hacer este
 }
-// Ejercicios con todas las series marcadas pero sin guardar: se guardan al irte a otro o al terminar la sesión
-function guardarPendientes(excepto) {
+// Terminado = todas las series de TRABAJO palomeadas: un calentamiento que no marcaste no lo frena
+function terminado(st) {
+  const t = st.sets.filter(x => x.t !== 'C');
+  return st.sets.length > 0 && (t.length ? t : st.sets).every(x => x.ok);
+}
+// Ejercicios terminados sin guardar: se guardan al irte a otro. Al terminar la sesión (parciales) también los que
+// llevan alguna serie de trabajo hecha: se suben solo las series que palomeaste
+function guardarPendientes(excepto, parciales) {
   Object.keys(state).forEach(k => {
     const st = state[k];
-    if (baseDe(k) !== excepto && baseVista(k) !== excepto && !st.done && st.sets.length && st.sets.every(x => x.ok)) guardar(k, false, true);
+    if (baseDe(k) === excepto || baseVista(k) === excepto || st.done || !st.sets.length) return;
+    if (terminado(st) || (parciales && st.sets.some(x => x.ok && x.t !== 'C'))) guardar(k, false, true);
   });
 }
 function setNotas(name, v) { state[name].notas = v; cambio(name, false); }
-function setUnit(name, u) { state[name].unit = u; cambio(name); }
+function setUnit(name, u) {
+  const st = state[name], ex = exDe(name), de = st.unit;
+  if (u !== de && ex) {
+    const f = u === 'kg' ? 1 / KG_A_LB : KG_A_LB, p = pasoEj(ex, { unit: u });
+    st.sets.forEach(s => { if (!vacio(s.w) && Number(s.w)) s.w = alPaso(Number(s.w) * f, p); });
+  }
+  st.unit = u; cambio(name);
+}
 function cambiarTipo(name, i) {
   const s = state[name].sets[i];
   s.t = s.t === 'T' ? 'C' : s.t === 'C' ? 'D' : 'T';
@@ -1910,13 +2014,19 @@ function anteriorDe(name, i) {
 function copiarAnterior(name, i) {
   const a = anteriorDe(name, i);
   if (!a) return;
-  const s = state[name].sets[i];
-  s.w = a.w; s.r = a.r; s.t = a.t || s.t; hap('tecla');
+  const st = state[name], s = st.sets[i], ex = exDe(name);
+  // "Anterior" viene en la unidad de la vez pasada: si hoy anotas en la otra, se convierte
+  const f = ex && ex.unit !== st.unit && Number(a.w) ? (st.unit === 'kg' ? 1 / KG_A_LB : KG_A_LB) : 1;
+  s.w = f === 1 ? a.w : alPaso(Number(a.w) * f, pasoEj(ex, st)); s.r = a.r; s.t = a.t || s.t; hap('tecla');
   cambio(name);
 }
 function igualQueAntes(name) {
   const ex = exDe(name), st = state[name];
-  st.sets = ex.anterior.map((a, i) => ({ w: a.w, r: a.r, t: a.t || 'T', ok: st.sets[i] ? st.sets[i].ok : false }));
+  // Los calentamientos de hoy se quedan (si no hay, van los de la vez pasada); las de trabajo copian peso y reps
+  // de la vez pasada y conservan solo la palomita de la serie de trabajo con el mismo número
+  const calHoy = st.sets.filter(x => x.t === 'C'), hechas = st.sets.filter(x => x.t !== 'C').map(x => !!x.ok);
+  const cal = calHoy.length ? calHoy : ex.anterior.filter(a => a.t === 'C').map(a => ({ w: a.w, r: a.r, t: 'C', ok: false }));
+  st.sets = cal.concat(ex.anterior.filter(a => a.t !== 'C').map((a, i) => ({ w: a.w, r: a.r, t: a.t || 'T', ok: !!hechas[i] })));
   hap('tecla'); cambio(name);
 }
 function usarSugerido(name) {
@@ -1939,7 +2049,7 @@ function editarAjuste(name) {
 }
 function guardarAjuste(name) {
   const el = document.getElementById('aj-' + name), v = el ? el.value.trim() : '';
-  exDe(name).ajuste = v; state[name].editAjuste = false;
+  exDe(name).ajuste = v; state[name].editAjuste = false; delete BORR['aj-' + name];
   LS.set('gym_data', DATA);
   encolar('saveAjuste', [baseDe(name), v], 'aj-' + name, claveDe(name));
   toast(v ? 'Ajuste guardado: te aparece cada vez ✓' : 'Ajuste borrado');
@@ -1953,7 +2063,7 @@ function agregarCalentamiento(name, silencioso) {
   const ex = exDe(name), st = state[name];
   const t = st.sets.find(s => s.t === 'T' && !vacio(s.w) && Number(s.w) > 0);
   if (!t) { if (!silencioso) toast('Pon primero tu peso de trabajo'); return false; }
-  const barra = st.unit === 'kg' ? ex.barra / KG_A_LB : ex.barra;
+  const barra = st.unit === 'kg' ? Math.round(ex.barra / KG_A_LB) : ex.barra;
   // Barra sola × 10, 50 % × 8 y 75 % × 3 (motor.js); van marcadas C y no cuentan para volumen ni progresión
   const cal = MOTOR.calentamiento({ carga: Number(t.w) * ex.mult + barra, barra: barra, mult: ex.mult, paso: ex.step || 2.5 })
     .map(c => ({ w: c.w, r: c.r, t: 'C', ok: false }));
@@ -2034,13 +2144,15 @@ function elegirVariante(de, a) {
   if (parOn()) { CAMBIO = { de: de, quien: CAMBIO.quien }; return usarCambio(a); }   // en pareja: el cambio de siempre (los dos, solo yo o solo él)
   $('sheet').innerHTML = '<div class="t2">' + esc(v.ejercicio) + '</div><div class="muted" style="margin:4px 0 12px">En lugar de ' + esc(ex.ejercicio) +
     '. ' + esc(MOTOR.comoAnotar(v).texto) + '.</div><div class="menu">' +
-    '<button onclick="usarVariante(\'' + jsq(de) + '\',\'' + jsq(a) + '\',false)"><span class="i">📅</span><span><b>Solo hoy</b><small>Mañana vuelve ' + esc(ex.ejercicio.split(' (')[0]) + '</small></span></button>' +
+    '<button onclick="usarVariante(\'' + jsq(de) + '\',\'' + jsq(a) + '\',false)"><span class="i">📅</span><span><b>' + (FECHA ? 'Usarlo ese día' : 'Solo hoy') + '</b><small>' +
+      (FECHA ? 'Sin cambiar tu rutina' : 'Mañana vuelve ' + esc(ex.ejercicio.split(' (')[0])) + '</small></span></button>' +
     (enRutina ? '<button onclick="usarVariante(\'' + jsq(de) + '\',\'' + jsq(a) + '\',true)"><span class="i">📌</span><span><b>Siempre en mi rutina</b><small>Queda en tu bloque ' + ex.bloque + ' (también en tu hoja)</small></span></button>' : '') +
     '</div><div class="acts"><button class="btn ghost" onclick="elegirCambio(\'' + jsq(de) + '\')">Atrás</button></div>';
   abrirModal();
 }
 function usarVariante(de, a, siempre) {
   cerrarModal();
+  if (FECHA && !siempre) { CAMBIO = { de: de, quien: 'ambos' }; return usarCambio(a); }   // otro día: solo te lleva al otro
   const st = state[de];
   if (st && st.sets.some(s => s.ok)) { CAMBIO = { de: de, quien: 'ambos' }; return usarCambio(a); }   // ya empezaste: solo te lleva al otro
   // Siempre se cambia desde el original (si hoy ya lo habías cambiado por otra variante)
@@ -2114,7 +2226,7 @@ function kpPintar() {
   if (el && KP.name) {
     const ex = exDe(KP.name), unit = state[KP.name].unit, w = Number(KP.val) || 0;
     const lista = platos(w, unit);
-    const total = Math.round((w * 2 + (unit === 'kg' ? ex.barra / KG_A_LB : ex.barra)) * 10) / 10;
+    const total = Math.round((w * 2 + (unit === 'kg' ? Math.round(ex.barra / KG_A_LB) : ex.barra)) * 10) / 10;
     el.innerHTML = w ? 'Por lado: <b>' + (lista ? lista.join(' + ') : 'no sale exacto con discos') + '</b> · total ' + total + ' ' + unit + (ex.barra ? ' con barra' : '') : 'Pon el peso de un lado';
   }
 }
@@ -2139,7 +2251,8 @@ function kpListo(marcarSerie) {
   if (marcarSerie && !st.sets[i].ok) marcar(name, i);
 }
 function cerrarTeclado() { $('kp').classList.remove('show'); }
-function tecladoPeso() {
+function tecladoPeso(dia) {
+  PESO_DIA = dia || null;
   KP = { peso: true, val: PESO_TMP === '' ? '' : String(PESO_TMP), nuevo: true, f: 'w' };
   $('kpSheet').innerHTML = '<div class="row between"><div class="t1">Peso en ayunas (kg)</div><button class="btn ghost sm" onclick="cerrarTeclado()">✕</button></div>' +
     (DATA.ultimoPeso !== null ? '<div class="muted" style="text-align:center;margin-top:6px">Último: ' + DATA.ultimoPeso + ' kg · los ± parten de ahí</div>' : '') +
@@ -2173,7 +2286,7 @@ function marcar(name, i) {
   cambio(name);
   if (!s.ok) return;
   // Última serie: la tarjeta se queda abierta para que marques cómo terminó; al tocar el esfuerzo se guarda
-  if (st.sets.every(x => x.ok)) {
+  if (terminado(st)) {
     setTimeout(() => { const el = document.querySelector('[id="ex-' + baseVista(name) + '"] .rirx'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60);
     return;
   }
@@ -2186,8 +2299,9 @@ function marcar(name, i) {
   if (s.t === 'C' || FECHA) return;
   const p = companero(name);
   if (p && !state[p].done) {
-    // Superserie: el descanso va cuando la misma serie del otro ejercicio también está hecha
-    const otra = state[p].sets[i];
+    // Superserie: el descanso va cuando la misma serie DE TRABAJO del otro ejercicio también está hecha
+    // (se cuentan sin calentamientos: si uno los tiene y el otro no, los números no coinciden)
+    const n = st.sets.slice(0, i + 1).filter(x => x.t !== 'C').length, otra = state[p].sets.filter(x => x.t !== 'C')[n - 1];
     if (!otra || otra.ok) sugerirDescanso();
     return;
   }
@@ -2219,7 +2333,7 @@ function payloadIA(name, i) {
     regla_app: ex.hint || '',
     descarga: !!DATA.descargaCarrera,
     recuperacion: esPar(name) ? null : recuperacion(),
-    ejercicio_terminado: st.sets.every(x => x.ok)
+    ejercicio_terminado: terminado(st)
   };
 }
 /* ----- Motor de la siguiente serie: matemática exacta, al instante y sin señal ----- */
@@ -2233,7 +2347,7 @@ const alPaso = (w, p, modo) => { const f = modo === 'abajo' ? Math.floor : modo 
 // Opciones para la serie que sigue: la matemática vive en motor.js (probada en tests/motor.test.js)
 function motorSerie(name, i) {
   const ex = exDe(name), st = state[name], s = st && st.sets[i];
-  if (!ex || !s || s.t === 'C' || vacio(s.r) || st.sets.every(x => x.ok)) return null;
+  if (!ex || !s || s.t === 'C' || vacio(s.r) || terminado(st)) return null;
   const pend = st.sets.filter(x => !x.ok && x.t !== 'C');
   const rec = esPar(name) ? null : recuperacion();
   const m = MOTOR.siguienteSerie({
@@ -2263,7 +2377,7 @@ function usarAplica(st, op) { const sig = st.sets.find(x => !x.ok && x.t !== 'C'
 let IA_SEQ = 0;
 async function consejoIA(name, i) {
   const st = state[name];
-  if (!st || st.done || FECHA || st.sets.every(x => x.ok)) return;
+  if (!st || st.done || FECHA || terminado(st)) return;
   decidirSerie(name, i);
   if (TAB === 'Entrenar' && OPEN === baseVista(name)) pintarEntrenar();
   if (!st.ia || st.ia.pideRir || !ajuste('ia', true) || !navigator.onLine || !DATA.ia) return;
@@ -2307,6 +2421,10 @@ function fijarPaso(name, p) {
   if (st && st.ia && st.ia.i !== undefined) consejoIA(name, st.ia.i); else pintarEntrenar();
 }
 function cargaReal(ex, w, unit) { return (Number(w) || 0) * ex.mult * (unit === 'kg' ? KG_A_LB : 1) + ex.barra; }
+// Para el volumen: en las asistidas la carga es tu peso menos la asistencia (más asistencia = menos trabajo)
+function cargaVol(ex, w, unit) {
+  return Number(ex.inc) < 0 ? Math.max(0, (Number(DATA.ultimoPeso) || 72) * KG_A_LB - (Number(w) || 0) * (unit === 'kg' ? KG_A_LB : 1)) : cargaReal(ex, w, unit);
+}
 
 function guardar(name, auto, silencioso) {
   const st = state[name], ex = exDe(name);
@@ -2336,7 +2454,7 @@ function guardar(name, auto, silencioso) {
     const ses = sesion();
     ses.log = ses.log.filter(l => l.name !== name);
     ses.log.push({ name: name, ej: ex.ejercicio, sets: sets, unit: st.unit, prs: prs, uid: st.uid, cambio: cambioPct,
-                   vol: sets.filter(s => s.t !== 'C').reduce((a, s) => a + cargaReal(ex, s.w, st.unit) * s.r, 0) });
+                   vol: sets.filter(s => s.t !== 'C').reduce((a, s) => a + cargaVol(ex, s.w, st.unit) * s.r, 0) });
     guardarSesion(ses);
     actualizarWidgets();
   }
@@ -2370,7 +2488,8 @@ function quitarRegistro(name) {
   const st = state[name];
   const q = cola(), pend = q.find(op => op.action === 'saveExercise' && op.args[0].uid === st.uid);
   if (pend) guardarCola(q.filter(op => op !== pend));
-  else if (st.uid) encolar('undoById', [st.uid], null, claveDe(name));
+  // Si ya iba en camino (o la respuesta se perdió), la hoja pudo guardarlo: se manda el borrado (si no estaba, no pasa nada)
+  if ((!pend || pend.enviado) && st.uid) encolar('undoById', [st.uid], null, claveDe(name));
   if (!esPar(name)) { const ses = sesion(); ses.log = ses.log.filter(l => l.name !== name); guardarSesion(ses); }
   st.uid = ''; st.done = false; OPEN = baseVista(name);
   if (parOn()) QUIEN[baseVista(name)] = esPar(name) ? 'par' : 'yo';
@@ -2388,7 +2507,8 @@ function corregir(name) {
   const log = sesion().log.find(l => l.name === name);
   const sets = op ? op.args[0].sets : log ? log.sets : null;
   quitarRegistro(name);
-  if (sets) st.sets = sets.map(s => ({ w: s.w, r: s.r, t: s.t, ok: true }));
+  const eDe = rpe => Object.keys(RPE).find(k => RPE[k] === rpe) || '';
+  if (sets) st.sets = sets.map(s => ({ w: s.w, r: s.r, t: s.t, ok: true, e: eDe(s.rpe) }));
   else st.sets.forEach(s => { s.ok = false; });
   cambio(name);
   irA(baseVista(name));
@@ -2405,6 +2525,8 @@ async function pedirPantalla() {
 }
 function soltarPantalla() { try { wakeLock && wakeLock.release(); } catch (e) {} wakeLock = null; }
 function tickSesion() {
+  if (document.hidden) return;
+  if (revisarDia()) return;
   const el = $('sesT'), s = sesion();
   if (el && s.start) el.textContent = minutos(Date.now() - s.start);
 }
@@ -2448,7 +2570,7 @@ function resumenSesion() {
   };
 }
 function terminarSesion() {
-  guardarPendientes();
+  guardarPendientes(null, true);
   const r = resumenSesion();
   let h = '<div class="t2">' + (r.s.log.length ? '¡Buena sesión!' : 'Sesión sin ejercicios') + '</div>' +
     '<div class="muted">' + esc(DATA.today) + '</div>' +
@@ -2499,7 +2621,7 @@ window.addEventListener('popstate', () => {
   ponerGuardia();
 });
 function cerrarSesion() {
-  guardarPendientes();
+  guardarPendientes(null, true);
   const s = sesion(); s.ended = true; guardarSesion(s);
   const conResumen = DATA.ia && s.log.length && navigator.onLine && !LS.get('gym_debrief_' + hoy(), null);
   if (conResumen) resumenCoach(s); else cerrarModal();
@@ -2527,7 +2649,7 @@ async function compartirSesion() {
   c.fillStyle = '#fff'; c.font = F(700, 40);
   r.s.log.slice(0, 6).forEach(l => {
     c.fillText((l.prs && l.prs.length ? '🏆 ' : '• ') + l.ej, 80, y);
-    c.fillStyle = 'rgba(255,255,255,.7)'; c.font = F(500, 34); c.fillText(resumenSets(l.sets) + ' ' + l.unit, 80, y + 46);
+    c.fillStyle = 'rgba(255,255,255,.7)'; c.font = F(500, 34); c.fillText(resumenSets(l.sets) + unidadSets(l), 80, y + 46);
     c.fillStyle = '#fff'; c.font = F(700, 40); y += 112;
   });
   if (r.s.log.length > 6) { c.font = F(500, 34); c.fillText('+' + (r.s.log.length - 6) + ' más', 80, y); }
@@ -2567,7 +2689,8 @@ function avisoReloj(dur) {
   })).catch(() => {});
 }
 function sugerirDescanso() {
-  if (LS.get('gym_rest', null) || TAB !== 'Entrenar') return;
+  if (TAB !== 'Entrenar') return;
+  if (LS.get('gym_rest', null)) detenerRest();   // marcaste otra serie con el reloj corriendo: empieza de nuevo
   const def = ajuste('descanso', 90);
   if (ajuste('autoDescanso', false)) return iniciarRest(def);
   const el = $('rest');
@@ -2655,6 +2778,7 @@ function proximoGrupo() {
   return GRUPOS3[(GRUPOS3.indexOf(ult) + 1) % 3];
 }
 let TROTE = { km: '', min: '', fc: '', cad: '', tipo: null, ia: null, leyendo: false };
+const BORR = {};   // texto a medio escribir (notas del trote, chat, cintura, ajuste): sobrevive si la pantalla se vuelve a dibujar
 /* Calibración con tu prueba de 5K del 16/10 (Samsung Health): 29:44 a 5:55/km, FC prom. 182, cadencia 173.
    Tus zonas (FC máx. ~197): Z1 98–118 · Z2 119–137 · Z3 138–157 · Z4 158–177 · Z5 178–197.
    "Fácil" = FC promedio ≤ 150 (≈76 % de tu máxima, mitad baja de Z3). Sin pulso: ritmo de 6:50/km o más lento
@@ -2856,7 +2980,7 @@ function vistaTrote() {
     '<div class="pills">' + TIPOS_TROTE.map(t => '<button class="' + (TROTE.tipo === t ? 'on' : '') + '" onclick="TROTE.tipo=\'' + t + '\';pintarEntrenar()">' + t + '</button>').join('') + '</div>' +
     ((TROTE.tipo === 'Larga' || TROTE.tipo === 'Calidad') && proximoGrupo() === 'Legs' && !FECHA
       ? '<div class="tip acc" style="margin:4px 0 8px">⚠️ Tu siguiente día de gym es Legs. Si es mañana, hoy mejor una salida fácil: la larga o la de calidad te dejan las piernas cansadas para Legs.</div>' : '') +
-    '<input class="buscar" id="troteNotas" placeholder="Notas (opcional)" style="margin:4px 0 10px">' +
+    '<input class="buscar" id="troteNotas" placeholder="Notas (opcional)" style="margin:4px 0 10px" value="' + esc(BORR.troteNotas || '') + '" oninput="BORR.troteNotas=this.value">' +
     '<button class="btn block" onclick="guardarTrote()">Guardar trote</button></div>';
   h += tarjetaPolar();
   // Récords de trote (incluye lo que no se ha subido)
@@ -2894,7 +3018,7 @@ function guardarTrote() {
               tipo: TROTE.tipo === 'Libre' ? '' : TROTE.tipo, ts: tsReg(), uid: uid() };
   encolar('saveTrote', [t]);
   actualizarWidgets();
-  TROTE = { km: '', min: '', fc: '', cad: '', tipo: null, ia: null, leyendo: false };
+  TROTE = { km: '', min: '', fc: '', cad: '', tipo: null, ia: null, leyendo: false }; delete BORR.troteNotas;
   hap('ok'); toast('Trote guardado ✓'); pintarEntrenar();
   // Consejo de hidratación con el clima real del momento (solo para salidas de hoy)
   if (!FECHA) climaHermosillo().then(c => { const m = consejoHidratacion(t, c); LS.set('gym_hidrata_' + hoy(), m); toast('💧 ' + m.slice(0, 110) + '…'); if (TAB === 'Entrenar' && GRUPO === 'Trote') pintarEntrenar(); });
@@ -2902,7 +3026,7 @@ function guardarTrote() {
 function borrarTrote(id) {
   const q = cola(), pend = q.find(op => op.action === 'saveTrote' && op.args[0].uid === id);
   if (pend) guardarCola(q.filter(op => op !== pend));
-  else { encolar('undoTrote', [id]); DATA.trotes.ultimos = DATA.trotes.ultimos.filter(t => t.uid !== id); }
+  if (!pend || pend.enviado) { encolar('undoTrote', [id]); DATA.trotes.ultimos = DATA.trotes.ultimos.filter(t => t.uid !== id); }
   toast('Trote borrado'); pintarEntrenar();
 }
 
@@ -2923,6 +3047,7 @@ function comidaHabitual(k, porDefecto) {
   return m || (/^cena/i.test(k) ? 'n' : porDefecto);
 }
 function agregarAProt(claves, comidas) {
+  asegurarProt();
   const dia = diaComida(), t = etiquetas(dia, prot.length), usos = LS.get('gym_food_meal', {});
   claves.forEach((k, i) => { prot.push(k); t.push(comidas[i]); (usos[k] = usos[k] || {})[comidas[i]] = (usos[k][comidas[i]] || 0) + 1; });
   LS.set('gym_protmeal_' + dia, t); LS.set('gym_food_meal', usos);
@@ -2939,7 +3064,7 @@ function comidaQueFalla() {
     const dia = sumarDias(hoy(), -i), lista = LS.get('gym_prot_' + dia, null);
     if (!lista || !lista.length) continue;
     const t = etiquetas(dia, lista.length);
-    if (!t.some(Boolean)) continue;   // día sin comidas marcadas: no se sabe de cuál fue
+    if (t.some(x => !x)) continue;   // algo de ese día no tiene comida marcada (vino de la hoja): no se sabe de cuál fue
     const fin = [0, 6].includes(new Date(dia + 'T12:00:00').getDay()), g = gramosPorComida(lista, t);
     COMIDAS.forEach(c => { const k = c[0] + (fin ? 'F' : 'S'); (acc[k] = acc[k] || []).push(g[c[0]]); });
   }
@@ -2990,7 +3115,7 @@ function ayerTipico() {
 }
 function comidaDe(dia) {
   COMIDA_DIA = dia && dia !== hoy() ? dia : null;
-  prot = cargarProt(diaComida());
+  usarProt(diaComida());
   verTab('Comida');
 }
 function diaTipicoLista() {
@@ -3003,6 +3128,7 @@ function diaTipicoLista() {
   return FOODS.slice().sort((a, b) => (cuenta[b.k] || 0) - (cuenta[a.k] || 0)).filter(f => cuenta[f.k]).slice(0, 3).map(f => f.k);
 }
 function pintarComida() {
+  asegurarProt();
   const meta = metaProt(), tot = protTotal(), pct = Math.min(1, tot / meta), falta = meta - tot;
   const R = 74, C = 2 * Math.PI * R;
   const cuenta = LS.get('gym_food_counts', {});
@@ -3128,7 +3254,7 @@ function tarjetaProt6() {
   if (falta <= 0) return '';
   const c = completarProt(falta);
   return '<div class="card prot6"><div class="t1">🥩 Llevas ' + tot + ' g, te faltan ' + falta + '</div><div class="muted" style="margin:4px 0 10px">' + esc(textoCompletar(falta)) + ' · meta ' + metaProt() + ' g</div>' +
-    '<div class="botones">' + c.map(f => '<button class="btn sm" onclick="COMIDA_DIA=null;prot=cargarProt(hoy());addProt(\'' + jsq(f.k) + '\');pintarTab()">+' + f.g + ' g ' + esc(f.fav ? f.t : f.k) + '</button>').join('') +
+    '<div class="botones">' + c.map(f => '<button class="btn sm" onclick="COMIDA_DIA=null;usarProt(hoy());addProt(\'' + jsq(f.k) + '\');pintarTab()">+' + f.g + ' g ' + esc(f.fav ? f.t : f.k) + '</button>').join('') +
     '<button class="btn ghost sm" onclick="verTab(\'Comida\')">Otra…</button></div></div>';
 }
 /* ----- Pasos contra el trabajo de escritorio (Health Connect, lunes a viernes desde las 5 pm) ----- */
@@ -3359,7 +3485,7 @@ function pintarCoach() {
   if (ocultos) h += '<button class="chatmas" onclick="CHAT_TODO=true;pintarCoach()">Ver ' + ocultos + ' mensaje' + (ocultos === 1 ? '' : 's') + ' anterior' + (ocultos === 1 ? '' : 'es') + ' de hoy</button>';
   h += '<div class="chat">' + lista.slice(ocultos).map(burbuja).join('') +
     (CHAT_CARGANDO ? '<div class="msg coach pensando" aria-label="Pensando"><span></span><span></span><span></span></div>' : '') + '</div>';
-  h += '<div class="chatin">' + botonMic('chatTxt', 'preguntar') + '<textarea id="chatTxt" rows="1" maxlength="1500" placeholder="Escribe o dicta tu pregunta…"></textarea>' +
+  h += '<div class="chatin">' + botonMic('chatTxt', 'preguntar') + '<textarea id="chatTxt" rows="1" maxlength="1500" placeholder="Escribe o dicta tu pregunta…" oninput="BORR.chatTxt=this.value">' + esc(BORR.chatTxt || '') + '</textarea>' +
     '<button class="btn"' + (CHAT_CARGANDO ? ' disabled' : '') + ' onclick="preguntar()">Enviar</button></div>' +
     '<p class="muted" style="font-size:12px;margin-top:8px">Respuestas de IA (Gemini): pueden equivocarse. Si tienes dolor o una lesión, consulta a un médico.</p>';
   $('vCoach').innerHTML = h;
@@ -3378,6 +3504,7 @@ function preguntar(q) {
   if (!navigator.onLine) return toast('Necesitas señal para hablar con el coach');
   rotarChat();
   const lista = chatLista().filter(m => !m.err);
+  delete BORR.chatTxt;
   lista.push({ rol: 'yo', texto: txt, ts: Date.now() });
   LS.set('gym_chat', lista.slice(-40));
   pedirRespuesta();
@@ -3420,6 +3547,7 @@ function contextoIA() {
   };
 }
 function quitarProt(i) {
+  asegurarProt();
   const dia = diaComida(), t = etiquetas(dia, prot.length);
   prot.splice(i, 1); t.splice(i, 1); LS.set('gym_protmeal_' + dia, t);
   cambiarProt();
@@ -3482,10 +3610,10 @@ function textoReporte() {
   const gym = (r.gymDias7 || 0) + (!hoyContado && sesion().log.length ? 1 : 0);
   const sal = LS.get('gym_salud', null);             // Health Connect (APK), cuando esté conectado
   const prom = a => a && a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
-  const pasos = sal && sal.pasos ? prom(sal.pasos.map(x => x.v)) : null, sueno = sal && sal.sueno ? prom(sal.sueno.map(x => x.h)) : null;
+  const pasos = sal && sal.pasos ? prom(sal.pasos.filter(x => x.k < hoy()).map(x => x.v)) : null, sueno = sal && sal.sueno ? prom(sal.sueno.map(x => x.h)) : null;
   const rp = ritmoPeso(), falla = comidaQueFalla();
   return ['Reporte semanal · ' + ddmm(sumarDias(hoy(), -6)) + ' al ' + ddmm(hoy()),
-    'Peso promedio (7 días): ' + v(r.promedio7, ' kg') + (r.cambioSemana !== null && r.cambioSemana !== undefined ? ' (' + (r.cambioSemana > 0 ? '+' : '') + r.cambioSemana + ' vs semana anterior)' : ''),
+    'Peso promedio (7 días): ' + v(r.promedio7, ' kg') + (r.cambioSemana !== null && r.cambioSemana !== undefined ? ' (' + signo(r.cambioSemana) + ' kg vs semana anterior)' : ''),
     'Ritmo de peso: ' + (rp ? signo(rp.pct) + ' %/semana (ideal −0.25 a −0.5 %)' : ''),
     'Cintura: ' + v(cint, ' cm'),
     'Días de gym: ' + gym,
@@ -3508,7 +3636,7 @@ function kpisSalud() {
   const s = LS.get('gym_salud', null);
   if (!s) return '';
   const prom = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
-  const p = prom((s.pasos || []).map(x => x.v)), h = prom((s.sueno || []).map(x => x.h));
+  const p = prom((s.pasos || []).filter(x => x.k < hoy()).map(x => x.v)), h = prom((s.sueno || []).map(x => x.h));   // hoy va a medias: no cuenta
   return (p !== null ? kpi(Math.round(p).toLocaleString('es-MX'), 'Pasos promedio', 'Health Connect · 7 días', p >= 8000) : '') +
     (h !== null ? kpi(Math.round(h * 10) / 10 + ' h', 'Sueño promedio', 'Health Connect · 7 días', h >= 7) : '');
 }
@@ -3759,7 +3887,7 @@ function zonaReciente(m) {
   sesion().log.forEach(l => { const e = exDe(l.name); if (!e || e.uid === l.uid) return; const x = (e.zonas || []).find(y => y.z === m); if (x) { n += l.sets.filter(s => s.t !== 'C').length * x.w; cuando = 'hoy'; } });
   return { n: n, cuando: cuando };
 }
-const fmtSer = v => String(Math.round(v * 2) / 2).replace('.5', '½');
+const fmtSer = v => String(Math.round(v * 2) / 2).replace(/^0\.5$/, '½').replace('.5', '½');
 /* ----- Ejercicios añadidos a la sesión de hoy desde el mapa ----- */
 function extrasHoy() { return FECHA ? [] : LS.get('gym_extra_' + hoy(), []).filter(x => exDe(x.name)); }
 const esExtra = name => extrasHoy().some(x => x.name === name);
@@ -3816,6 +3944,8 @@ function porQue(e, m, o) {
   if (o.rojo(e)) p.push('ojo: también carga una zona que ya va alta');
   return p.join(' · ');
 }
+// Series de trabajo que trae el ejercicio hoy (el script no manda el número del Catálogo)
+function seriesDe(e) { return ((e && e.sets) || []).filter(x => x.t !== 'C').length || 4; }
 // Panel de una zona (en Progreso y en "🎯 Trabajar un músculo")
 function panelZona(m, modal) {
   const z = zonasVivas(), v = z[m] || 0, t = metaZona(m), est = zonaZ(v, m), falta = Math.max(0, t.meta - v);
@@ -3829,7 +3959,7 @@ function panelZona(m, modal) {
     '<span>' + esc(x) + '</span>' + barra(x) + '<span class="num">' + fmtSer(z[x] || 0) + '/' + metaZona(x).meta + '</span></button>').join('') + '</div>';
   const o = opcionesZona(m), rec = zonaReciente(m);
   const boton = (e, grande) => {
-    const n = Math.min(e.series || 4, Math.max(2, Math.ceil(falta / o.peso(e)) || 3));
+    const n = Math.min(seriesDe(e), Math.max(2, Math.ceil(falta / o.peso(e)) || 3));
     if (esExtra(e.name)) return '<button class="' + (grande ? 'btn block' : 'alt') + '" onclick="irAEjercicio(\'' + jsq(e.name) + '\')">✓ Ya está en tu sesión: ' + esc(e.ejercicio.split(' (')[0]) + ' → Ir</button>';
     return grande ? '<button class="btn block" onclick="anadirHoy(\'' + jsq(e.name) + '\',' + n + ')">➕ Añadir ' + esc(e.ejercicio.split(' (')[0]) + ' a hoy · ' + n + ' series</button>' +
       '<div class="muted porque">' + esc(porQue(e, m, o)) + '</div>'
@@ -3846,7 +3976,7 @@ function panelZona(m, modal) {
     const rot = ['Push', 'Pull', 'Legs'], gHoy = rot.includes(GRUPO) ? GRUPO : DATA.sugGrupo, prox = rot[(rot.indexOf(gHoy) + 1) % 3];
     if (est < 2 && o.top.length && o.top[0].group === prox && prox !== GRUPO) h += '<div class="muted" style="font-size:13px;margin-bottom:6px">Tu próximo día es ' + prox + ': ahí la cubres. Si quieres adelantarla o no vas a ir:</div>';
     if (o.top.length) {
-      const n0 = Math.min(o.top[0].series || 4, Math.max(2, Math.ceil(falta / o.peso(o.top[0])) || 3));
+      const n0 = Math.min(seriesDe(o.top[0]), Math.max(2, Math.ceil(falta / o.peso(o.top[0])) || 3));
       // Si ya tienes uno pendiente hoy, lo demás va como alternativa chica (primero haz lo que ya está)
       h += o.pendHoy.length || est === 2 ? '<div class="alts">' + (o.pendHoy.length ? '<span class="muted" style="font-size:13px;align-self:center">¿Quieres otro?</span>' : '') + o.top.map(e => boton(e, false)).join('') + '</div>'
         : boton(o.top[0], true) + (o.top.length > 1 ? '<div class="alts">' + o.top.slice(1).map(e => boton(e, false)).join('') + '</div>' : '');
@@ -3917,7 +4047,7 @@ function calcularRuta(g) {
     delDia.forEach(e => {
       if (empezado(e) || fams.has(famDe(e))) return;
       const prim = e.zonas.filter(x => x.w >= 1);
-      const n = Math.max(3, Math.min(Math.max(3, e.series || 4), Math.ceil(Math.max.apply(null, prim.map(x => (D[x.z] || 0) / x.w)))));
+      const n = Math.max(3, Math.min(Math.max(3, seriesDe(e)), Math.ceil(Math.max.apply(null, prim.map(x => (D[x.z] || 0) / x.w)))));
       let gana = 0, castigo = 0;
       e.zonas.forEach(x => {
         const aporta = n * x.w, t = metaZona(x.z), topeDia = Math.ceil(t.tope / 2);
@@ -4020,16 +4150,26 @@ function tarjetaDescarga() {
   if (bajan.length < 2 || !recuperacionBaja()) return '';
   return '<div class="card descarga"><div class="t1">📉 Te propongo adelantar la descarga</div><div class="muted" style="margin:4px 0 10px">' +
     esc(bajan.slice(0, 3).join(', ')) + (bajan.length > 3 ? ' y ' + (bajan.length - 3) + ' más' : '') + ' bajaron 2 sesiones seguidas y vienes con poco sueño o energía. ' +
-    'Esta semana: mitad de series y −10 % de peso, sin llegar al fallo. La fuerza suele volver más alta la siguiente.</div>' +
+    'Esta semana: mitad de series y ~10 % menos carga que la vez pasada, sin llegar al fallo. La fuerza suele volver más alta la siguiente.</div>' +
     '<div class="acts"><button class="btn ghost" onclick="LS.set(\'gym_descarga_no_' + lunesDe(hoy()) + '\', true);pintarEntrenar()">Ahora no</button>' +
     '<button class="btn" onclick="empezarDescarga()">Hacer descarga esta semana</button></div></div>';
 }
 function aplicarDescarga(ex, st) {
   if (!st || st.done || st.edited || st.sets.some(x => x.ok) || st.descarga) return;
   const lim = Math.ceil(st.sets.filter(x => x.t !== 'C').length / 2), p = pasoEj(ex, st);
+  // −10 % sobre la CARGA REAL de la vez pasada (con barra), no sobre el peso que hoy ya venía subido
+  const ant = (ex.anterior || []).filter(a => a.t !== 'C' && Number(a.w) > 0).map(a => Number(a.w));
+  const base = ant.length ? Math.max.apply(null, ant) : null, conv = st.unit === 'kg' ? KG_A_LB : 1;
+  let w = null;
+  if (base !== null && ex.inc > 0) {
+    w = alPaso((cargaReal(ex, base, st.unit) * 0.9 - (ex.barra || 0)) / (ex.mult || 1) / conv, p, 'abajo');
+    if (w >= base) w = base - p;   // con discos grandes el 10 % puede no alcanzar un paso: baja uno
+    w = Math.max(0, Math.round(w * 100) / 100);
+    // Si el equipo no permite bajar poco (mancuerna de 10 → 5 es −50 %), se queda el peso y la descarga es solo de series
+    if (cargaReal(ex, w, st.unit) < 0.75 * cargaReal(ex, base, st.unit)) w = base;
+  }
   let n = 0;
-  st.sets = st.sets.filter(x => x.t === 'C' || ++n <= lim).map(x => x.t === 'C' || !(ex.inc > 0) || vacio(x.w) || !Number(x.w) ? x
-    : Object.assign({}, x, { w: Math.max(0, alPaso(Number(x.w) * 0.9, p) < Number(x.w) ? alPaso(Number(x.w) * 0.9, p) : Number(x.w) - p) }));
+  st.sets = st.sets.filter(x => x.t === 'C' || ++n <= lim).map(x => x.t === 'C' || w === null || vacio(x.w) ? x : Object.assign({}, x, { w: w }));
   st.descarga = true;
 }
 function empezarDescarga() {
@@ -4361,7 +4501,7 @@ async function abrirDiagnostico() {
     '<div class="muted" style="margin:14px 0">Revisando el APK, Health Connect y los widgets…</div>';
   if (!$('modal').classList.contains('show')) abrirModal('completa');
   const [e, info] = await Promise.all([nativo('GymNativo', 'estado'), nativo('App', 'getInfo')]);
-  DIAG = { e: e && e.ok ? e : null, apk: (e && e.apk) || (info && info.version) || '' };
+  DIAG = { e: e || null, apk: (e && e.apk) || (info && info.version) || '' };
   if (!DIAG.e) DIAG.hc = await hc('isAvailable');
   pintarDiagnostico();
 }
@@ -4373,6 +4513,8 @@ function lineasDiagnostico() {
   L.push(['h', 'Health Connect']);
   if (e) {
     L.push([e.sdk === 'disponible', e.sdk === 'disponible' ? 'Disponible en este celular' : e.sdk === 'actualizar' ? 'Hay que actualizar Health Connect (Play Store)' : 'No está en este celular']);
+    if (e.errorHC || e.error) L.push([false, 'Health Connect respondió con error: ' + (e.errorHC || e.error) + '. Vuelve a intentar en un momento.']);
+    if (e.notificaciones === false) L.push([false, 'Notificaciones apagadas para Gym: el aviso de pasos no puede salir. Actívalas en Ajustes del celular → Apps → Gym → Notificaciones.']);
     const P = { READ_STEPS: 'Pasos', READ_DISTANCE: 'Distancia', READ_SLEEP: 'Sueño', READ_EXERCISE: 'Ejercicio' };
     if (e.permisos) Object.keys(P).forEach(k => L.push([e.permisos.includes(k), P[k] + (e.permisos.includes(k) ? ': con permiso' : ': sin permiso')]));
     if (e.permisos) L.push([e.fondo ? true : e.fondoDisponible ? false : null, e.fondo ? 'En segundo plano: con permiso (el aviso de las 5 pm lee tus pasos con la app cerrada)'

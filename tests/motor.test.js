@@ -175,3 +175,27 @@ test('Inicio: serie pesada suelta sin llegar al tope con el peso de trabajo → 
   assert.strictEqual(inicio(MANCUERNA_REMO(), [30, 20, 20, 10], [12, 12, 12, 12]).peso, 30);
 });
 function MANCUERNA_REMO() { return { min: 8, max: 12, paso: 5, mult: 1, barra: 0, inc: 5, modalidad: 'Mancuerna' }; }
+
+// Auditoría v7.6: sin contradicciones después de un fallo, en descarga ni con asistencia en 0
+test('Después de un fallo no dice "abajo del mínimo" si el peso de arriba sí daría el rango', () => {
+  const polea = { min: 8, max: 15, paso: 2.5, mult: 1, barra: 0, inc: 2.5, modalidad: 'Polea', unidad: 'lb', ultima: false, recMala: false };
+  const m = siguienteSerie(Object.assign({ peso: 80, reps: 15, rir: 0 }, polea));
+  const msg = m.opciones.find(o => o.id === m.eleccion).mensaje;
+  assert.ok(!/abajo de 8/.test(msg), msg);
+  assert.match(msg, /después de un fallo/);
+  const m2 = siguienteSerie(Object.assign({ peso: 80, reps: 16, rir: 0 }, polea));
+  assert.ok(!m2.opciones.some(o => o.accion === 'mas_reps'), 'tras un fallo no propone pasarse del rango');
+});
+test('En descarga no propone pasar del máximo de reps', () => {
+  const m = siguienteSerie({ peso: 50, reps: 12, rir: 3, sinSubir: true, min: 8, max: 12, paso: 5, mult: 1, barra: 0, inc: 5, modalidad: 'Mancuerna', unidad: 'lb' });
+  assert.strictEqual(m.eleccion, 'A');
+  assert.ok(m.opciones.every(o => o.reps <= 12));
+});
+test('Asistida en 0 al tope: pasa a la versión sin asistencia (no "bajar la asistencia a -5")', () => {
+  const ej = { min: 8, max: 12, paso: 5, mult: 1, barra: 0, inc: -5, modalidad: 'Placas', unidad: 'kg', corpKg: 74, nSeries: 3 };
+  const r = progresionInicio(Object.assign({ series: [{ w: 0, r: 12, rir: 1.5 }, { w: 0, r: 12, rir: 1.5 }, { w: 0, r: 12, rir: 1.5 }] }, ej));
+  assert.strictEqual(r.accion, 'mas_reps');
+  assert.ok(!/-5/.test(r.mensaje), r.mensaje);
+  const r2 = progresionInicio(Object.assign({ series: [{ w: 0, r: 10, rir: 1.5 }, { w: 0, r: 9, rir: 1.5 }] }, ej));
+  assert.ok(!/-5/.test(r2.mensaje), r2.mensaje);
+});
