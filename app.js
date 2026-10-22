@@ -2819,7 +2819,7 @@ function vistaTrote() {
   const km7 = DATA.trotes.km7 + pend.filter(t => difDias(claveDia(new Date(t.ts)), hoy()) < 7).reduce((a, t) => a + Number(t.km), 0);
   const p = DATA.plan, ses = sesionesPlan();
   if (TROTE.tipo === null) { const sig = ses && ses.find(s => !s.hecho); TROTE.tipo = sig ? sig.tipo : 'Libre'; }
-  let h = tarjetaPostCarrera() + tarjetaMantenimiento();
+  let h = tarjetaMantenimiento();   // la de "¿qué sigue?" ya sale arriba, con las demás tarjetas de Entrenar
   if (p) {
     h += '<div class="card plan5k"><div class="row between" style="align-items:flex-start"><div><div class="count num">' + p.faltan + '<span> día' + (p.faltan === 1 ? '' : 's') + ' para tu ' + esc(p.carrera.nombre) + '</span></div>' +
       '<div class="muted">Fecha objetivo: <b style="color:var(--red)">' + diaCorto(p.carrera.fecha) + '</b></div></div>' +
