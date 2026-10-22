@@ -125,7 +125,7 @@
     return { opciones: ops, eleccion: el, paso: paso, rirObj: rirObj, pred: predMismo, faltan: faltan };
   }
 
-  // <progresion> Esta función se copia tal cual al script (AppGym.gs): el mismo cálculo en la app y en la hoja.
+  // <progresion> De aquí se genera script/Progresion.gs (herramientas/generar-progresion.js): el mismo cálculo en la app y en la hoja.
   /* Lo que te sugiere la app al EMPEZAR un ejercicio, con tu última sesión.
      p = { series: [{ w, r, rir }] de trabajo y en orden (rir: 0 fallo, 1.5, 3, o null si no lo marcaste),
            min, max, paso, unidad, mult, barra, inc (negativo = máquina asistida), modalidad, sinPeso, corpKg, nSeries }
@@ -243,7 +243,17 @@
     return series;
   }
 
-  const MOTOR = { siguienteSerie: siguienteSerie, progresionInicio: progresionInicio, calentamiento: calentamiento, comoAnotar: comoAnotar, esBasico: esBasico, alPaso: alPaso, RIR: RIR, BASICOS: BASICOS };
+  // Huella de progresionInicio (sin espacios ni el "_" del script): el script manda la suya y la app sabe si es el mismo motor.
+  // Progresion.gs (generado de este archivo) tiene firmaMotor_ con la misma cuenta.
+  function firmaProgresion() {
+    const t = progresionInicio.toString().replace(/progresionInicio_?\(/g, 'progresionInicio(').replace(/\s+/g, '');
+    let h = 5381;
+    for (let i = 0; i < t.length; i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0;
+    return h.toString(36);
+  }
+
+  const MOTOR = { siguienteSerie: siguienteSerie, progresionInicio: progresionInicio, firmaProgresion: firmaProgresion, calentamiento: calentamiento,
+                  comoAnotar: comoAnotar, esBasico: esBasico, alPaso: alPaso, RIR: RIR, BASICOS: BASICOS };
   if (typeof module !== 'undefined' && module.exports) module.exports = MOTOR;
   else raiz.MOTOR = MOTOR;
 })(this);

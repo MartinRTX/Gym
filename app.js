@@ -1136,11 +1136,13 @@ function ladoVisible(base) {
 function verLado(base, lado) { QUIEN[base] = lado; ANIM_ABRE = base; hap('tecla'); pintarEntrenar(); }
 // Sugerencia al empezar cada ejercicio (subir, bajar o mantener, con números). El script 7.4 ya la manda calculada
 // con la misma función (motor.js → progresionInicio); con un script anterior, la calcula la app con tu última sesión.
-const SCRIPT_ESPERADO = '7.4';
+const SCRIPT_ESPERADO = '7.5';
 const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);
 const scriptAlDia = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum(SCRIPT_ESPERADO));
+// Un solo motor: si la hoja trae el mismo motor (misma huella que motor.js) se usa lo que calculó; si no, lo calcula la app
+const motorAlDia = () => !!DATA.motorFirma && DATA.motorFirma === MOTOR.firmaProgresion();
 function aplicarProgresion(lista, corpKg) {
-  if (scriptAlDia() || DATA.descargaCarrera) return;
+  if ((scriptAlDia() && motorAlDia()) || DATA.descargaCarrera) return;
   const rirDe = rpe => vacio(rpe) ? null : Number(rpe) >= 9.5 ? 0 : Number(rpe) <= 7 ? 3 : 1.5;
   (lista || []).forEach(ex => {
     const t = (ex.anterior || []).filter(a => a.t !== 'C' && a.t !== 'D' && Number(a.r) > 0);
@@ -4263,7 +4265,10 @@ function abrirAjustes() {
     tog('iaPlan', true, 'Plan del día con IA', 'Al abrir Entrenar: un foco para la sesión y una meta por ejercicio', AIC.chispa, 'pri') +
     tog('ia', true, 'La IA afina el consejo entre series', 'El motor te dice al instante qué hacer en la siguiente serie (sin señal); con señal, Gemini elige entre sus opciones y te explica por qué', AIC.cerebro, 'pri') +
     (!scriptAlDia() ? '<div class="opt tarj aviso-script"><span class="aic" style="--c:var(--acc)">' + AIC.tabla + '</span><div class="txt"><div class="t1" style="font-size:15px">Actualiza tu script a la ' + SCRIPT_ESPERADO + '</div>' +
-      '<div class="muted">Tu hoja tiene la ' + esc(DATA.scriptVersion || 'anterior a la 7.4') + '. La app funciona, pero sin las mejoras nuevas del script (te lo manda tu coach).</div></div></div>' : '') +
+      '<div class="muted">Tu hoja tiene la ' + esc(DATA.scriptVersion || 'anterior a la 7.4') + '. La app funciona, pero sin las mejoras nuevas del script (te lo manda tu coach).</div></div></div>'
+      : !motorAlDia() ? '<div class="opt tarj aviso-script"><span class="aic" style="--c:var(--acc)">' + AIC.tabla + '</span><div class="txt"><div class="t1" style="font-size:15px">Actualiza Progresion.gs en tu script</div>' +
+      '<div class="muted">' + (DATA.motorFirma ? 'El motor de progresión de tu hoja es de otra versión' : 'A tu proyecto de Apps Script le falta el archivo Progresion.gs') +
+      '. Mientras, la app calcula la sugerencia de cada ejercicio con su propio motor.</div></div></div>' : '') +
     (NATIVO && APK_OK === false ? '<div class="opt tarj aviso-script"><span class="aic" style="--c:var(--acc)">' + AIC.cel + '</span><div class="txt"><div class="t1" style="font-size:15px">Instala el APK nuevo</div>' +
       '<div class="muted">Tu APK es anterior a la 7.5: descarga Gym.apk de nuevo (Releases del repo) e instálalo encima, sin desinstalar. Trae el aviso de pasos, el diagnóstico y los trotes con distancia.</div></div></div>' : '') +
     (NATIVO ? tog('salud', false, 'Health Connect (solo lectura)', 'Lee tus pasos, sueño y carreras de los últimos 7 días y los pasa a tu hoja. Nunca escribe nada', AIC.corre, 'ok') +
