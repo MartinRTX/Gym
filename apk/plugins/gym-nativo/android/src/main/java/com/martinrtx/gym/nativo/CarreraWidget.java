@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import org.json.JSONObject;
 
-/** Carrera: días que faltan (se calculan aquí, siguen al día aunque no abras la app) y el trote de hoy. */
+/** Carrera: días que faltan (se calculan aquí, siguen al día aunque no abras la app) y el trote de hoy; después, el trote de mantenimiento. */
 public class CarreraWidget extends AppWidgetProvider {
 
     private static final String[] MESES = { "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic" };
@@ -28,7 +28,13 @@ public class CarreraWidget extends AppWidgetProvider {
         } catch (Exception e) {
             fecha = null;
         }
-        if (fecha == null) {
+        if (k != null && k.optBoolean("mant", false)) {
+            // Después de la carrera, con trote de mantenimiento: cuántos de los 2 fáciles de la semana llevas
+            v.setTextViewText(R.id.w_etiqueta, "TROTE · MANTENIMIENTO");
+            v.setTextViewText(R.id.w_dias, k.optInt("hechos", 0) + "/" + k.optInt("meta", 2));
+            v.setTextViewText(R.id.w_dias_txt, "esta semana");
+            v.setTextViewText(R.id.w_trote, Widgets.hoy().equals(k.optString("dia")) ? k.optString("hoy", "") : "2 fáciles de 25–30 min");
+        } else if (fecha == null) {
             v.setTextViewText(R.id.w_etiqueta, "CARRERA");
             v.setTextViewText(R.id.w_dias, "—");
             v.setTextViewText(R.id.w_dias_txt, "sin carrera");

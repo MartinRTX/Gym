@@ -230,7 +230,20 @@
   }
   // </progresion>
 
-  const MOTOR = { siguienteSerie: siguienteSerie, progresionInicio: progresionInicio, comoAnotar: comoAnotar, esBasico: esBasico, alPaso: alPaso, RIR: RIR, BASICOS: BASICOS };
+  // Calentamiento de los básicos: barra sola × 10 (si hay barra), 50 % × 8 y 75 % × 3 de la carga de trabajo.
+  // p = { carga: total con la barra, barra, mult (2 si se anota por lado), paso }. Pesos hacia abajo, en lo que anotas.
+  function calentamiento(p) {
+    const barra = Number(p.barra) || 0, mult = Number(p.mult) || 1, paso = Number(p.paso) || 2.5, carga = Number(p.carga) || 0;
+    const series = barra > 0 ? [{ w: 0, r: 10 }] : [];
+    [[0.5, 8], [0.75, 3]].forEach(x => {
+      const w = alPaso(Math.max(0, (carga * x[0] - barra) / mult), paso, 'abajo');
+      // Si no pasa de la barra sola (o repite la serie anterior), no se agrega
+      if (w > 0 && !series.some(s => s.w === w)) series.push({ w: w, r: x[1] });
+    });
+    return series;
+  }
+
+  const MOTOR = { siguienteSerie: siguienteSerie, progresionInicio: progresionInicio, calentamiento: calentamiento, comoAnotar: comoAnotar, esBasico: esBasico, alPaso: alPaso, RIR: RIR, BASICOS: BASICOS };
   if (typeof module !== 'undefined' && module.exports) module.exports = MOTOR;
   else raiz.MOTOR = MOTOR;
 })(this);

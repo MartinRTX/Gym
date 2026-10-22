@@ -1,4 +1,4 @@
-// Pruebas del motor de la siguiente serie: node --test tests/
+// Pruebas del motor de la siguiente serie: node --test tests/*.test.js
 const test = require('node:test');
 const assert = require('node:assert');
 const { siguienteSerie } = require('../motor.js');

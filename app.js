@@ -89,7 +89,8 @@ function datosWidgets() {
     prot: { dia: dia, g: protTotal(cargarProt(dia)), meta: metaProt(), botones: botones },
     hoy: { dia: dia, grupo: g, hora: String(DATA.recordatorio || '').replace(/^0/, ''), entrena: entrena, proximo: DATA.sugGrupo || g,
            ruta: nombres.length ? nombres.join(' → ') : '' },
-    carrera: DATA.carrera ? { fecha: DATA.carrera.fecha, nombre: DATA.carrera.nombre || DATA.carrera.km + 'K', dia: dia, hoy: troteDeHoy() } : null,
+    carrera: DATA.carrera ? { fecha: DATA.carrera.fecha, nombre: nombreCarrera(DATA.carrera), dia: dia, hoy: troteDeHoy() }
+      : enMantenimiento() ? { mant: true, hechos: trotesSemana(), meta: 2, dia: dia, hoy: troteDeHoy() } : null,
     semana: { gym: gym, meta: META_DIAS, km: Math.round((kmSem || 0) * 10) / 10, peso: r.promedio7 === undefined ? null : r.promedio7,
               cambio: r.cambioSemana === undefined ? null : r.cambioSemana, sueno: anoche ? anoche.h : null }
   };
@@ -98,6 +99,7 @@ function datosWidgets() {
 function troteDeHoy() {
   const dia = hoy(), hecho = ((DATA.trotes && DATA.trotes.ult7) || []).filter(t => t.k === dia).concat(trotesPendientes().filter(t => claveDia(new Date(t.ts)) === dia));
   if (hecho.length) return '✓ ' + Math.round(hecho.reduce((a, t) => a + Number(t.km || 0), 0) * 10) / 10 + ' km hoy';
+  if (enMantenimiento()) return trotesSemana() >= 2 ? '✓ 2 de 2 esta semana' : 'Toca: fácil · 25–30 min';
   const ses = sesionesPlan(), sig = ses && ses.find(x => !x.hecho);
   return sig ? 'Toca: ' + sig.tipo + ' · ' + sig.min + ' min' : '';
 }
@@ -115,6 +117,7 @@ function abrirAccion(url) {
   if (a === 'peso') { verTab('Entrenar'); PESO_TMP = ''; tecladoPeso(); }
   else if (a === 'comida') verTab('Comida');
   else if (a === 'progreso') verTab('Progreso');
+  else if (a === 'pasos') verTab('Entrenar');
   else if (a === 'trote') { verTab('Entrenar'); elegirGrupo('Trote'); }
   else if (a === 'entrenar') {
     verTab('Entrenar');
@@ -129,13 +132,15 @@ async function tomarColaWidget() {
   const r = await nativo('GymNativo', 'tomarCola'), items = (r && r.items) || [];
   if (!items.length) return;
   const vistos = LS.get('gym_widget_ids', []), porDia = {};
-  items.forEach(x => { if (!x || !x.id || !x.k || vistos.includes(x.id)) return; vistos.push(x.id); (porDia[x.dia] = porDia[x.dia] || []).push(x.k); });
+  items.forEach(x => { if (!x || !x.id || !x.k || vistos.includes(x.id)) return; vistos.push(x.id); (porDia[x.dia] = porDia[x.dia] || []).push(x); });
   LS.set('gym_widget_ids', vistos.slice(-300));
   let g = 0;
   Object.keys(porDia).forEach(dia => {
-    const enPantalla = dia === diaComida(), lista = (enPantalla ? prot : cargarProt(dia)).concat(porDia[dia]);
+    const enPantalla = dia === diaComida(), antes = enPantalla ? prot : cargarProt(dia), lista = antes.concat(porDia[dia].map(x => x.k));
     if (enPantalla) prot = lista;
     LS.set('gym_prot_' + dia, lista);
+    LS.set('gym_protmeal_' + dia, etiquetas(dia, antes.length).concat(porDia[dia].map(x => comidaPorHora(new Date(x.ts || Date.now()).getHours()))));
+    porDia[dia] = porDia[dia].map(x => x.k);
     encolar('saveProteina', [protTotal(lista), lista.join(', '), dia], 'prot-' + dia);
     const c = LS.get('gym_food_counts', {}); porDia[dia].forEach(k => { c[k] = (c[k] || 0) + 1; g += gDe(k); }); LS.set('gym_food_counts', c);
   });
@@ -145,25 +150,33 @@ async function tomarColaWidget() {
 // Health Connect (solo lectura): pasos, distancia, sueño y sesiones de ejercicio
 const SALUD_TIPOS = ['steps', 'distance', 'sleep', 'workouts'];
 const hc = (metodo, opts) => { try { return window.Capacitor.nativePromise('Health', metodo, opts || {}).catch(() => null); } catch (e) { return Promise.resolve(null); } };
+// APK 7.5 o más nuevo: lee Health Connect con su propio código (carreras con distancia), diagnóstico y aviso de pasos
+let APK_P = null, APK_OK = null;
+const apkNuevo = () => (APK_P = APK_P || (NATIVO ? nativo('GymNativo', 'estado').then(e => (APK_OK = !!(e && e.ok))) : Promise.resolve(false)));
 async function conectarSalud() {
+  if (await apkNuevo()) {
+    // Una sola pantalla de Health Connect: los 4 permisos de lectura y "en segundo plano" (para el aviso de las 5 pm)
+    const e = await nativo('GymNativo', 'conectarSalud', { fondo: true });
+    if (!e || e.sdk === 'no') { toast('Health Connect no está disponible en este celular'); return false; }
+    if (e.sdk === 'actualizar') { toast('Actualiza Health Connect en Play Store y vuelve a intentar'); return false; }
+    if (!(e.permisos || []).length) { toast('Sin permiso: la app sigue igual, sin Health Connect'); return false; }
+    return true;
+  }
   const d = await hc('isAvailable');
   if (!d || !d.available) { toast('Health Connect no está disponible en este celular'); return false; }
   const r = await hc('requestAuthorization', { read: SALUD_TIPOS, write: [] });
   if (!r || !(r.readAuthorized || []).length) { toast('Sin permiso: la app sigue igual, sin Health Connect'); return false; }
   return true;
 }
-async function leerSalud(forzar) {
-  if (!NATIVO || !DATA || !ajuste('salud', false)) return;
-  const ult = LS.get('gym_salud', null);
-  if (!forzar && ult && Date.now() - ult.ts < 60 * 60 * 1000) return;   // máximo una lectura por hora
-  const ini = new Date(); ini.setDate(ini.getDate() - 7); ini.setHours(0, 0, 0, 0);
-  const fin = new Date(), iso = d => d.toISOString(), kLocal = t => claveDia(new Date(t));
+// Lectura con el APK anterior (plugin de capgo): la distancia de cada carrera se pide aparte porque ahí llegaba vacía
+async function leerSaludCapgo(ini, fin) {
+  const iso = d => d.toISOString(), kLocal = t => claveDia(new Date(t));
   const [pasosR, suenoR, runsR] = await Promise.all([
     hc('queryAggregated', { dataType: 'steps', startDate: iso(ini), endDate: iso(fin), bucket: 'day', aggregation: 'sum' }),
     hc('readSamples', { dataType: 'sleep', startDate: iso(new Date(ini.getTime() - 12 * 3600e3)), endDate: iso(fin), limit: 60 }),
     hc('queryWorkouts', { startDate: iso(ini), endDate: iso(fin), limit: 60 })
   ]);
-  if (!pasosR && !suenoR && !runsR) return;   // sin permiso o sin Health Connect: todo sigue igual
+  if (!pasosR && !suenoR && !runsR) return null;   // sin permiso o sin Health Connect: todo sigue igual
   const pasos = ((pasosR && pasosR.samples) || []).map(x => ({ k: kLocal(x.startDate), v: Math.round(Number(x.value || (x.values || {}).sum) || 0) })).filter(x => x.v > 0);
   // Sueño: se cuenta lo dormido (sin despierto ni "en cama") y va al día en que despertaste
   const noches = {};
@@ -172,14 +185,38 @@ async function leerSalud(forzar) {
     if (min > 0) { const k = kLocal(x.endDate); noches[k] = (noches[k] || 0) + min / 60; }
   });
   const sueno = Object.keys(noches).sort().map(k => ({ k: k, h: Math.round(noches[k] * 10) / 10 }));
-  const runs = ((runsR && runsR.workouts) || []).filter(w => /^running/.test(w.workoutType || '') && Number(w.totalDistance) >= 500).map(w => ({
+  const todas = (runsR && runsR.workouts) || [], corridas = todas.filter(w => /^running/.test(w.workoutType || ''));
+  for (const w of corridas) {
+    if (Number(w.totalDistance) >= 500) continue;
+    const d = await hc('queryAggregated', { dataType: 'distance', startDate: w.startDate, endDate: w.endDate, bucket: 'hour', aggregation: 'sum' });
+    const m = ((d && d.samples) || []).reduce((a, x) => a + (Number(x.value) || 0), 0);
+    if (m) w.totalDistance = m;
+  }
+  const runs = corridas.filter(w => Number(w.totalDistance) >= 500).map(w => ({
     uid: 'hc-' + (w.platformId || w.startDate), ts: w.startDate, k: kLocal(w.startDate),
     km: Math.round(Number(w.totalDistance) / 10) / 100, min: Math.round(Number(w.duration) / 6) / 10, fuente: String(w.sourceName || '').slice(0, 60) }));
-  LS.set('gym_salud', { ts: Date.now(), pasos: pasos, sueno: sueno, runs: runs });
+  return { pasos: pasos, sueno: sueno, runs: runs, sesiones: todas.length, sinDistancia: corridas.length - runs.length,
+           fuentesPasos: [], fuentesSueno: [], fuentesEjercicio: [...new Set(todas.map(w => w.sourceName).filter(Boolean))], errores: [], via: 'capgo' };
+}
+async function leerSalud(forzar) {
+  if (!NATIVO || !DATA || !ajuste('salud', false)) return;
+  const ult = LS.get('gym_salud', null);
+  if (!forzar && ult && Date.now() - ult.ts < 20 * 60 * 1000) return;   // máximo una lectura cada 20 min
+  const ini = new Date(); ini.setDate(ini.getDate() - 7); ini.setHours(0, 0, 0, 0);
+  let r = null;
+  if (await apkNuevo()) {
+    const n = await nativo('GymNativo', 'leerSalud', { dias: 7 });
+    if (n && n.ok) r = Object.assign(n, { via: 'nativo' });
+  }
+  if (!r) r = await leerSaludCapgo(ini, new Date());
+  if (!r) return;
+  const runs = (r.runs || []).map(x => ({ uid: x.uid, ts: x.ts, k: x.k, km: x.km, min: x.min, fuente: String(x.fuente || '').slice(0, 60) }));
+  LS.set('gym_salud', { ts: Date.now(), pasos: r.pasos || [], sueno: r.sueno || [], runs: runs, via: r.via, sesiones: r.sesiones || 0, sinDistancia: r.sinDistancia || 0,
+    fuentes: { pasos: r.fuentesPasos || [], sueno: r.fuentesSueno || [], ejercicio: r.fuentesEjercicio || [] }, errores: (r.errores || []).slice(0, 5) });
   // A la hoja: un renglón por día en "Salud" y las carreras que falten en Trotes (el script evita duplicados)
   const dias = {};
-  pasos.forEach(x => { (dias[x.k] = dias[x.k] || { k: x.k }).pasos = x.v; });
-  sueno.forEach(x => { (dias[x.k] = dias[x.k] || { k: x.k }).sueno = x.h; });
+  (r.pasos || []).forEach(x => { (dias[x.k] = dias[x.k] || { k: x.k }).pasos = x.v; });
+  (r.sueno || []).forEach(x => { (dias[x.k] = dias[x.k] || { k: x.k }).sueno = x.h; });
   const firma = JSON.stringify([dias, runs.map(x => x.uid)]);
   if (firma !== LS.get('gym_salud_firma', '')) {
     encolar('saveSalud', [{ dias: Object.values(dias), trotes: runs }], 'salud');
@@ -187,11 +224,19 @@ async function leerSalud(forzar) {
   }
   actualizarWidgets();
   if (TAB === 'Progreso') pintarProgreso();
+  // La tarjeta de pasos de la tarde, sin interrumpir si estás anotando algo
+  if (TAB === 'Entrenar' && !sesionActiva() && !$('kp').classList.contains('show') && !$('modal').classList.contains('show')) pintarEntrenar();
+}
+// Aviso de pasos (APK 7.5+): la hora, la meta y si está prendido viven también en el celular para la alarma
+const META_PASOS = () => ajuste('metaPasos', 7000), HORA_PASOS = 17;
+function configurarPasos() {
+  if (!NATIVO) return;
+  apkNuevo().then(ok => ok && nativo('GymNativo', 'configurarPasos', { activo: ajuste('salud', false) && ajuste('avisoPasos', true), meta: META_PASOS(), hora: HORA_PASOS, minuto: 0, laborales: true }));
 }
 function iniciarNativo() {
   if (!NATIVO) return;
   try { window.Capacitor.addListener('GymNativo', 'accion', () => consumirAccion()); } catch (e) { /* APK anterior: sin widgets */ }
-  consumirAccion(); tomarColaWidget(); leerSalud();
+  consumirAccion(); tomarColaWidget(); leerSalud(); configurarPasos();
 }
 // Vibración con intención: ligera al teclear, golpe fuerte al marcar serie, patrón de éxito en récord
 const HAPTICOS = {
@@ -740,6 +785,30 @@ const CSS_V72 = `
   .descarga { border-color: color-mix(in srgb, var(--red) 35%, var(--line)); }
   .btn.reporte { margin-top: 12px; letter-spacing: .04em; font-weight: 800; }
 `;
+/* v7.5: pasos de la tarde, ritmo de peso, proteína por comida, después de la carrera, diagnóstico */
+const CSS_V75 = `
+  .pill.red { background: color-mix(in srgb, var(--red) 15%, transparent); color: var(--red); }
+  .pasos5 { border-color: color-mix(in srgb, var(--cyan) 40%, var(--line)); background: linear-gradient(160deg, color-mix(in srgb, var(--cyan) 9%, var(--card)), var(--card)); }
+  .escala { position: relative; height: 10px; background: var(--card2); border-radius: 99px; margin: 12px 0 4px; }
+  .escala .zona { position: absolute; top: 0; bottom: 0; background: var(--ok); opacity: .45; border-radius: 99px; }
+  .escala i { position: absolute; top: -4px; width: 4px; height: 18px; margin-left: -2px; background: var(--text); border-radius: 2px; }
+  .escala-l { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+  .comidas3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .comidas3 button { border: 1.5px solid var(--line); background: var(--card2); color: var(--text); border-radius: 14px; padding: 9px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .comidas3 button span { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .comidas3 button b { font-size: 19px; font-weight: 800; }
+  .comidas3 button small { font-size: 11px; color: var(--muted); }
+  .comidas3 button.ok b, .comidas3 button.ok small { color: var(--ok); }
+  .comidas3 button.baja small { color: var(--acc); }
+  .comidas3 button.on { border-color: var(--pri); box-shadow: 0 0 0 1px var(--pri) inset; }
+  .comida-l { font-size: 12.5px; margin: 10px 4px 4px; }
+  .postcarrera { border-color: color-mix(in srgb, var(--red) 40%, var(--line)); background: linear-gradient(160deg, color-mix(in srgb, var(--red) 9%, var(--card)), var(--card)); }
+  .diag { margin-top: 6px; }
+  .diag .dh { margin: 14px 0 6px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .diag .dl { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 1.4; }
+  .diag .dl b { flex: none; width: 16px; text-align: center; }
+  .diag-bt { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+`;
 
 /* ===================== Configuración y datos ===================== */
 let API = LS.get('gym_api', ''), KEY = LS.get('gym_key', '');
@@ -861,13 +930,13 @@ function avisoErrores() {
 
 /* ===================== Arranque ===================== */
 function arrancar() {
-  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72; document.head.appendChild(st);
+  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72 + CSS_V75; document.head.appendChild(st);
   const p = new URLSearchParams(location.search);
   if (p.get('api') && p.get('k')) {
     const nuevaClave = p.get('k').trim();
     if (KEY && nuevaClave !== KEY) {
       // Otra persona en este celular: borra lo guardado de la cuenta anterior (los pendientes se suben con su clave)
-      Object.keys(localStorage).filter(k => /^gym_(data|ses_|wip_|prot_|peso_|cint_|super_|fotos|tipcount|errores|medallas|ayer_no_|food_counts)/.test(k)).forEach(k => LS.del(k));
+      Object.keys(localStorage).filter(k => /^gym_(data|ses_|wip_|prot_|protmeal_|food_meal|salud|peso_|cint_|super_|fotos|tipcount|errores|medallas|ayer_no_|food_counts)/.test(k)).forEach(k => LS.del(k));
     }
     API = p.get('api').trim(); KEY = nuevaClave;
     LS.set('gym_api', API); LS.set('gym_key', KEY);
@@ -906,7 +975,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v7.4';
+const VERSION_APP = 'v7.5';
 // Tu link de configuración (lleva tu clave): para configurar el APK sin escribir nada
 function copiarLinkConfig() {
   const link = location.origin + location.pathname + '?api=' + encodeURIComponent(API) + '&key=' + encodeURIComponent(KEY);
@@ -1217,7 +1286,7 @@ function pintarEntrenar() {
   else if (!FECHA && descargaActiva()) h += '<div class="aviso">' + ICO.flame + '<span>Descarga adelantada hasta el ' + diaCorto(LS.get('gym_descarga', {}).hasta) +
     ': mitad de series y −10 % de peso, sin llegar al fallo. <button class="link" onclick="terminarDescarga()">Terminarla</button></span></div>';
   else if (!FECHA && !activa) h += tarjetaDescarga();
-  if (!FECHA && !activa) h += tarjetaProt6();
+  if (!FECHA && !activa) h += tarjetaPostCarrera() + tarjetaProt6() + tarjetaPasos();
   const diasSin = DATA.ultimoGrupoFecha ? difDias(DATA.ultimoGrupoFecha, hoy()) - 1 : 0;
   if (!FECHA && !activa && diasSin >= 3 && !sesion().log.length)
     h += '<div class="aviso">' + ICO.flame + '<span>Llevas ' + diasSin + ' días sin ir. Hoy toca ' + esc(DATA.sugGrupo) + ': aunque sean 30 minutos, cuenta.</span></div>';
@@ -1598,7 +1667,7 @@ function menuEjercicio(k) {
   const item = (ico, txt, sub, fn) => '<button onclick="' + fn + '"><span class="i">' + ico + '</span><span><b>' + txt + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></button>';
   let h = '<div class="row between"><div class="t2">' + esc(ex.ejercicio) + (esPar(k) ? ' · ' + esc(PAR.nombre) : '') + '</div><button class="btn ghost sm" onclick="cerrarModal()">✕</button></div><div class="menu">';
   h += item('▶', 'Técnica y video', ex.tecnica ? 'Cómo se hace, punto por punto' : 'Agrega un video o GIF', "verTecnica('" + n + "')");
-  if (!st.sets.some(s => s.t === 'C') && esBasico(ex)) h += item('🔥', 'Agregar calentamiento', 'Series ligeras antes del peso de trabajo', "cerrarModal();agregarCalentamiento('" + n + "')");
+  if (!st.sets.some(s => s.t === 'C') && calientaConSeries(ex)) h += item('🔥', 'Agregar calentamiento', 'Series ligeras antes del peso de trabajo', "cerrarModal();agregarCalentamiento('" + n + "')");
   h += item('⚙️', ex.ajuste ? 'Editar ajuste de máquina' : 'Ajuste de máquina', ex.ajuste || 'Asiento, banco o agarre: te aparece siempre', "cerrarModal();editarAjuste('" + n + "')");
   h += item('⚖️', 'Paso del equipo: ' + pasoEj(ex, st) + ' ' + st.unit + (ex.pasoFijo ? '' : ' (supuesto)'), 'El cambio de peso más chico que permite; toca para cambiarlo', "menuPaso('" + n + "')");
   h += item('📝', st.notas ? 'Editar nota de hoy' : 'Nota de hoy', st.notas || 'Solo de esta sesión: «hombro cargado», «dormí mal»', "notaDeHoy('" + n + "')");
@@ -1771,7 +1840,7 @@ function abrir(name) {
   const p = companero(name);
   OPEN = (OPEN === name || (p && OPEN === p)) ? '' : name;
   ANIM_ABRE = OPEN;
-  if (OPEN && ajuste('calentamiento', false) && esBasico(exDe(OPEN)) && !state[OPEN].edited && !state[OPEN].sets.some(s => s.t === 'C')) agregarCalentamiento(OPEN, true);
+  if (OPEN && ajuste('calentamiento', true) && calientaConSeries(exDe(OPEN)) && !state[OPEN].edited && !state[OPEN].sets.some(s => s.t === 'C')) agregarCalentamiento(OPEN, true);
   if (OPEN) LS.set('gym_tipcount', LS.get('gym_tipcount', 0) + 1);
   pintarEntrenar();
   if (OPEN) irA(OPEN);
@@ -1871,18 +1940,17 @@ function guardarAjuste(name) {
 }
 // Básicos con barra o por lado: ahí sí vale la pena calentar con series de aproximación
 function esBasico(ex) { return ex.barra > 0 || ex.mult === 2 || ex.modalidad === 'Barra fija'; }
+// Calentar con porcentajes solo donde el peso que anotas es la carga (no en dominadas ni con asistencia)
+function calientaConSeries(ex) { return !!ex && esBasico(ex) && ex.modalidad !== 'Barra fija' && !(Number(ex.inc) < 0); }
 function agregarCalentamiento(name, silencioso) {
   const ex = exDe(name), st = state[name];
   const t = st.sets.find(s => s.t === 'T' && !vacio(s.w) && Number(s.w) > 0);
   if (!t) { if (!silencioso) toast('Pon primero tu peso de trabajo'); return false; }
-  const barra = st.unit === 'kg' ? ex.barra / KG_A_LB : ex.barra, paso = ex.step || 2.5;
-  const carga = Number(t.w) * ex.mult + barra;
-  // Con barra y carga de 50 kg (110 lb) o más, primero la barra sola
-  const pasos = (barra > 0 && carga >= (st.unit === 'kg' ? 50 : 110) ? [[0, 10]] : []).concat([[0.5, 8], [0.7, 4]]);
-  const cal = pasos.map(x => {
-    const w = x[0] ? Math.max(0, Math.floor(((carga * x[0] - barra) / ex.mult) / paso) * paso) : 0;
-    return { w: Math.round(w * 100) / 100, r: x[1], t: 'C', ok: false };
-  });
+  const barra = st.unit === 'kg' ? ex.barra / KG_A_LB : ex.barra;
+  // Barra sola × 10, 50 % × 8 y 75 % × 3 (motor.js); van marcadas C y no cuentan para volumen ni progresión
+  const cal = MOTOR.calentamiento({ carga: Number(t.w) * ex.mult + barra, barra: barra, mult: ex.mult, paso: ex.step || 2.5 })
+    .map(c => ({ w: c.w, r: c.r, t: 'C', ok: false }));
+  if (!cal.length) { if (!silencioso) toast('Con ese peso no hace falta calentar con series'); return false; }
   st.sets = cal.concat(st.sets.filter(s => s.t !== 'C'));
   cambio(name);
   if (!silencioso) toast(cal.length + ' series de calentamiento: ' + cal.map(c => (c.w || (barra ? 'barra' : 0)) + '×' + c.r).join(', '));
@@ -2697,6 +2765,39 @@ function tarjetaLectura() {
     '<div class="muted" style="font-size:12px;margin-top:6px">Ya llené el registro de abajo: revisa y toca Guardar.</div></div>';
 }
 function trotesPendientes() { return cola().filter(op => op.action === 'saveTrote').map(op => op.args[0]); }
+/* ----- Después de la carrera: al día siguiente la app sale sola del modo carrera y pregunta qué sigue ----- */
+function carreraTerminada() { const c = DATA.carrera; return !!(c && c.fecha && c.fecha < hoy()); }
+const nombreCarrera = c => c.nombre || c.km + 'K';
+function tarjetaPostCarrera() {
+  if (!carreraTerminada()) return '';
+  return '<div class="card postcarrera"><div class="t1">🏅 Ya pasó tu ' + esc(nombreCarrera(DATA.carrera)) + ' del ' + diaCorto(DATA.carrera.fecha) + '. ¿Qué sigue?</div>' +
+    '<div class="muted" style="margin:4px 0 12px">El plan de carrera terminó. Elige tu siguiente objetivo:</div>' +
+    '<button class="btn block" onclick="elegirMantenimiento()">💪 Músculo + trote de mantenimiento</button>' +
+    '<button class="btn ghost block" style="margin-top:8px" onclick="otraCarrera()">🏃 Otra carrera</button>' +
+    '<div class="muted" style="font-size:12.5px;margin-top:10px">Mantenimiento: 2 trotes fáciles de 25–30 min por semana para no perder la condición, y la prioridad pasa al gym.</div></div>';
+}
+function elegirMantenimiento() {
+  DATA.carrera = null; DATA.plan = null; setAjuste('troteMant', true); LS.set('gym_data', DATA);
+  encolar('saveConfig', [{ carrera: null }], 'cfg-carrera');
+  hap('ok'); toast('Listo: músculo primero y 2 trotes fáciles por semana'); pintarTab(); actualizarWidgets();
+}
+function otraCarrera() {
+  abrirAjustes();
+  setTimeout(() => { const el = $('carFecha'); if (el) { el.scrollIntoView({ block: 'center' }); try { el.showPicker(); } catch (e) { el.focus(); } } }, 150);
+}
+// Trotes desde el lunes (lo que ya tiene la hoja y lo que aún no se sube)
+function trotesSemana() {
+  const lunes = sumarDias(hoy(), -((new Date().getDay() + 6) % 7));
+  return ((DATA.trotes && DATA.trotes.ult7) || []).filter(t => t.k >= lunes).length + trotesPendientes().filter(t => claveDia(new Date(t.ts)) >= lunes).length;
+}
+const enMantenimiento = () => !DATA.plan && !DATA.carrera && ajuste('troteMant', false);
+function tarjetaMantenimiento() {
+  if (!enMantenimiento()) return '';
+  const n = trotesSemana();
+  return '<div class="card"><div class="row between"><div class="t1">Trote de mantenimiento</div><span class="pill ' + (n >= 2 ? 'ok' : 'pri') + ' num">' + Math.min(n, 2) + ' de 2</span></div>' +
+    '<div class="muted" style="margin-top:4px">2 salidas fáciles de 25–30 min por semana, a ritmo en el que puedas platicar. Mantienen tu condición sin quitarle piernas al gym.' +
+    (n >= 2 ? ' Esta semana ya cumpliste ✓' : '') + '</div></div>';
+}
 // Sesiones del plan de esta semana, marcando también lo que hiciste y aún no se sube
 function sesionesPlan() {
   const p = DATA.plan;
@@ -2716,7 +2817,7 @@ function vistaTrote() {
   const km7 = DATA.trotes.km7 + pend.filter(t => difDias(claveDia(new Date(t.ts)), hoy()) < 7).reduce((a, t) => a + Number(t.km), 0);
   const p = DATA.plan, ses = sesionesPlan();
   if (TROTE.tipo === null) { const sig = ses && ses.find(s => !s.hecho); TROTE.tipo = sig ? sig.tipo : 'Libre'; }
-  let h = '';
+  let h = tarjetaPostCarrera() + tarjetaMantenimiento();
   if (p) {
     h += '<div class="card plan5k"><div class="row between" style="align-items:flex-start"><div><div class="count num">' + p.faltan + '<span> día' + (p.faltan === 1 ? '' : 's') + ' para tu ' + esc(p.carrera.nombre) + '</span></div>' +
       '<div class="muted">Fecha objetivo: <b style="color:var(--red)">' + diaCorto(p.carrera.fecha) + '</b></div></div>' +
@@ -2800,6 +2901,63 @@ function borrarTrote(id) {
 
 /* ===================== COMIDA ===================== */
 function protTotal(lista) { return Math.round((lista || prot).reduce((s, k) => s + gDe(k), 0)); }
+/* ----- Proteína por comida: ~30 g en desayuno, comida y cena. Cada cosa que anotas lleva su comida (solo en este celular) ----- */
+const COMIDAS = [['d', 'Desayuno', '🌅'], ['c', 'Comida', '☀️'], ['n', 'Cena', '🌙']], META_COMIDA = 30;
+let COMIDA_SEL = null, COMIDA_SEL_T = 0;   // la que elegiste a mano vale 2 horas; si no, según la hora
+const comidaPorHora = h => h < 12 ? 'd' : h < 18 ? 'c' : 'n';
+const nombreDeComida = m => (COMIDAS.find(c => c[0] === m) || [m, m])[1];
+function comidaActual() { return COMIDA_SEL && Date.now() - COMIDA_SEL_T < 2 * 3600e3 ? COMIDA_SEL : comidaPorHora(new Date().getHours()); }
+// Una etiqueta por cosa anotada, en el mismo orden que la lista del día (las que vienen de la hoja no tienen)
+function etiquetas(dia, n) { const t = LS.get('gym_protmeal_' + dia, []); return Array.from({ length: n }, (_, i) => t[i] || null); }
+// Para el día típico: la comida en que sueles anotar eso (la que más veces le has puesto)
+function comidaHabitual(k, porDefecto) {
+  const c = LS.get('gym_food_meal', {})[k];
+  const m = c ? Object.keys(c).sort((a, b) => c[b] - c[a])[0] : null;
+  return m || (/^cena/i.test(k) ? 'n' : porDefecto);
+}
+function agregarAProt(claves, comidas) {
+  const dia = diaComida(), t = etiquetas(dia, prot.length), usos = LS.get('gym_food_meal', {});
+  claves.forEach((k, i) => { prot.push(k); t.push(comidas[i]); (usos[k] = usos[k] || {})[comidas[i]] = (usos[k][comidas[i]] || 0) + 1; });
+  LS.set('gym_protmeal_' + dia, t); LS.set('gym_food_meal', usos);
+}
+function gramosPorComida(lista, t) {
+  const g = { d: 0, c: 0, n: 0, sin: 0 };
+  lista.forEach((k, i) => { g[t[i] || 'sin'] += gDe(k); });
+  return g;
+}
+// La comida que más falla en las últimas 2 semanas (entre semana o en fin de semana), si ya hay datos
+function comidaQueFalla() {
+  const acc = {};
+  for (let i = 1; i <= 14; i++) {
+    const dia = sumarDias(hoy(), -i), lista = LS.get('gym_prot_' + dia, null);
+    if (!lista || !lista.length) continue;
+    const t = etiquetas(dia, lista.length);
+    if (!t.some(Boolean)) continue;   // día sin comidas marcadas: no se sabe de cuál fue
+    const fin = [0, 6].includes(new Date(dia + 'T12:00:00').getDay()), g = gramosPorComida(lista, t);
+    COMIDAS.forEach(c => { const k = c[0] + (fin ? 'F' : 'S'); (acc[k] = acc[k] || []).push(g[c[0]]); });
+  }
+  let peor = null;
+  Object.keys(acc).forEach(k => {
+    const l = acc[k], p = l.reduce((a, b) => a + b, 0) / l.length;
+    if (l.length >= 2 && p < META_COMIDA - 5 && (!peor || p < peor.g)) peor = { m: k[0], fin: k[1] === 'F', g: Math.round(p), dias: l.length };
+  });
+  return peor;
+}
+const textoFalla = f => 'tu ' + nombreDeComida(f.m).toLowerCase() + (f.fin ? ' del fin de semana' : ' entre semana') + ' promedia ' + f.g + ' g';
+function tarjetaPorComida() {
+  const dia = diaComida(), g = gramosPorComida(prot, etiquetas(dia, prot.length)), sel = comidaActual(), falla = COMIDA_DIA ? null : comidaQueFalla();
+  const ayuda = falla ? completarProt(META_COMIDA - falla.g) : [];
+  return '<div class="card porcomida"><div class="row between"><div class="t1">Por comida</div><span class="muted" style="font-size:12px">~' + META_COMIDA + ' g en cada una</span></div>' +
+    '<div class="comidas3">' + COMIDAS.map(c => {
+      const v = Math.round(g[c[0]]);
+      return '<button class="' + (c[0] === sel ? 'on' : '') + (v >= META_COMIDA ? ' ok' : v > 0 ? ' baja' : '') + '" onclick="COMIDA_SEL=\'' + c[0] + '\';COMIDA_SEL_T=Date.now();hap(\'tecla\');pintarComida()">' +
+        '<span>' + c[2] + ' ' + c[1] + '</span><b class="num">' + v + ' g</b><small>' + (v >= META_COMIDA ? '✓ listo' : v > 0 ? 'faltan ' + (META_COMIDA - v) : 'sin anotar') + '</small></button>';
+    }).join('') + '</div>' +
+    '<div class="muted" style="font-size:12.5px;margin-top:8px">Lo que agregues va a <b style="color:var(--text)">' + nombreDeComida(sel) + '</b>' + (sel === COMIDA_SEL && Date.now() - COMIDA_SEL_T < 2 * 3600e3 ? '' : ' (por la hora)') + ' · toca otra para cambiar' +
+    (g.sin ? ' · ' + Math.round(g.sin) + ' g sin comida marcada' : '') + '</div>' +
+    (falla ? '<div class="tip acc" style="margin:10px 0 0">⚠️ En 2 semanas, ' + esc(textoFalla(falla)) + ': ahí se te escapa la proteína.' +
+      (ayuda.length ? ' Con ' + esc(ayuda.map(nombreComida).join(' + ')) + ' llegas a ' + META_COMIDA + ' g.' : '') + '</div>' : '') + '</div>';
+}
 
 // "¿Ayer comiste tu día típico?": si ayer quedó sin proteína, se registra con un toque
 function ayerPendiente() {
@@ -2819,7 +2977,7 @@ function tarjetaAyer() {
 }
 function ayerTipico() {
   const ayer = sumarDias(hoy(), -1), lista = diaTipicoLista();
-  LS.set('gym_prot_' + ayer, lista);
+  LS.set('gym_prot_' + ayer, lista); LS.set('gym_protmeal_' + ayer, lista.map(k => comidaHabitual(k, null)));
   encolar('saveProteina', [protTotal(lista), lista.join(', '), ayer], 'prot-' + ayer);
   hap('ok'); toast('Ayer: ' + protTotal(lista) + ' g ✓'); pintarTab();
 }
@@ -2862,7 +3020,7 @@ function pintarComida() {
     '<div class="row between falta"><div class="t1">' + (falta > 0 ? 'Te faltan ~' + falta + ' g' : '¡Meta cumplida!') + '</div>' +
     (falta > meta / 2 ? '<span class="pill prio">Prioritario</span>' : falta <= 0 ? '<span class="pill ok">✓ Listo</span>' : '') + '</div>' +
     '<div class="consejo">💡 ' + (falta > 0 ? textoCompletar(falta) : 'Bien hecho hoy') + '</div></div>';
-  h += tarjetaComidaIA();
+  h += tarjetaPorComida() + tarjetaComidaIA();
   if (!prot.length && tipico.length) h += '<button class="tipico" onclick="diaTipico()"><span class="ic">🍽️</span><span style="flex:1"><b>Mi día típico</b> <span class="pill ok">+' +
     protTotal(tipico) + ' g</span><small>' + esc(tipico.map(k => FOODS.some(f => f.k === k) ? k : tDe(k).split(' · ')[0]).join(' · ')) + '</small></span><span class="mas">＋</span></button>';
   if (!COMIDA_DIA) h += '<button class="link tipico-ed" onclick="editarTipico(true)">✏️ ' + (tipico.length ? 'Editar mi día típico' : 'Arma tu día típico: lo agregas con un toque') + '</button>';
@@ -2872,8 +3030,13 @@ function pintarComida() {
     (QUITAR_FAV ? '<div class="muted" style="margin:-4px 0 8px;font-size:13px">Toca una para quitarla de tus comidas</div>' : '') +
     '<div class="foods">' + (QUITAR_FAV ? misComidas() : favs).map(f => botonComida(f, false)).join('') + '</div>';
   h += '<div class="row between"><h2>Agregar</h2><span class="rapido">Toque rápido</span></div><div class="foods">' + FOODS.filter(f => !top.includes(f)).map(f => botonComida(f, false)).join('') + '</div>';
-  if (prot.length) h += '<h2>Hoy comiste · toca para quitar</h2><div class="eaten">' +
-    prot.map((k, i) => '<button onclick="quitarProt(' + i + ')">' + esc(tDe(k)) + ' ✕</button>').join('') + '</div>';
+  if (prot.length) {
+    const t = etiquetas(diaComida(), prot.length);
+    h += '<h2>' + (COMIDA_DIA ? 'Ese día comiste' : 'Hoy comiste') + ' · toca para quitar</h2>' + COMIDAS.concat([[null, 'Sin comida marcada', '•']]).map(c => {
+      const idx = prot.map((k, i) => i).filter(i => (t[i] || null) === c[0]);
+      return idx.length ? '<div class="muted comida-l">' + c[2] + ' ' + c[1] + '</div><div class="eaten">' + idx.map(i => '<button onclick="quitarProt(' + i + ')">' + esc(tDe(prot[i])) + ' ✕</button>').join('') + '</div>' : '';
+    }).join('');
+  }
   h += '<p class="muted" style="margin-top:14px">Cantidades aproximadas. Lo que cuenta es acercarte a la meta casi todos los días.</p>';
   $('vComida').innerHTML = h;
 }
@@ -2899,11 +3062,11 @@ function cambiarProt() {
   pintarComida();
 }
 function addProt(k) {
-  prot.push(k); hap('tecla');
+  agregarAProt([k], [comidaActual()]); hap('tecla');
   const c = LS.get('gym_food_counts', {}); c[k] = (c[k] || 0) + 1; LS.set('gym_food_counts', c);
   cambiarProt();
 }
-function diaTipico() { prot = prot.concat(diaTipicoLista()); cambiarProt(); }
+function diaTipico() { const l = diaTipicoLista(); agregarAProt(l, l.map(k => comidaHabitual(k, comidaActual()))); cambiarProt(); }
 // Editor del día típico: cuántas veces va cada comida (la misma puede ir 2 veces)
 let TIPICO_TMP = null;
 function editarTipico(nuevo) {
@@ -2958,8 +3121,27 @@ function tarjetaProt6() {
   if (falta <= 0) return '';
   const c = completarProt(falta);
   return '<div class="card prot6"><div class="t1">🥩 Llevas ' + tot + ' g, te faltan ' + falta + '</div><div class="muted" style="margin:4px 0 10px">' + esc(textoCompletar(falta)) + ' · meta ' + metaProt() + ' g</div>' +
-    '<div class="botones">' + c.map(f => '<button class="btn sm" onclick="prot=cargarProt(hoy());addProt(\'' + jsq(f.k) + '\');pintarTab()">+' + f.g + ' g ' + esc(f.fav ? f.t : f.k) + '</button>').join('') +
+    '<div class="botones">' + c.map(f => '<button class="btn sm" onclick="COMIDA_DIA=null;prot=cargarProt(hoy());addProt(\'' + jsq(f.k) + '\');pintarTab()">+' + f.g + ' g ' + esc(f.fav ? f.t : f.k) + '</button>').join('') +
     '<button class="btn ghost sm" onclick="verTab(\'Comida\')">Otra…</button></div></div>';
+}
+/* ----- Pasos contra el trabajo de escritorio (Health Connect, lunes a viernes desde las 5 pm) ----- */
+// Lo esperado a esta hora si repartes la meta de 7 am a 10 pm (el aviso nativo usa la misma cuenta)
+function pasosEsperados(meta, d) { const h = d.getHours() + d.getMinutes() / 60; return Math.max(0, Math.min(meta, meta * (h - 7) / 15)); }
+const horaTexto = d => (d.getHours() % 12 || 12) + (d.getMinutes() ? ':' + String(d.getMinutes()).padStart(2, '0') : '') + (d.getHours() < 12 ? ' am' : ' pm');
+// ~100 pasos por minuto caminando; de 10 a 30 minutos, en múltiplos de 5
+const minutosCaminar = faltan => Math.max(10, Math.min(30, Math.round(faltan / 100 / 5) * 5));
+function tarjetaPasos() {
+  if (!NATIVO || !ajuste('salud', false) || !ajuste('avisoPasos', true)) return '';
+  const ahora = new Date(), dow = ahora.getDay(), s = LS.get('gym_salud', null);
+  if (ahora.getHours() < HORA_PASOS || dow === 0 || dow === 6 || !s || Date.now() - s.ts > 3 * 3600e3) return '';
+  const x = (s.pasos || []).find(p => p.k === hoy());
+  if (!x) return '';   // hoy ninguna app ha mandado pasos: no se puede saber
+  const meta = META_PASOS(), esperado = pasosEsperados(meta, ahora);
+  if (x.v >= esperado) return '';
+  const min = minutosCaminar(esperado - x.v);
+  return '<div class="card pasos5"><div class="t1">🚶 Son las ' + horaTexto(ahora) + ' y llevas ' + x.v.toLocaleString('es-MX') + ' pasos: camina ' + min + ' minutos</div>' +
+    '<div class="muted" style="margin-top:4px">Meta ' + meta.toLocaleString('es-MX') + ' al día; a esta hora irías en ~' + (Math.round(esperado / 100) * 100).toLocaleString('es-MX') +
+    '. Después de horas sentado, una vuelta de ' + min + ' min te pone al día.</div></div>';
 }
 // APK: hoy a las 6 pm con tus números; sábado y domingo que vienen, un recordatorio aunque no abras la app
 function programarAvisoProt() {
@@ -3029,7 +3211,9 @@ function ajustarItem(i, d) { const x = COMIDA_IA.items[i]; x.g = Math.max(0, x.g
 function agregarComidaIA() {
   const items = COMIDA_IA.items.filter(x => x.on && x.g > 0);
   const cuenta = LS.get('gym_food_counts', {});
-  items.forEach(x => { const k = clavePropia(x.nombre, x.g); prot.push(k); cuenta[k] = (cuenta[k] || 0) + 1; });
+  const claves = items.map(x => clavePropia(x.nombre, x.g));
+  claves.forEach(k => { cuenta[k] = (cuenta[k] || 0) + 1; });
+  agregarAProt(claves, claves.map(() => comidaActual()));
   LS.set('gym_food_counts', cuenta);
   const tot = items.reduce((a, x) => a + x.g, 0);
   COMIDA_IA = null; hap('ok'); cambiarProt(); toast('+' + tot + ' g ✓');
@@ -3218,7 +3402,11 @@ function contextoIA() {
     puntos_semana: DATA.logros ? DATA.logros.semana : null
   };
 }
-function quitarProt(i) { prot.splice(i, 1); cambiarProt(); }
+function quitarProt(i) {
+  const dia = diaComida(), t = etiquetas(dia, prot.length);
+  prot.splice(i, 1); t.splice(i, 1); LS.set('gym_protmeal_' + dia, t);
+  cambiarProt();
+}
 
 /* ===================== PROGRESO ===================== */
 let EJ_GRAF = null;
@@ -3278,24 +3466,26 @@ function textoReporte() {
   const sal = LS.get('gym_salud', null);             // Health Connect (APK), cuando esté conectado
   const prom = a => a && a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
   const pasos = sal && sal.pasos ? prom(sal.pasos.map(x => x.v)) : null, sueno = sal && sal.sueno ? prom(sal.sueno.map(x => x.h)) : null;
+  const rp = ritmoPeso(), falla = comidaQueFalla();
   return ['Reporte semanal · ' + ddmm(sumarDias(hoy(), -6)) + ' al ' + ddmm(hoy()),
     'Peso promedio (7 días): ' + v(r.promedio7, ' kg') + (r.cambioSemana !== null && r.cambioSemana !== undefined ? ' (' + (r.cambioSemana > 0 ? '+' : '') + r.cambioSemana + ' vs semana anterior)' : ''),
+    'Ritmo de peso: ' + (rp ? signo(rp.pct) + ' %/semana (ideal −0.25 a −0.5 %)' : ''),
     'Cintura: ' + v(cint, ' cm'),
     'Días de gym: ' + gym,
     'Km corridos: ' + v(r.km7, ' km'),
-    'Proteína promedio: ' + v(r.protProm7, ' g') + ' (meta ' + metaProt() + ' g)',
+    'Proteína promedio: ' + v(r.protProm7, ' g') + ' (meta ' + metaProt() + ' g)' + (falla ? '; ' + textoFalla(falla) : ''),
     'Pasos promedio: ' + v(pasos === null ? null : Math.round(pasos).toLocaleString('es-MX'), ''),
     'Sueño promedio: ' + v(sueno, ' h')].join('\n');
 }
-async function copiarReporte() {
-  const t = textoReporte();
+async function copiarTexto(t, msg) {
   try { await navigator.clipboard.writeText(t); }
   catch (e) {
     const a = document.createElement('textarea'); a.value = t; a.style.position = 'fixed'; a.style.opacity = '0';
     document.body.appendChild(a); a.select(); try { document.execCommand('copy'); } catch (e2) {} a.remove();
   }
-  hap('ok'); toast('Reporte copiado ✓ Pégalo donde quieras');
+  hap('ok'); toast(msg);
 }
+function copiarReporte() { return copiarTexto(textoReporte(), 'Reporte copiado ✓ Pégalo donde quieras'); }
 // Health Connect: promedio de 7 días de pasos y sueño (solo si lo conectaste en el APK)
 function kpisSalud() {
   const s = LS.get('gym_salud', null);
@@ -3305,12 +3495,43 @@ function kpisSalud() {
   return (p !== null ? kpi(Math.round(p).toLocaleString('es-MX'), 'Pasos promedio', 'Health Connect · 7 días', p >= 8000) : '') +
     (h !== null ? kpi(Math.round(h * 10) / 10 + ' h', 'Sueño promedio', 'Health Connect · 7 días', h >= 7) : '');
 }
+/* ----- Ritmo de peso: bajar 0.25–0.5 % por semana, medido con el promedio de 7 días ----- */
+const signo = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
+function ritmoPeso() {
+  const r = DATA.resumen || {};
+  if (r.promedio7 === null || r.promedio7 === undefined || r.cambioSemana === null || r.cambioSemana === undefined) return null;
+  const antes = r.promedio7 - r.cambioSemana, pct = antes > 0 ? r.cambioSemana / antes * 100 : 0;
+  const cs = ((DATA.cuerpo && DATA.cuerpo.serie) || []).filter(x => x.cint !== null && x.cint !== undefined);
+  const cint = cs.length >= 2 ? Math.round((cs[cs.length - 1].cint - cs[cs.length - 2].cint) * 10) / 10 : null, bajaCint = cint !== null && cint < 0;
+  let estado, txt;
+  if (pct < -1) { estado = 'red'; txt = 'Demasiado rápido: así también se va músculo. Come ~300 kcal más al día (una porción extra de arroz, avena o pan) sin bajar la proteína.'; }
+  else if (pct < -0.5) { estado = 'acc'; txt = 'Un poco rápido: agrega ~150–200 kcal al día (una fruta y un puño de nueces) para no perder músculo.'; }
+  else if (pct <= -0.25) { estado = 'ok'; txt = 'Ritmo ideal: bajas panza sin perder músculo. Sigue igual.'; }
+  else if (pct <= 0.1) { estado = bajaCint ? 'ok' : 'acc'; txt = bajaCint ? 'Lento en la báscula, pero tu cintura bajó ' + Math.abs(cint) + ' cm: cambias grasa por músculo. Sigue igual.'
+                                                                 : 'Lento. Si en 2 semanas sigue así y la cintura no baja, quita ~150 kcal al día (una tortilla o un refresco menos).'; }
+  else { estado = bajaCint ? 'acc' : 'red'; txt = bajaCint ? 'Subiste, pero tu cintura bajó: puede ser músculo o agua. Revisa la semana que viene antes de cambiar algo.'
+                                                           : 'Estás subiendo: ajusta. Quita ~200 kcal al día (bebidas con azúcar, pan dulce o una porción de tortillas) sin bajar la proteína.'; }
+  const kg = f => Math.round(antes * f) / 100;
+  return { pct: Math.round(pct * 100) / 100, kg: r.cambioSemana, ideal: [kg(0.25), kg(0.5)], estado: estado, txt: txt, n7: DATA.n7 === undefined ? null : DATA.n7 };
+}
+function tarjetaRitmoPeso() {
+  const x = ritmoPeso();
+  if (!x) return '<div class="card"><div class="t1">Ritmo de peso semanal</div><div class="muted" style="margin-top:4px">Aparece con 2 semanas de pesajes. La meta: bajar 0.25–0.5 % de tu peso por semana.</div></div>';
+  // Escala de −1.5 % a +1 %: la zona verde es el ritmo ideal
+  const pos = v => Math.max(0, Math.min(100, (v + 1.5) / 2.5 * 100));
+  return '<div class="card ritmo"><div class="row between"><div class="t1">Ritmo de peso semanal</div><span class="pill ' + x.estado + ' num">' + signo(x.pct) + ' %/sem</span></div>' +
+    '<div class="escala"><div class="zona" style="left:' + pos(-0.5) + '%;width:' + (pos(-0.25) - pos(-0.5)) + '%"></div><i style="left:' + pos(x.pct) + '%"></i></div>' +
+    '<div class="escala-l"><span>−1.5 %</span><span>ideal −0.25 a −0.5 %</span><span>+1 %</span></div>' +
+    '<div class="muted" style="margin:8px 0 6px">Promedio de 7 días: <b class="num" style="color:var(--text)">' + signo(x.kg) + ' kg</b> vs la semana anterior. Para ti, ideal: bajar ' + x.ideal[0] + '–' + x.ideal[1] + ' kg por semana.</div>' +
+    '<div style="font-size:14.5px">' + esc(x.txt) + '</div>' +
+    (x.n7 !== null && x.n7 < 3 ? '<div class="muted" style="font-size:12.5px;margin-top:6px">Esta semana llevas ' + x.n7 + ' pesaje' + (x.n7 === 1 ? '' : 's') + ': con 3 o más mañanas el promedio es confiable.</div>' : '') + '</div>';
+}
 function progresoCuerpo() {
   const r = DATA.resumen;
   let h = '<div class="kpis">' +
     kpi(fmt(r.promedio7), 'Peso promedio 7 días (kg)', r.cambioSemana !== null ? fmt(r.cambioSemana, true) + ' vs semana anterior' : '', r.cambioSemana !== null && r.cambioSemana <= 0) +
     kpi(fmt(r.cintura), 'Cintura (cm)', r.cambioCintura !== null ? fmt(r.cambioCintura, true) + ' desde el inicio' : '', r.cambioCintura !== null && r.cambioCintura < 0) + '</div>';
-  h += tarjetaMetaCintura();
+  h += tarjetaRitmoPeso() + tarjetaMetaCintura();
   const serie = (DATA.cuerpo && DATA.cuerpo.serie) || [];
   const cs = serie.filter(x => x.cint !== null).map(x => ({ d: x.d, v: x.cint }));
   const ps = serie.filter(x => x.peso !== null).map(x => ({ d: x.d, v: x.peso }));
@@ -4043,12 +4264,20 @@ function abrirAjustes() {
     tog('ia', true, 'La IA afina el consejo entre series', 'El motor te dice al instante qué hacer en la siguiente serie (sin señal); con señal, Gemini elige entre sus opciones y te explica por qué', AIC.cerebro, 'pri') +
     (!scriptAlDia() ? '<div class="opt tarj aviso-script"><span class="aic" style="--c:var(--acc)">' + AIC.tabla + '</span><div class="txt"><div class="t1" style="font-size:15px">Actualiza tu script a la ' + SCRIPT_ESPERADO + '</div>' +
       '<div class="muted">Tu hoja tiene la ' + esc(DATA.scriptVersion || 'anterior a la 7.4') + '. La app funciona, pero sin las mejoras nuevas del script (te lo manda tu coach).</div></div></div>' : '') +
+    (NATIVO && APK_OK === false ? '<div class="opt tarj aviso-script"><span class="aic" style="--c:var(--acc)">' + AIC.cel + '</span><div class="txt"><div class="t1" style="font-size:15px">Instala el APK nuevo</div>' +
+      '<div class="muted">Tu APK es anterior a la 7.5: descarga Gym.apk de nuevo (Releases del repo) e instálalo encima, sin desinstalar. Trae el aviso de pasos, el diagnóstico y los trotes con distancia.</div></div></div>' : '') +
     (NATIVO ? tog('salud', false, 'Health Connect (solo lectura)', 'Lee tus pasos, sueño y carreras de los últimos 7 días y los pasa a tu hoja. Nunca escribe nada', AIC.corre, 'ok') +
+      (ajuste('salud', false) ? tog('avisoPasos', true, 'Aviso de pasos a las 5 pm', 'De lunes a viernes, si vas atrasado: "Son las 5 pm y llevas 3,200 pasos: camina 15 minutos"', AIC.corre, 'cyan') +
+        (ajuste('avisoPasos', true) ? '<div class="opt"><span class="aic" style="--c:var(--cyan)">' + AIC.corre + '</span><div class="txt"><div class="t1" style="font-size:15px">Meta de pasos</div><div class="muted">Al día; el aviso compara con lo que llevarías a esa hora</div></div>' +
+          '<div class="unit paso c-cyan"><button onclick="cambiarMetaPasos(-500)">−</button><button class="on num" style="pointer-events:none">' + META_PASOS().toLocaleString('es-MX') + '</button><button onclick="cambiarMetaPasos(500)">+</button></div></div>' : '') : '') +
       '<div class="opt tarj"><span class="aic" style="--c:var(--cyan)">' + AIC.cel + '</span><div class="txt"><div class="t1" style="font-size:15px">Widgets y accesos directos</div>' +
-      '<div class="muted">Widgets: mantén presionada la pantalla de inicio → Widgets → Gym. Accesos: mantén presionado el ícono de la app</div></div></div>' : '') +
+      '<div class="muted">Widgets: mantén presionada la pantalla de inicio → Widgets → Gym. Accesos: mantén presionado el ícono de la app</div></div></div>' +
+      '<div class="opt tarj"><span class="aic" style="--c:var(--pri)">' + AIC.cerebro + '</span><div class="txt"><div class="t1" style="font-size:15px">Diagnóstico</div>' +
+      '<div class="muted">¿Health Connect o un widget no responden? Revisa permisos, de qué apps llegan tus datos y qué widgets tienes</div></div>' +
+      '<button class="btn ghost sm" onclick="abrirDiagnostico()">Revisar</button></div>' : '') +
     tog('ruta', true, 'Ruta de hoy', 'Te dice qué zona te falta en la semana y cuáles 2–4 ejercicios la cierran', AIC.flechas, 'ok') +
     tog('avisoProt', true, 'Aviso de proteína a las 6 pm', 'Cuánto llevas y qué de lo que comes la completa (sábado y domingo aunque no abras la app)', AIC.cubiertos, 'acc') +
-    tog('calentamiento', false, 'Calentamiento automático', 'En los básicos con barra agrega 2 series ligeras (50 % y 70 %) al abrirlos', AIC.flama, 'red') +
+    tog('calentamiento', true, 'Calentamiento automático', 'En los básicos, al abrirlos: barra sola × 10, 50 % × 8 y 75 % × 3, marcadas C (no cuentan para tu volumen)', AIC.flama, 'red') +
     '<div class="opt" style="display:block">' + sec(AIC.reloj, 'cyan', 'Descanso predeterminado') + '<div class="pills c-cyan" style="margin:0;display:grid;grid-template-columns:repeat(4,1fr)">' +
     DESCANSOS.map(s => '<button class="' + (s === def ? 'on' : '') + '" onclick="setAjuste(\'descanso\',' + s + ');abrirAjustes()">' + mmss(s) + '</button>').join('') + '</div></div>' +
     '<div class="opt" style="display:block">' + sec(AIC.flechas, 'pri', 'Objetivo de músculo') + '<div class="muted">' + esc(FOCOS[focoMus()][1]) + '. Cambia las metas del mapa de músculos.</div>' +
@@ -4085,14 +4314,100 @@ async function toggleAjuste(k, d) {
     const p = await Notification.requestPermission();
     if (p !== 'granted') return toast('Necesito permiso de notificaciones para avisarte');
   }
-  if (k === 'avisoProt' && nuevo && NATIVO) await nativo('LocalNotifications', 'requestPermissions');
+  if ((k === 'avisoProt' || k === 'avisoPasos') && nuevo && NATIVO) await nativo('LocalNotifications', 'requestPermissions');
   if (k === 'salud' && nuevo && !(await conectarSalud())) return abrirAjustes();
   setAjuste(k, nuevo);
   if (k === 'avisoProt') programarAvisoProt();
   if (k === 'salud' && nuevo) leerSalud(true);
   if (k === 'salud' && !nuevo) { LS.del('gym_salud'); LS.del('gym_salud_firma'); actualizarWidgets(); }
+  if (k === 'salud' || k === 'avisoPasos') configurarPasos();
   if (k === 'pantalla') { if (nuevo && sesionActiva()) pedirPantalla(); if (!nuevo) soltarPantalla(); }
   abrirAjustes();
+}
+function cambiarMetaPasos(d) {
+  setAjuste('metaPasos', Math.max(3000, Math.min(20000, META_PASOS() + d)));
+  configurarPasos(); abrirAjustes();
+}
+/* ----- Diagnóstico (APK): qué ve la app de Health Connect, los widgets y el aviso de pasos ----- */
+const APPS_SALUD = { 'com.google.android.apps.fitness': 'Google Fit', 'com.fitbit.FitbitMobile': 'Fitbit', 'com.sec.android.app.shealth': 'Samsung Health',
+  'com.google.android.apps.healthdata': 'Health Connect', 'com.strava': 'Strava', 'com.garmin.android.apps.connectmobile': 'Garmin Connect', 'fi.polar.polarflow': 'Polar Flow',
+  'com.mi.health': 'Mi Fitness', 'com.xiaomi.wearable': 'Mi Fitness', 'com.huawei.health': 'Huawei Salud', 'com.google.android.gms': 'Google', 'android': 'el celular' };
+const nombreApp = p => APPS_SALUD[p] || String(p).split('.').pop();
+const cuandoTexto = d => diaCorto(claveDia(d)) + ', ' + horaTexto(d);
+const haceCuanto = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'hace un momento' : m < 60 ? 'hace ' + m + ' min' : m < 1440 ? 'hace ' + Math.round(m / 60) + ' h' : 'hace ' + Math.round(m / 1440) + ' días'; };
+let DIAG = null;
+async function abrirDiagnostico() {
+  $('sheet').innerHTML = '<div class="row between ajhead"><div class="t2">Diagnóstico</div><button class="cerrar" onclick="abrirAjustes()" aria-label="Volver">✕</button></div>' +
+    '<div class="muted" style="margin:14px 0">Revisando el APK, Health Connect y los widgets…</div>';
+  if (!$('modal').classList.contains('show')) abrirModal('completa');
+  const [e, info] = await Promise.all([nativo('GymNativo', 'estado'), nativo('App', 'getInfo')]);
+  DIAG = { e: e && e.ok ? e : null, apk: (e && e.apk) || (info && info.version) || '' };
+  if (!DIAG.e) DIAG.hc = await hc('isAvailable');
+  pintarDiagnostico();
+}
+function lineasDiagnostico() {
+  const L = [], d = DIAG || {}, e = d.e, s = LS.get('gym_salud', null);
+  L.push(['h', 'App']);
+  L.push([true, 'App ' + VERSION_APP + ' · APK ' + (d.apk || 'sin versión')]);
+  if (!e) L.push([false, 'Tu APK es anterior a la 7.5: descarga Gym.apk de nuevo (Releases) e instálalo encima. Sin él no hay aviso de pasos ni este diagnóstico completo.']);
+  L.push(['h', 'Health Connect']);
+  if (e) {
+    L.push([e.sdk === 'disponible', e.sdk === 'disponible' ? 'Disponible en este celular' : e.sdk === 'actualizar' ? 'Hay que actualizar Health Connect (Play Store)' : 'No está en este celular']);
+    const P = { READ_STEPS: 'Pasos', READ_DISTANCE: 'Distancia', READ_SLEEP: 'Sueño', READ_EXERCISE: 'Ejercicio' };
+    if (e.permisos) Object.keys(P).forEach(k => L.push([e.permisos.includes(k), P[k] + (e.permisos.includes(k) ? ': con permiso' : ': sin permiso')]));
+    if (e.permisos) L.push([e.fondo ? true : e.fondoDisponible ? false : null, e.fondo ? 'En segundo plano: con permiso (el aviso de las 5 pm lee tus pasos con la app cerrada)'
+      : e.fondoDisponible ? 'En segundo plano: sin permiso (el aviso de las 5 pm no puede leer tus pasos con la app cerrada)' : 'En segundo plano: tu Health Connect no lo tiene; el aviso solo sale en la app']);
+  } else if (d.hc) L.push([!!d.hc.available, d.hc.available ? 'Disponible en este celular' : 'No disponible']);
+  L.push([ajuste('salud', false) ? true : false, ajuste('salud', false) ? 'Conectado en Ajustes' : 'Apagado en Ajustes: actívalo para leer tus datos']);
+  if (s) {
+    const f = s.fuentes || {}, de = l => l && l.length ? ' (de ' + l.map(nombreApp).join(', ') + ')' : '';
+    L.push(['h', 'Lo último que leyó · ' + haceCuanto(s.ts)]);
+    L.push([s.pasos.length > 0, s.pasos.length ? s.pasos.length + (s.pasos.length === 1 ? ' día' : ' días') + ' con pasos' + de(f.pasos) : 'Sin pasos: ninguna app le está mandando pasos a Health Connect']);
+    L.push([s.sueno.length > 0 ? true : null, s.sueno.length ? s.sueno.length + (s.sueno.length === 1 ? ' noche' : ' noches') + ' de sueño' + de(f.sueno) : 'Sin sueño: hace falta un reloj o una app que lo mida']);
+    L.push([s.runs.length > 0 ? true : null, (s.sesiones || 0) + (s.sesiones === 1 ? ' sesión' : ' sesiones') + ' de ejercicio' + de(f.ejercicio) + ' · ' + s.runs.length + ' carrera' + (s.runs.length === 1 ? '' : 's') + ' con distancia' +
+      (s.sinDistancia ? ' · ' + s.sinDistancia + ' sin distancia (esas no se suben)' : '')]);
+    (s.errores || []).forEach(x => L.push([false, 'Error al leer ' + x]));
+  }
+  if (e) {
+    const W = { proteina: 'Proteína', hoy: 'Hoy toca', carrera: 'Carrera', semana: 'Tu semana' }, w = e.widgets || {}, total = Object.keys(W).reduce((a, k) => a + (w[k] || 0), 0);
+    L.push(['h', 'Widgets']);
+    L.push([total > 0 ? true : null, total ? 'En tu pantalla: ' + Object.keys(W).filter(k => w[k]).map(k => W[k] + (w[k] > 1 ? ' ×' + w[k] : '')).join(', ')
+      : 'No hay widgets puestos: mantén presionado un espacio vacío de la pantalla de inicio → Widgets → Gym']);
+    L.push([e.widgetsTs > 0 && Date.now() - e.widgetsTs < 864e5, e.widgetsTs ? 'Datos que les mandó la app: ' + haceCuanto(e.widgetsTs) : 'La app todavía no les ha mandado datos']);
+    if (e.cola) L.push([null, e.cola + ' comida' + (e.cola === 1 ? '' : 's') + ' del widget esperando a sumarse']);
+    const p = e.pasos || {};
+    L.push(['h', 'Aviso de pasos']);
+    L.push([p.activo ? true : null, p.activo ? 'Prendido: ' + horaTexto(new Date(2000, 0, 1, p.hora, p.min)) + ' de lunes a viernes · meta ' + Number(p.meta).toLocaleString('es-MX') +
+      (p.proximo ? ' · siguiente revisión: ' + cuandoTexto(new Date(p.proximo)) : '') : 'Apagado']);
+    // "2026-10-21T17:00:04 Son las 5 pm y llevas…": la fecha (hora del celular) y lo que pasó
+    if (p.resultado) { const i = p.resultado.indexOf(' '), f = new Date(p.resultado.slice(0, i)); L.push([null, 'Última revisión' + (isNaN(f) ? '' : ' (' + cuandoTexto(f) + ')') + ': ' + p.resultado.slice(i + 1)]); }
+  }
+  return L;
+}
+function textoDiagnostico() {
+  return ['Diagnóstico Gym · ' + new Date().toLocaleString('es-MX')].concat(lineasDiagnostico().map(l => l[0] === 'h' ? '\n' + l[1].toUpperCase() : (l[0] === true ? '✓ ' : l[0] === false ? '✗ ' : '• ') + l[1])).join('\n');
+}
+function pintarDiagnostico() {
+  const ic = { true: ['✓', 'ok'], false: ['✗', 'red'], null: ['•', 'muted'] };
+  $('sheet').innerHTML = '<div class="row between ajhead"><div class="t2">Diagnóstico</div><button class="cerrar" onclick="abrirAjustes()" aria-label="Volver">✕</button></div>' +
+    '<div class="diag">' + lineasDiagnostico().map(l => l[0] === 'h' ? '<div class="t1 dh">' + esc(l[1]) + '</div>'
+      : '<div class="dl"><b style="color:var(--' + ic[l[0]][1] + ')">' + ic[l[0]][0] + '</b><span>' + esc(l[1]) + '</span></div>').join('') + '</div>' +
+    '<div class="diag-bt"><button class="btn sm" onclick="leerSalud(true).then(abrirDiagnostico)">Leer ahora</button>' +
+    '<button class="btn ghost sm" onclick="permisosDiagnostico()">Dar permisos</button>' +
+    '<button class="btn ghost sm" onclick="hc(\'openHealthConnectSettings\')">Abrir Health Connect</button>' +
+    '<button class="btn ghost sm" onclick="widgetsYa()">Actualizar widgets</button>' +
+    '<button class="btn ghost sm" onclick="copiarTexto(textoDiagnostico(), \'Diagnóstico copiado ✓\')">Copiar</button></div>' +
+    '<div class="protocolo"><b>¿Sin pasos o sin carreras?</b> Health Connect solo guarda lo que otra app le manda. Abre la app que cuenta tus pasos o registra tus trotes ' +
+    '(Fitbit, Samsung Health, Google Fit, Strava…) y activa compartir con Health Connect. En el Pixel: Ajustes → Seguridad y privacidad → Privacidad → Health Connect → Permisos de apps.</div>';
+}
+async function permisosDiagnostico() {
+  if (await conectarSalud()) { if (!ajuste('salud', false)) setAjuste('salud', true); configurarPasos(); await leerSalud(true); }
+  abrirDiagnostico();
+}
+function widgetsYa() {
+  if (!DATA) return;
+  clearTimeout(WIDGET_T);
+  nativo('GymNativo', 'guardarWidgets', { datos: datosWidgets() }).then(() => { toast('Widgets actualizados ✓'); abrirDiagnostico(); });
 }
 function cambiarMeta(d) {
   DATA.metaProteina = Math.max(40, Math.min(300, metaProt() + d));
@@ -4118,8 +4433,10 @@ function cambiarMetaCintura(d) {
 function guardarCarrera(km) {
   const f = ($('carFecha') || {}).value;
   if (km && !f) return toast('Elige primero la fecha de la carrera');
+  if (km && f < hoy()) return toast('Esa fecha ya pasó: elige la de tu siguiente carrera');
   DATA.carrera = km ? { fecha: f, km: km, nombre: km === 21 ? 'medio maratón' : km + 'K' } : null;
   if (!km) DATA.plan = null;
+  if (km) setAjuste('troteMant', false);
   LS.set('gym_data', DATA);
   encolar('saveConfig', [{ carrera: DATA.carrera }], 'cfg-carrera');
   toast(km ? 'Carrera guardada ✓' : 'Sin carrera');
