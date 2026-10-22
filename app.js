@@ -42,11 +42,17 @@ function registrarError(msg, donde, pila) {
 async function subirErrores() {
   const nuevos = LS.get('gym_jserr', []).filter(x => !x.subido);
   if (!nuevos.length || !API || !KEY || !navigator.onLine) return;
+  const marcar = ok => LS.set('gym_jserr', LS.get('gym_jserr', []).map(x => ok.has('err-' + x.ts) ? Object.assign(x, { subido: true }) : x));
   try {
-    const res = await apiPost('batch', [nuevos.map(x => ({ id: 'err-' + x.ts, action: 'logError', args: [x] }))]);
-    const ok = new Set(res.filter(r => r.ok).map(r => r.id));   // si el script aún no tiene logError, se quedan para la próxima
-    LS.set('gym_jserr', LS.get('gym_jserr', []).map(x => ok.has('err-' + x.ts) ? Object.assign(x, { subido: true }) : x));
-  } catch (e) { /* sin señal: se intenta al volver a abrir */ }
+    await apiPost('errores', [nuevos]);
+    marcar(new Set(nuevos.map(x => 'err-' + x.ts)));
+  } catch (e) {
+    if (!/desconocida/i.test(e.message)) return;   // sin señal: se intenta al volver a abrir
+    try {
+      const res = await apiPost('batch', [nuevos.map(x => ({ id: 'err-' + x.ts, action: 'logError', args: [x] }))]);
+      marcar(new Set(res.filter(r => r.ok).map(r => r.id)));   // si el script aún no tiene logError, se quedan para la próxima
+    } catch (e2) { /* se intenta al volver a abrir */ }
+  }
 }
 window.addEventListener('error', e => registrarError(e.message, (e.filename || '').split('/').pop() + ':' + e.lineno + ':' + e.colno, e.error && e.error.stack));
 window.addEventListener('unhandledrejection', e => { const r = e.reason || {}; registrarError('Promesa: ' + (r.message || r), '', r.stack); });
@@ -717,6 +723,8 @@ const CSS_V72 = `
   .ruta.corta { display: flex; gap: 10px; align-items: center; padding: 10px 14px; margin: 0 0 12px; border-radius: 14px; border: 1px solid var(--line);
                 background: color-mix(in srgb, var(--ok) 7%, transparent); font-size: 14px; }
   .ruta.corta .i { font-size: 17px; }
+  .tip.baja { background: color-mix(in srgb, var(--cyan) 10%, var(--card2)); }
+  .aviso-script { border-color: color-mix(in srgb, var(--acc) 45%, var(--line)); }
   .tipico-ed { display: block; margin: -4px 2px 14px; font-size: 13.5px; }
   .tipico-lista { display: grid; gap: 6px; max-height: 52vh; overflow: auto; margin: 0 -4px; padding: 0 4px; }
   .tipico-lista .tl { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; border: 1px solid var(--line); background: var(--card2); }
@@ -777,12 +785,8 @@ const NOMBRE_OP = { saveExercise: 'Ejercicio', savePeso: 'Peso', saveProteina: '
                     cambiarVariante: 'Cambio de equipo (actualiza el script)', saveSalud: 'Health Connect (actualiza el script)' };
 
 /* ===================== API ===================== */
-async function apiGet(action, clave) {
-  const r = await fetch(API + '?action=' + action + '&k=' + encodeURIComponent(clave || KEY), { redirect: 'follow' });
-  const j = await r.json();
-  if (!j.ok) throw new Error(j.error || 'Error de la API');
-  return j.result;
-}
+// Lecturas también por POST: la clave nunca viaja en el link (los links quedan en historial y registros)
+async function apiGet(action, clave) { return apiPost(action, [], clave); }
 async function apiPost(action, args, clave) {
   // text/plain evita la verificación previa de CORS que Apps Script no contesta
   const r = await fetch(API, { method: 'POST', redirect: 'follow',
@@ -902,7 +906,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v7.3';
+const VERSION_APP = 'v7.4';
 // Tu link de configuración (lleva tu clave): para configurar el APK sin escribir nada
 function copiarLinkConfig() {
   const link = location.origin + location.pathname + '?api=' + encodeURIComponent(API) + '&key=' + encodeURIComponent(KEY);
@@ -979,6 +983,7 @@ function construirEstadosPar(viejo) {
   Object.keys(PAR.exs).forEach(k => { state[k] = estadoDe(PAR.exs[k], PAR.key, fresh, pend, w, viejo || state, dia); });
 }
 function prepararPar() {
+  aplicarProgresion(PAR.data.exercises, PAR.data.ultimoPeso);
   PAR.exs = {};
   PAR.data.exercises.forEach(e => { PAR.exs['P|' + e.name] = Object.assign({}, e, { name: 'P|' + e.name }); });
   construirEstadosPar(state);
@@ -1060,6 +1065,26 @@ function ladoVisible(base) {
   return ladoListo(base, 'yo') && !ladoListo(base, 'par') ? 'par' : 'yo';
 }
 function verLado(base, lado) { QUIEN[base] = lado; ANIM_ABRE = base; hap('tecla'); pintarEntrenar(); }
+// Sugerencia al empezar cada ejercicio (subir, bajar o mantener, con números). El script 7.4 ya la manda calculada
+// con la misma función (motor.js → progresionInicio); con un script anterior, la calcula la app con tu última sesión.
+const SCRIPT_ESPERADO = '7.4';
+const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);
+const scriptAlDia = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum(SCRIPT_ESPERADO));
+function aplicarProgresion(lista, corpKg) {
+  if (scriptAlDia() || DATA.descargaCarrera) return;
+  const rirDe = rpe => vacio(rpe) ? null : Number(rpe) >= 9.5 ? 0 : Number(rpe) <= 7 ? 3 : 1.5;
+  (lista || []).forEach(ex => {
+    const t = (ex.anterior || []).filter(a => a.t !== 'C' && a.t !== 'D' && Number(a.r) > 0);
+    if (!t.length || ex.done) return;
+    const series = t.map((a, i) => ({ w: Number(a.w) || 0, r: Number(a.r),
+      rir: a.rpe !== undefined ? rirDe(a.rpe) : (i === t.length - 1 && ex.rirUlt !== undefined ? ex.rirUlt : null) }));
+    const pr = MOTOR.progresionInicio({ series: series, min: ex.min, max: ex.max, paso: ex.paso || ex.step, unidad: ex.unit, mult: ex.mult,
+      barra: ex.barra, inc: ex.inc, modalidad: ex.modalidad, sinPeso: ex.sinPeso, corpKg: corpKg, nSeries: (ex.sets || []).filter(s => s.t !== 'C').length });
+    ex.prog = { accion: pr.accion, peso: pr.peso, reps: pr.reps };
+    ex.up = pr.accion === 'subir'; ex.hint = pr.mensaje;
+    ex.sets = (ex.sets || []).filter(s => s.t === 'C').concat(pr.objetivo.map(o => ({ w: o.w, r: o.r, t: 'T' })));
+  });
+}
 function nuevoEstado(ex, done, id) {
   const st = { unit: ex.unit, sets: ex.sets.map(s => ({ w: s.w, r: s.r, t: s.t || 'T', ok: false })), rir: '', notas: '',
                uid: id, done: done, edited: false };
@@ -1071,6 +1096,7 @@ function companero(name) { const s = superserie(); return s && s.includes(name) 
 
 function pintarTodo() {
   const pend = cola(), w = wip(), viejo = state, dia = diaReg();
+  aplicarProgresion(DATA.exercises, DATA.ultimoPeso);
   state = {};
   DATA.exercises.forEach(ex => { state[ex.name] = estadoDe(ex, KEY, fresco(), pend, w, viejo, dia); });
   if (parejaHoy() && parejaDisponible()) { if (PAR && PAR.exs) construirEstadosPar(viejo); if (!PAR || !PAR.cargando) cargarPareja(); }
@@ -1649,6 +1675,7 @@ function cuerpoEjercicio(ex, st) {
   if (meta) h += '<div class="tip plan">🎯 ' + esc(meta) + '</div>';
   else if (ex.up && !FECHA && !esPar(ex.name) && descargaActiva()) h += '<div class="tip">Semana de descarga: estas series ya vienen con −10 % y la mitad. Sin llegar al fallo.</div>';
   else if (ex.up) h += '<div class="tip acc">' + ICO.up + esc(ex.hint) + '</div>';
+  else if (ex.prog && ex.hint) h += '<div class="tip' + (ex.prog.accion === 'bajar' ? ' baja' : '') + '">' + (ex.prog.accion === 'bajar' ? '↓ ' : '') + esc(ex.hint) + '</div>';
   else if (ex.hint && /al fallo/.test(ex.hint)) h += '<div class="tip">' + esc(ex.hint) + '</div>';
   else if (ex.sugerido && (pesoAnt === null || ex.sugerido.w > pesoAnt)) h += '<div class="sug">Sugerido hoy: ' + ex.sugerido.w + ' ' + ex.unit + ' × ' + ex.sugerido.r + ' (RPE 8)' +
     '<button class="btn" onclick="usarSugerido(\'' + n + '\')">Usar</button></div>';
@@ -1949,7 +1976,7 @@ function usarVariante(de, a, siempre) {
     const ex = exDe(raiz), v = exDe(a), b = ex.bloque;
     ex.bloque = v.bloque; v.bloque = b;
     LS.set('gym_data', DATA);
-    encolar('cambiarVariante', [raiz, a], 'var-' + raiz);
+    encolar('cambiarVariante', [raiz, a, ex.bloque || '', v.bloque || ''], 'var-' + raiz);
   } else if (a !== raiz) c[raiz] = a;
   LS.set('gym_cambio_' + hoy(), c);
   BUSCA = ''; OPEN = a; ANIM_ABRE = a; hap('ok');
@@ -4014,6 +4041,8 @@ function abrirAjustes() {
     tog('autoDescanso', false, 'Iniciar el descanso solo', 'Si está apagado, solo te sugiere tiempos al marcar una serie', AIC.reloj, 'ok') +
     tog('iaPlan', true, 'Plan del día con IA', 'Al abrir Entrenar: un foco para la sesión y una meta por ejercicio', AIC.chispa, 'pri') +
     tog('ia', true, 'La IA afina el consejo entre series', 'El motor te dice al instante qué hacer en la siguiente serie (sin señal); con señal, Gemini elige entre sus opciones y te explica por qué', AIC.cerebro, 'pri') +
+    (!scriptAlDia() ? '<div class="opt tarj aviso-script"><span class="aic" style="--c:var(--acc)">' + AIC.tabla + '</span><div class="txt"><div class="t1" style="font-size:15px">Actualiza tu script a la ' + SCRIPT_ESPERADO + '</div>' +
+      '<div class="muted">Tu hoja tiene la ' + esc(DATA.scriptVersion || 'anterior a la 7.4') + '. La app funciona, pero sin las mejoras nuevas del script (te lo manda tu coach).</div></div></div>' : '') +
     (NATIVO ? tog('salud', false, 'Health Connect (solo lectura)', 'Lee tus pasos, sueño y carreras de los últimos 7 días y los pasa a tu hoja. Nunca escribe nada', AIC.corre, 'ok') +
       '<div class="opt tarj"><span class="aic" style="--c:var(--cyan)">' + AIC.cel + '</span><div class="txt"><div class="t1" style="font-size:15px">Widgets y accesos directos</div>' +
       '<div class="muted">Widgets: mantén presionada la pantalla de inicio → Widgets → Gym. Accesos: mantén presionado el ícono de la app</div></div></div>' : '') +
