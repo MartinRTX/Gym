@@ -151,12 +151,13 @@ async function tomarColaWidget() {
 const SALUD_TIPOS = ['steps', 'distance', 'sleep', 'workouts'];
 const hc = (metodo, opts) => { try { return window.Capacitor.nativePromise('Health', metodo, opts || {}).catch(() => null); } catch (e) { return Promise.resolve(null); } };
 // APK 7.5 o más nuevo: lee Health Connect con su propio código (carreras con distancia), diagnóstico y aviso de pasos
-let APK_P = null, APK_OK = null;
-const apkNuevo = () => (APK_P = APK_P || (NATIVO ? nativo('GymNativo', 'estado').then(e => (APK_OK = !!(e && e.ok))) : Promise.resolve(false)));
+let APK_P = null, APK_OK = null, ESTADO_N = null;
+const apkNuevo = () => (APK_P = APK_P || (NATIVO ? nativo('GymNativo', 'estado').then(e => { ESTADO_N = e && e.ok ? e : null; return (APK_OK = !!ESTADO_N); }) : Promise.resolve(false)));
 async function conectarSalud() {
   if (await apkNuevo()) {
     // Una sola pantalla de Health Connect: los 4 permisos de lectura y "en segundo plano" (para el aviso de las 5 pm)
     const e = await nativo('GymNativo', 'conectarSalud', { fondo: true });
+    if (e && e.ok) ESTADO_N = e;
     if (!e || e.sdk === 'no') { toast('Health Connect no está disponible en este celular'); return false; }
     if (e.sdk === 'actualizar') { toast('Actualiza Health Connect en Play Store y vuelve a intentar'); return false; }
     if (!(e.permisos || []).length) { toast('Sin permiso: la app sigue igual, sin Health Connect'); return false; }
@@ -224,7 +225,10 @@ async function leerSalud(forzar) {
   }
   actualizarWidgets();
   if (TAB === 'Progreso') pintarProgreso();
-  // La tarjeta de pasos de la tarde, sin interrumpir si estás anotando algo
+  repintarEntrenar();
+}
+// Las tarjetas de Entrenar que dependen de lo nativo (pasos, permisos), sin interrumpir si estás anotando algo
+function repintarEntrenar() {
   if (TAB === 'Entrenar' && !sesionActiva() && !$('kp').classList.contains('show') && !$('modal').classList.contains('show')) pintarEntrenar();
 }
 // Aviso de pasos (APK 7.5+): la hora, la meta y si está prendido viven también en el celular para la alarma
@@ -237,6 +241,7 @@ function iniciarNativo() {
   if (!NATIVO) return;
   try { window.Capacitor.addListener('GymNativo', 'accion', () => consumirAccion()); } catch (e) { /* APK anterior: sin widgets */ }
   consumirAccion(); tomarColaWidget(); leerSalud(); configurarPasos();
+  apkNuevo().then(ok => { if (ok) repintarEntrenar(); });
 }
 // Vibración con intención: ligera al teclear, golpe fuerte al marcar serie, patrón de éxito en récord
 const HAPTICOS = {
@@ -1288,7 +1293,7 @@ function pintarEntrenar() {
   else if (!FECHA && descargaActiva()) h += '<div class="aviso">' + ICO.flame + '<span>Descarga adelantada hasta el ' + diaCorto(LS.get('gym_descarga', {}).hasta) +
     ': mitad de series y −10 % de peso, sin llegar al fallo. <button class="link" onclick="terminarDescarga()">Terminarla</button></span></div>';
   else if (!FECHA && !activa) h += tarjetaDescarga();
-  if (!FECHA && !activa) h += tarjetaPostCarrera() + tarjetaProt6() + tarjetaPasos();
+  if (!FECHA && !activa) h += tarjetaPostCarrera() + tarjetaProt6() + tarjetaPasos() + tarjetaPermisoFondo();
   const diasSin = DATA.ultimoGrupoFecha ? difDias(DATA.ultimoGrupoFecha, hoy()) - 1 : 0;
   if (!FECHA && !activa && diasSin >= 3 && !sesion().log.length)
     h += '<div class="aviso">' + ICO.flame + '<span>Llevas ' + diasSin + ' días sin ir. Hoy toca ' + esc(DATA.sugGrupo) + ': aunque sean 30 minutos, cuenta.</span></div>';
@@ -3131,6 +3136,16 @@ function tarjetaProt6() {
 function pasosEsperados(meta, d) { const h = d.getHours() + d.getMinutes() / 60; return Math.max(0, Math.min(meta, meta * (h - 7) / 15)); }
 const horaTexto = d => (d.getHours() % 12 || 12) + (d.getMinutes() ? ':' + String(d.getMinutes()).padStart(2, '0') : '') + (d.getHours() < 12 ? ' am' : ' pm');
 // ~100 pasos por minuto caminando; de 10 a 30 minutos, en múltiplos de 5
+// Quien ya tenía Health Connect con el APK anterior no ha visto el permiso "en segundo plano": se le pide una vez
+function tarjetaPermisoFondo() {
+  const e = ESTADO_N;
+  if (!NATIVO || !e || !ajuste('salud', false) || !ajuste('avisoPasos', true) || e.fondo || !e.fondoDisponible || LS.get('gym_fondo_no', false)) return '';
+  return '<div class="card pasos5"><div class="t1">🚶 Un permiso más para el aviso de pasos</div>' +
+    '<div class="muted" style="margin:4px 0 10px">Para que a las 5 pm te avise aunque la app esté cerrada, Health Connect necesita "Acceder a datos en segundo plano". Solo lectura, como lo demás.</div>' +
+    '<div class="acts" style="margin-top:0"><button class="btn ghost" onclick="LS.set(\'gym_fondo_no\', true);pintarTab()">Ahora no</button>' +
+    '<button class="btn" onclick="permisoFondo()">Permitir</button></div></div>';
+}
+async function permisoFondo() { if (await conectarSalud()) configurarPasos(); pintarTab(); }
 const minutosCaminar = faltan => Math.max(10, Math.min(30, Math.round(faltan / 100 / 5) * 5));
 function tarjetaPasos() {
   if (!NATIVO || !ajuste('salud', false) || !ajuste('avisoPasos', true)) return '';
