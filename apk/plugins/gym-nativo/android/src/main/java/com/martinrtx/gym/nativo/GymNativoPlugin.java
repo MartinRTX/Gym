@@ -52,6 +52,8 @@ public class GymNativoPlugin extends Plugin {
 
     private boolean tomarDeIntent(Intent intent) {
         if (intent == null) return false;
+        // Al volver desde Recientes Android reusa el intent con el que se abrió: esa acción ya se hizo
+        if ((intent.getFlags() & Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0) return false;
         Uri d = intent.getData();
         if (d == null || !Widgets.ESQUEMA.equals(d.getScheme())) return false;
         pendiente = d.toString();
@@ -78,16 +80,41 @@ public class GymNativoPlugin extends Plugin {
         call.resolve();
     }
 
+    /** Las comidas que agregaste desde el widget. No se borran aquí: la app llama confirmarCola cuando ya las guardó. */
     @PluginMethod
     public void tomarCola(PluginCall call) {
         JSObject ret = new JSObject();
         try {
-            ret.put("items", new JSArray(Widgets.tomarCola(getContext()).toString()));
+            ret.put("items", new JSArray(Widgets.cola(getContext()).toString()));
         } catch (JSONException e) {
             ret.put("items", new JSArray());
         }
-        Widgets.actualizarTodos(getContext());
         call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void confirmarCola(PluginCall call) {
+        JSArray ids = call.getArray("ids");
+        java.util.Set<String> set = new java.util.HashSet<>();
+        try {
+            if (ids != null) set.addAll(ids.<String>toList());
+        } catch (JSONException e) {
+            // ids mal formados: no se borra nada
+        }
+        Widgets.quitarDeCola(getContext(), set);
+        Widgets.actualizarTodos(getContext());
+        call.resolve();
+    }
+
+    /** La pantalla de permisos de Gym en Health Connect (si ya los negaste, Android no vuelve a preguntar). */
+    @PluginMethod
+    public void abrirPermisosSalud(PluginCall call) {
+        try {
+            getContext().startActivity(SaludNativa.intentPermisosApp(getContext()));
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("No se pudo abrir Health Connect");
+        }
     }
 
     /** Diagnóstico: versión del APK, Health Connect, widgets puestos y aviso de pasos. */

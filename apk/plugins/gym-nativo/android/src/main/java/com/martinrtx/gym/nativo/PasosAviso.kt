@@ -65,7 +65,11 @@ object PasosAviso {
         return PendingIntent.getBroadcast(c, 602, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
-    /** La siguiente revisión: hoy a la hora elegida o, si ya pasó, mañana. Se vuelve a poner cada vez. */
+    /**
+     * La siguiente revisión: hoy a la hora elegida o, si ya pasó, mañana. Se vuelve a poner cada vez.
+     * Si la hora de hoy pasó hace menos de 2 h y hoy no se ha revisado (abriste la app justo antes de que sonara), en 1 minuto.
+     * Exacta si Android lo permite ("Alarmas y recordatorios"); si no, inexacta (puede llegar hasta ~1 h después).
+     */
     @JvmStatic
     fun programar(c: Context) {
         val p = Widgets.prefs(c)
@@ -76,14 +80,21 @@ object PasosAviso {
             p.edit().putLong("pasos_proximo", 0).apply()
             return
         }
-        var cuando = LocalDate.now().atTime(p.getInt("pasos_hora", 17), p.getInt("pasos_min", 0))
-        if (!cuando.isAfter(LocalDateTime.now())) cuando = cuando.plusDays(1)
+        val ahora = LocalDateTime.now()
+        val hoy = LocalDate.now().atTime(p.getInt("pasos_hora", 17), p.getInt("pasos_min", 0))
+        val cuando = when {
+            hoy.isAfter(ahora) -> hoy
+            p.getString("pasos_revisado", "") != LocalDate.now().toString() && hoy.plusHours(2).isAfter(ahora) -> ahora.plusMinutes(1)
+            else -> hoy.plusDays(1)
+        }
         val ms = cuando.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, ms, pi)
+        if (Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, ms, pi)
+        else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, ms, pi)
         p.edit().putLong("pasos_proximo", ms).apply()
     }
 
-    private fun anotar(c: Context, r: String) {
+    @JvmStatic
+    fun anotar(c: Context, r: String) {
         Widgets.prefs(c).edit().putString("pasos_resultado", LocalDateTime.now().withNano(0).toString() + " " + r).apply()
     }
 
@@ -92,6 +103,7 @@ object PasosAviso {
         if (!p.getBoolean("pasos_activo", false)) return
         val hoy = LocalDate.now()
         if (p.getString("pasos_ultimo", "") == hoy.toString()) return
+        p.edit().putString("pasos_revisado", hoy.toString()).apply()   // hoy ya se intentó (aunque no haya datos)
         if (p.getBoolean("pasos_laborales", true) && hoy.dayOfWeek.value >= 6) return anotar(c, "fin de semana")
         val leidos: Long? = try {
             SaludNativa.pasosHoy(c)
@@ -110,13 +122,22 @@ object PasosAviso {
         val hora = (if (t.hour % 12 == 0) 12 else t.hour % 12).toString() +
             (if (t.minute > 0) String.format(Locale.US, ":%02d", t.minute) else "") + (if (t.hour < 12) " am" else " pm")
         val texto = "Son las $hora y llevas ${String.format(Locale.US, "%,d", pasos)} pasos: camina $minutos minutos"
-        avisar(c, texto)
-        anotar(c, texto)
+        anotar(c, if (avisar(c, texto)) texto else "$texto (no salió: notificaciones apagadas para Gym)")
     }
 
-    private fun avisar(c: Context, texto: String) {
-        if (Build.VERSION.SDK_INT >= 33 && c.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
-        val nm = c.getSystemService(NotificationManager::class.java) ?: return
+    @JvmStatic
+    fun notificacionesActivas(c: Context): Boolean {
+        if (Build.VERSION.SDK_INT >= 33 && c.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return false
+        val nm = c.getSystemService(NotificationManager::class.java) ?: return false
+        if (!nm.areNotificationsEnabled()) return false
+        val canal = nm.getNotificationChannel(CANAL)
+        return canal == null || canal.importance != NotificationManager.IMPORTANCE_NONE
+    }
+
+    /** true si la notificación salió (con permiso, notificaciones de la app y el canal de pasos prendidos). */
+    private fun avisar(c: Context, texto: String): Boolean {
+        if (!notificacionesActivas(c)) return false
+        val nm = c.getSystemService(NotificationManager::class.java) ?: return false
         if (nm.getNotificationChannel(CANAL) == null) {
             nm.createNotificationChannel(NotificationChannel(CANAL, "Aviso de pasos", NotificationManager.IMPORTANCE_DEFAULT))
         }
@@ -129,19 +150,23 @@ object PasosAviso {
             .setAutoCancel(true)
             .build()
         nm.notify(ID_NOTI, n)
+        return true
     }
 }
 
-/** La alarma de la hora del aviso y el reinicio del celular (las alarmas se borran al apagarlo). */
+/** La alarma de la hora del aviso, el reinicio del celular (las alarmas se borran al apagarlo) y cambios de hora o zona. */
 class PasosReceiver : BroadcastReceiver() {
     override fun onReceive(c: Context, intent: Intent) {
         val app = c.applicationContext
         val pendiente = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                if (intent.action == PasosAviso.ACCION) withTimeoutOrNull(8000) { PasosAviso.revisar(app) }
+                if (intent.action == PasosAviso.ACCION && withTimeoutOrNull(8000) { PasosAviso.revisar(app) } == null) {
+                    PasosAviso.anotar(app, "Health Connect tardó demasiado; se intenta mañana")
+                }
             } catch (e: Exception) {
-                // Sin Health Connect o sin permiso: no se avisa y se intenta mañana
+                // Sin Health Connect o sin permiso: no se avisa y se intenta mañana (queda anotado para el diagnóstico)
+                PasosAviso.anotar(app, "error: " + (e.message ?: e.javaClass.simpleName))
             } finally {
                 PasosAviso.programar(app)
                 pendiente.finish()

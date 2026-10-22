@@ -87,10 +87,14 @@ final class Widgets {
         prefs(c).edit().putString("cola", q.toString()).apply();
     }
 
-    static synchronized JSONArray tomarCola(Context c) {
-        JSONArray q = cola(c);
-        prefs(c).edit().remove("cola").apply();
-        return q;
+    /** Quita de la cola las comidas que la app ya guardó (por id); las demás se quedan para la próxima vez. */
+    static synchronized void quitarDeCola(Context c, java.util.Set<String> ids) {
+        JSONArray q = cola(c), quedan = new JSONArray();
+        for (int i = 0; i < q.length(); i++) {
+            JSONObject x = q.optJSONObject(i);
+            if (x != null && !ids.contains(x.optString("id"))) quedan.put(x);
+        }
+        prefs(c).edit().putString("cola", quedan.toString()).apply();
     }
 
     static int gramosEnCola(Context c, String dia) {
@@ -148,7 +152,7 @@ final class Widgets {
         p.setStyle(Paint.Style.STROKE);
         p.setStrokeWidth(grosor);
         p.setStrokeCap(Paint.Cap.ROUND);
-        p.setColor(c.getColor(R.color.w_pista));
+        p.setColor(0x40808080);   // gris translúcido: se ve igual en modo claro y oscuro (el bitmap no cambia con el tema)
         cv.drawArc(r, 0, 360, false, p);
         float f = Math.max(0f, Math.min(1f, pct));
         if (f > 0f) {

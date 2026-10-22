@@ -4,12 +4,14 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
@@ -22,6 +24,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.Period
 import java.time.ZoneId
+import kotlin.reflect.KClass
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -114,14 +117,20 @@ object SaludNativa {
         } catch (e: Exception) {
             o.put("apk", "")
         }
-        val cl = cliente(c)
-        if (cl != null) {
-            val dados = cl.permissionController.getGrantedPermissions()
-            o.put("permisos", JSONArray(LECTURA.filter { it in dados }.map { corto(it) }))
-            o.put("faltan", JSONArray(LECTURA.filter { it !in dados }.map { corto(it) }))
-            o.put("fondoDisponible", fondoDisponible(cl))
-            o.put("fondo", FONDO in dados)
+        // Si Health Connect falla un momento (se está actualizando), lo demás del diagnóstico sigue saliendo
+        try {
+            val cl = cliente(c)
+            if (cl != null) {
+                val dados = cl.permissionController.getGrantedPermissions()
+                o.put("permisos", JSONArray(LECTURA.filter { it in dados }.map { corto(it) }))
+                o.put("faltan", JSONArray(LECTURA.filter { it !in dados }.map { corto(it) }))
+                o.put("fondoDisponible", fondoDisponible(cl))
+                o.put("fondo", FONDO in dados)
+            }
+        } catch (e: Exception) {
+            o.put("errorHC", e.javaClass.simpleName + ": " + (e.message ?: ""))
         }
+        o.put("notificaciones", PasosAviso.notificacionesActivas(c))
         val am = AppWidgetManager.getInstance(c)
         val w = JSONObject()
         WIDGETS.forEach { (k, cls) -> w.put(k, am.getAppWidgetIds(ComponentName(c, cls))?.size ?: 0) }
@@ -171,8 +180,8 @@ object SaludNativa {
             try {
                 val desde = ini.minusHours(12).atZone(zona).toInstant()
                 val noches = mutableMapOf<String, MutableMap<String, Double>>()
-                cl.readRecords(ReadRecordsRequest(SleepSessionRecord::class, TimeRangeFilter.between(desde, Instant.now()), pageSize = 200))
-                    .records.forEach { s ->
+                todos(cl, SleepSessionRecord::class, TimeRangeFilter.between(desde, Instant.now()))
+                    .forEach { s ->
                         val min = if (s.stages.isEmpty()) Duration.between(s.startTime, s.endTime).toMinutes().toDouble()
                         else s.stages.filter { it.stage !in DESPIERTO }.sumOf { Duration.between(it.startTime, it.endTime).toMinutes() }.toDouble()
                         if (min <= 0) return@forEach
@@ -200,8 +209,8 @@ object SaludNativa {
         if (HealthPermission.getReadPermission(ExerciseSessionRecord::class) in dados) {
             try {
                 val desde = ini.atZone(zona).toInstant()
-                cl.readRecords(ReadRecordsRequest(ExerciseSessionRecord::class, TimeRangeFilter.between(desde, Instant.now()), pageSize = 200))
-                    .records.forEach { s ->
+                todos(cl, ExerciseSessionRecord::class, TimeRangeFilter.between(desde, Instant.now()))
+                    .forEach { s ->
                         sesiones++
                         fEj.add(s.metadata.dataOrigin.packageName)
                         if (s.exerciseType !in CORRER) return@forEach
@@ -236,6 +245,30 @@ object SaludNativa {
         o.put("runs", runs).put("sesiones", sesiones).put("sinDistancia", sinDistancia).put("fuentesEjercicio", JSONArray(fEj.toList()))
         o.put("errores", errores)
         return o
+    }
+
+    /** Todas las páginas de una lectura (Health Connect entrega de a 1000 como máximo). */
+    private suspend fun <T : Record> todos(cl: HealthConnectClient, tipo: KClass<T>, rango: TimeRangeFilter): List<T> {
+        val lista = mutableListOf<T>()
+        var token: String? = null
+        do {
+            val r = cl.readRecords(ReadRecordsRequest(tipo, rango, pageSize = 500, pageToken = token))
+            lista.addAll(r.records)
+            token = r.pageToken
+        } while (token != null && lista.size < 5000)
+        return lista
+    }
+
+    /**
+     * Pantalla de permisos de Gym dentro de Health Connect (para cuando ya negaste 2 veces y Android no vuelve a preguntar).
+     * Android 14+: la del sistema para esta app; antes: la app de Health Connect.
+     */
+    @JvmStatic
+    fun intentPermisosApp(c: Context): Intent {
+        val i = if (Build.VERSION.SDK_INT >= 34)
+            Intent("android.health.connect.action.MANAGE_HEALTH_PERMISSIONS").putExtra(Intent.EXTRA_PACKAGE_NAME, c.packageName)
+        else Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS)
+        return i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
     /** Pasos de hoy desde la medianoche; null si no hay permiso o ninguna app ha registrado pasos. */

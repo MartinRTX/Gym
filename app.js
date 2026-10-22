@@ -156,6 +156,8 @@ async function tomarColaWidget() {
     encolar('saveProteina', [protTotal(lista), lista.join(', '), dia], 'prot-' + dia);
     const c = LS.get('gym_food_counts', {}); porDia[dia].forEach(k => { c[k] = (c[k] || 0) + 1; g += gDe(k); }); LS.set('gym_food_counts', c);
   });
+  // Ya quedaron guardadas en el celular: ahora sí se borran de la cola del widget (con el APK anterior ya se habían borrado)
+  nativo('GymNativo', 'confirmarCola', { ids: items.map(x => x && x.id).filter(Boolean) });
   if (g) toast('Del widget: +' + g + ' g de proteína');
   pintarTab(); programarAvisoProt(); actualizarWidgets();
 }

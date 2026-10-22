@@ -31,7 +31,10 @@ public class SemanaWidget extends AppWidgetProvider {
             double cambio = s.optDouble("cambio", 0);
             String flecha = Double.isNaN(cambio) || Math.abs(cambio) < 0.05 ? " →" : cambio < 0 ? " ↓" : " ↑";
             v.setTextViewText(R.id.w_peso, num(s.optDouble("peso")) + flecha);
-            v.setTextColor(R.id.w_peso, c.getColor(Double.isNaN(cambio) || Math.abs(cambio) < 0.05 ? R.color.w_texto : cambio < 0 ? R.color.w_ok : R.color.w_ambar));
+            int color = Double.isNaN(cambio) || Math.abs(cambio) < 0.05 ? R.color.w_texto : cambio < 0 ? R.color.w_ok : R.color.w_ambar;
+            // Android 12+: el color se resuelve con el tema del momento (si cambias a modo oscuro, cambia solo)
+            if (android.os.Build.VERSION.SDK_INT >= 31) v.setColorStateList(R.id.w_peso, "setTextColor", color);
+            else v.setTextColor(R.id.w_peso, c.getColor(color));
         } else {
             v.setTextViewText(R.id.w_peso, "—");
         }
