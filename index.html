@@ -3,24 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#F5F3FA" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0E0C14" media="(prefers-color-scheme: dark)">
-<link rel="preload" href="fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
+<meta name="theme-color" content="#F3F1F8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#120F1C" media="(prefers-color-scheme: dark)">
+<link rel="preload" href="fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Gym</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
-  /* Inter (variable), guardada en la app para que funcione sin señal. Licencia: fonts/OFL.txt */
-  @font-face { font-family: 'Inter'; font-style: normal; font-weight: 100 900; font-display: swap; src: url(fonts/inter.woff2) format('woff2'); }
+  /* Archivo (variable en peso y ancho), guardada en la app para que funcione sin señal. Licencia: fonts/OFL-Archivo.txt
+     Normal para leer; angosta y gruesa para los números (peso, reps, gramos), como el marcador del gym */
+  @font-face { font-family: 'Archivo'; font-style: normal; font-weight: 100 900; font-stretch: 62% 125%; font-display: swap; src: url(fonts/archivo.woff2) format('woff2'); }
   /* Tema claro: mismos acentos, un tono más profundo para que se lean sobre blanco */
   :root {
-    --bg: #F5F3FA; --card: #FFFFFF; --card2: #F4F1FA; --text: #1A1530; --muted: #6B6680;
-    --line: #E6E1F0; --pri: #6D3BE8; --pri-2: #8B5CF6; --pri-weak: #EFE9FD; --on-pri: #FFFFFF;
+    --bg: #F3F1F8; --card: #FFFFFF; --card2: #F1EEF8; --text: #191428; --muted: #66607A;
+    --line: #E3DEEE; --pri: #6A3DE0; --pri-2: #8B5CF6; --pri-weak: #EFE9FD; --on-pri: #FFFFFF;
     --acc: #EA6A1F; --acc-weak: #FFF0E5; --on-acc: #FFFFFF;
     --ok: #16A34A; --ok-weak: #E4F6EC; --bad: #E11D48; --bad-weak: #FDE7EC;
     --cyan: #0891B2; --cyan-weak: #E0F5FA; --red: #E11D48; --red-weak: #FDE7EC;
+    --leg: #A87A00; --leg-weak: #FBF1D6; --on-rut: #FFFFFF;
     --g-pri: linear-gradient(90deg, #6D3BE8, #9B5CF6); --g-red: linear-gradient(90deg, #E11D48, #F43F5E);
     --g-cg: linear-gradient(90deg, #0891B2, #16A34A); --g-acc: linear-gradient(90deg, #EA6A1F, #F59E0B);
     --glow: rgba(109, 59, 232, .22); --on-cg: #FFFFFF;
@@ -32,11 +34,12 @@
   /* Tema oscuro: la paleta de las capturas */
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0E0C14; --card: #18151F; --card2: #211D2D; --text: #EEEAF7; --muted: #A29CB6;
-      --line: #2B2638; --pri: #9B7BFF; --pri-2: #B49CFF; --pri-weak: #2A2142; --on-pri: #0E0C14;
+      --bg: #120F1C; --card: #1B1727; --card2: #241F33; --text: #F2EEFA; --muted: #A7A0BE;
+      --line: #312A45; --pri: #9B7BFF; --pri-2: #B49CFF; --pri-weak: #2A2142; --on-pri: #0E0C14;
       --acc: #FF9A55; --acc-weak: #35231A; --on-acc: #1A0F07;
       --ok: #4ADE80; --ok-weak: #13291C; --bad: #F43F5E; --bad-weak: #36141E;
-      --cyan: #06B6D4; --cyan-weak: #0B2A33; --red: #F43F5E; --red-weak: #36141E;
+      --cyan: #22C3E6; --cyan-weak: #0B2A33; --red: #F43F5E; --red-weak: #36141E;
+      --leg: #F2C94C; --leg-weak: #33290F; --on-rut: #120F1C;
       --g-pri: linear-gradient(90deg, #7C5CFF, #B266FF); --g-red: linear-gradient(90deg, #F43F5E, #FB6F84);
       --g-cg: linear-gradient(90deg, #06B6D4, #4ADE80); --g-acc: linear-gradient(90deg, #FF9A55, #FFB46E);
       --glow: rgba(155, 123, 255, .28); --on-cg: #0E0C14;
@@ -45,7 +48,7 @@
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; background: var(--bg); color: var(--text); }
-  body { font: 16px/1.4 Inter, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; font-feature-settings: "cv11", "ss01";
+  body { font: 16px/1.45 Archivo, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
          padding-top: var(--sat); -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
   button { font: inherit; color: inherit; cursor: pointer; }
   .wrap { max-width: 520px; margin: 0 auto; padding: 12px 16px calc(var(--nav-h) + 96px + var(--sab)); }
