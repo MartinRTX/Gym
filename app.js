@@ -891,10 +891,12 @@ const NOMBRE_OP = { saveExercise: 'Ejercicio', savePeso: 'Peso', saveProteina: '
 // Lecturas también por POST: la clave nunca viaja en el link (los links quedan en historial y registros)
 async function apiGet(action, clave) { return apiPost(action, [], clave); }
 async function apiPost(action, args, clave) {
+  // Pareja (script 7.6+): la hoja ya no manda la clave del compañero; vas con la tuya y "para" con su nombre
+  const c = clave || KEY, cuerpo = /^para:/.test(c) ? { k: KEY, para: c.slice(5) } : { k: c };
   // text/plain evita la verificación previa de CORS que Apps Script no contesta
   const r = await fetch(API, { method: 'POST', redirect: 'follow',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ k: clave || KEY, action: action, args: args }) });
+    body: JSON.stringify(Object.assign(cuerpo, { action: action, args: args })) });
   const j = await r.json();
   if (!j.ok) throw new Error(j.error || 'Error de la API');
   return j.result;
@@ -1033,7 +1035,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v7.5';
+const VERSION_APP = 'v7.6';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1134,19 +1136,21 @@ function prepararPar() {
   PAR.data.exercises.forEach(e => { PAR.exs['P|' + e.name] = Object.assign({}, e, { name: 'P|' + e.name }); });
   construirEstadosPar(state);
 }
+// Con qué se identifica a tu compañero: su clave (script anterior) o "para:nombre" (script 7.6, que ya no manda claves)
+const idPar = p => p.key || 'para:' + p.nombre;
 async function cargarPareja() {
   const cfg = parejaHoy(), p = parejaDisponible();
   if (!cfg || !p) { PAR = null; return; }
-  if (!PAR || PAR.key !== p.key) {
-    PAR = { nombre: p.nombre, key: p.key, data: LS.get('gym_par_' + p.key, null), exs: null };
+  if (!PAR || PAR.key !== idPar(p)) {
+    PAR = { nombre: p.nombre, key: idPar(p), data: LS.get('gym_par_' + idPar(p), null), exs: null };
     if (PAR.data) prepararPar();
   }
   if (PAR.cargando) return;
   PAR.cargando = true;
   try {
-    const d = await apiGet('data', p.key);
-    if (!PAR || PAR.key !== p.key) return;
-    PAR.data = d; LS.set('gym_par_' + p.key, d); prepararPar();
+    const d = await apiGet('data', idPar(p));
+    if (!PAR || PAR.key !== idPar(p)) return;
+    PAR.data = d; LS.set('gym_par_' + idPar(p), d); prepararPar();
   } catch (e) { if (PAR && !PAR.data) toast('No pude cargar los datos de ' + p.nombre + '; revisa la señal'); }
   if (PAR) PAR.cargando = false;
   if (TAB === 'Entrenar') pintarEntrenar();
@@ -1160,7 +1164,7 @@ function alternarPareja() {
     Object.keys(state).filter(esPar).forEach(k => delete state[k]);
     toast('Modo pareja apagado');
   } else {
-    LS.set('gym_pareja', { key: p.key, dia: hoy() });
+    LS.set('gym_pareja', { key: idPar(p), dia: hoy() });
     toast('Entrenando con ' + p.nombre + ': cada ejercicio tiene su pestaña');
     cargarPareja();
   }
@@ -1213,7 +1217,7 @@ function ladoVisible(base) {
 function verLado(base, lado) { QUIEN[base] = lado; ANIM_ABRE = base; hap('tecla'); pintarEntrenar(); }
 // Sugerencia al empezar cada ejercicio (subir, bajar o mantener, con números). El script 7.4 ya la manda calculada
 // con la misma función (motor.js → progresionInicio); con un script anterior, la calcula la app con tu última sesión.
-const SCRIPT_ESPERADO = '7.5';
+const SCRIPT_ESPERADO = '7.6';
 const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);
 const scriptAlDia = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum(SCRIPT_ESPERADO));
 // Un solo motor: si la hoja trae el mismo motor (misma huella que motor.js) se usa lo que calculó; si no, lo calcula la app
