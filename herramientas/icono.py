@@ -6,7 +6,7 @@ Uso:  python3 herramientas/icono.py mi-imagen.png
 
 Genera:
   icon-192.png, icon-512.png, apple-touch-icon.png   → la app web (pantalla de inicio, pestaña)
-  icon-maskable-512.png                              → Android recorta en círculo: la imagen va al 80 % sobre su fondo
+  icon-maskable-512.png                              → Android recorta en círculo: la imagen va al 80 % sobre el color de sus orillas
   apk/icono/icon-only.png                            → ícono clásico del APK (Android 7 o anterior)
   apk/icono/icon-foreground.png + icon-background.png → ícono adaptable del APK (Android 8+). Sin estas dos capas,
                                                          Android muestra el ícono de fábrica de Capacitor.
@@ -14,7 +14,7 @@ El workflow del APK toma apk/icono/ en la siguiente compilación.
 """
 import os
 import sys
-from PIL import Image, ImageFilter
+from PIL import Image
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -27,10 +27,8 @@ def cuadrada(im):
 
 
 def fondo(im, lado):
-    """Fondo que combina con la imagen: la misma imagen, más grande y muy desenfocada (sin transparencias)."""
-    base = Image.new('RGB', im.size, color_borde(im))
-    base.paste(im, mask=im.split()[3])
-    return base.resize((lado, lado), Image.LANCZOS).filter(ImageFilter.GaussianBlur(lado // 12)).convert('RGBA')
+    """Fondo liso del color de las orillas de la imagen (el desenfoque oscurecía los bordes)."""
+    return Image.new('RGBA', (lado, lado), color_borde(im) + (255,))
 
 
 def color_borde(im):
@@ -42,7 +40,7 @@ def color_borde(im):
 
 
 def centrada(im, lado, escala, con_fondo):
-    """La imagen al `escala` del lado, centrada; con fondo desenfocado o transparente alrededor."""
+    """La imagen al `escala` del lado, centrada; con el color de las orillas o transparente alrededor."""
     lienzo = fondo(im, lado) if con_fondo else Image.new('RGBA', (lado, lado), (0, 0, 0, 0))
     n = round(lado * escala)
     chica = im.resize((n, n), Image.LANCZOS)
@@ -65,7 +63,7 @@ def main():
         'icon-maskable-512.png': centrada(im, 512, 0.8, True).convert('RGB'),
         'apk/icono/icon-only.png': lleno(1024),
         # Adaptable: @capacitor/assets ya mete cada capa en el área visible (inset 16.7 %), así que la imagen va completa;
-        # el sistema la recorta con su forma (círculo en Pixel). Detrás, el fondo desenfocado por si la imagen trae transparencias.
+        # el sistema la recorta con su forma (círculo en Pixel). Detrás, el color de sus orillas por si trae transparencias.
         'apk/icono/icon-foreground.png': centrada(im, 1024, 1.0, False),
         'apk/icono/icon-background.png': fondo(im, 1024).convert('RGB'),
     }
