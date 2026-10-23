@@ -82,9 +82,9 @@ function actualizarWidgets() {
 }
 function datosWidgets() {
   const r = DATA.resumen || {}, dia = hoy(), cuenta = LS.get('gym_food_counts', {}), vistas = {};
-  const botones = misComidas().concat(FOODS).filter(f => f.g > 0 && !vistas[f.k] && (vistas[f.k] = true))
+  const botones = recetasComoBotones().concat(misComidas(), FOODS.filter(f => f.k !== 'Licuado')).filter(f => f.g > 0 && !vistas[f.k] && (vistas[f.k] = true))
     .sort((a, b) => ((cuenta[b.k] || 0) + (b.fav ? 2 : 0)) - ((cuenta[a.k] || 0) + (a.fav ? 2 : 0))).slice(0, 2)
-    .map(f => ({ k: f.k, t: f.fav ? f.t : f.k, g: f.g }));
+    .map(f => ({ k: f.k, t: f.fav || f.rec ? f.t : f.k, g: f.g }));
   const g = grupoDeHoy(), entrena = (DATA.dias || [1, 2, 3, 4, 5]).includes(new Date().getDay());
   let ruta = [];
   try { ruta = rutaAceptada(g) || (GRUPOS3.includes(g) ? calcularRuta(g).items : []); } catch (e) { ruta = []; }
@@ -148,12 +148,12 @@ async function tomarColaWidget() {
   LS.set('gym_widget_ids', vistos.slice(-300));
   let g = 0;
   Object.keys(porDia).forEach(dia => {
-    const enPantalla = dia === diaComida(), antes = enPantalla ? prot : cargarProt(dia), lista = antes.concat(porDia[dia].map(x => x.k));
+    const enPantalla = dia === diaComida(), antes = enPantalla ? prot : cargarProt(dia), lista = antes.concat(porDia[dia].map(x => expandirClave(x.k)));
     if (enPantalla) { prot = lista; PROT_DIA = dia; }
     LS.set('gym_prot_' + dia, lista);
     LS.set('gym_protmeal_' + dia, etiquetas(dia, antes.length).concat(porDia[dia].map(x => comidaPorHora(new Date(x.ts || Date.now()).getHours()))));
     porDia[dia] = porDia[dia].map(x => x.k);
-    encolar('saveProteina', [protTotal(lista), lista.join(', '), dia], 'prot-' + dia);
+    sincronizarDia(dia, lista);
     const c = LS.get('gym_food_counts', {}); porDia[dia].forEach(k => { c[k] = (c[k] || 0) + 1; g += gDe(k); }); LS.set('gym_food_counts', c);
   });
   // Ya quedaron guardadas en el celular: ahora sí se borran de la cola del widget (con el APK anterior ya se habían borrado)
@@ -1140,7 +1140,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v8.1';
+const VERSION_APP = 'v8.2';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1322,7 +1322,7 @@ function ladoVisible(base) {
 function verLado(base, lado) { QUIEN[base] = lado; ANIM_ABRE = base; hap('tecla'); pintarEntrenar(); }
 // Sugerencia al empezar cada ejercicio (subir, bajar o mantener, con números). El script 7.4 ya la manda calculada
 // con la misma función (motor.js → progresionInicio); con un script anterior, la calcula la app con tu última sesión.
-const SCRIPT_ESPERADO = '7.6';
+const SCRIPT_ESPERADO = '7.7';
 const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);
 const scriptAlDia = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum(SCRIPT_ESPERADO));
 // Un solo motor: si la hoja trae el mismo motor (misma huella que motor.js) se usa lo que calculó; si no, lo calcula la app
@@ -1393,14 +1393,20 @@ function asegurarProt() { if (PROT_DIA !== diaComida()) usarProt(diaComida()); }
 function cargarProt(dia) {
   const local = LS.get('gym_prot_' + dia, null);
   if (local) return local;
+  // Script 7.7: cada cosa con sus macros (pestaña Comidas); si no, solo la proteína del detalle de Peso diario
+  const conMacros = DATA && DATA.comidasDias ? listaDesdeHoja(dia) : null;
+  if (conMacros) return conMacros;
   const desdeHoja = dia === hoy() ? (fresco() ? DATA.protHoy : null) : (DATA.protAyer && DATA.protAyer.k === dia ? DATA.protAyer : null);
   return desdeHoja && desdeHoja.detalle ? desdeHoja.detalle.split(', ').filter(k => FOODS.some(f => f.k === k) || RE_PROPIO.test(k)) : [];
 }
 // Lo que registras puede ser un botón fijo (FOODS) o algo propio guardado como "Tacos de asada (27 g)"
 const RE_PROPIO = /^(.+) \((\d+(?:\.\d+)?) g\)$/;
-function gDe(k) { const f = FOODS.find(x => x.k === k); if (f) return f.g; const m = RE_PROPIO.exec(k); return m ? Number(m[2]) : 0; }
-function tDe(k) { const f = FOODS.find(x => x.k === k); if (f) return f.t; const m = RE_PROPIO.exec(k); return m ? m[1] + ' · ' + m[2] + ' g' : k; }
+// Y desde la v8.2, '#id' = un registro con todos sus macros y '@receta' = una de tus recetas (comida.js)
+function gDe(k) { const n = gDeNut(k); if (n !== null) return n; const f = FOODS.find(x => x.k === k); if (f) return f.g; const m = RE_PROPIO.exec(k); return m ? Number(m[2]) : 0; }
+function tDe(k) { const n = tDeNut(k); if (n !== null) return n; const f = FOODS.find(x => x.k === k); if (f) return f.t; const m = RE_PROPIO.exec(k); return m ? m[1] + ' · ' + m[2] + ' g' : k; }
 const clavePropia = (t, g) => String(t).replace(/[,()]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40) + ' (' + Math.round(g) + ' g)';
+// Tus recetas como botones (widget y día típico): '@licuado' se vuelve registro con lo que lleve tu receta ese día
+function recetasComoBotones() { return nutCfg().recetas.map(r => ({ k: '@' + r.id, t: r.n, g: Math.round((totReceta(r.id) || { p: 0 }).p), rec: true })); }
 // Mis comidas: las que guardaste con ⭐ (se guardan en tu configuración, no en el código)
 function misComidas() { return (DATA.comidas || []).map(c => ({ k: clavePropia(c.t, c.g), t: c.t, g: c.g, fav: true })); }
 function pesoDe(dia) {
@@ -3239,7 +3245,11 @@ function comidaHabitual(k, porDefecto) {
 function agregarAProt(claves, comidas) {
   asegurarProt();
   const dia = diaComida(), t = etiquetas(dia, prot.length), usos = LS.get('gym_food_meal', {});
-  claves.forEach((k, i) => { prot.push(k); t.push(comidas[i]); (usos[k] = usos[k] || {})[comidas[i]] = (usos[k][comidas[i]] || 0) + 1; });
+  // En qué comida sueles anotar cada cosa se cuenta por plantilla (botón, receta), no por registro
+  claves.forEach((k, i) => { const r = regDe(k), pk = !r ? k : r.src === 'receta' ? '@' + r.ref : r.src === 'boton' || r.src === 'fav' ? r.ref : null;
+    if (pk) (usos[pk] = usos[pk] || {})[comidas[i]] = (usos[pk][comidas[i]] || 0) + 1; });
+  claves = claves.map(expandirClave);
+  claves.forEach((k, i) => { prot.push(k); t.push(comidas[i]); });
   LS.set('gym_protmeal_' + dia, t); LS.set('gym_food_meal', usos);
 }
 function gramosPorComida(lista, t) {
@@ -3298,9 +3308,9 @@ function tarjetaAyer() {
     '<button class="btn ghost" onclick="comidaDe(\'' + ayer + '\')">' + (tipico.length ? 'Fue diferente' : 'Registrar ayer') + '</button></div></div>';
 }
 function ayerTipico() {
-  const ayer = sumarDias(hoy(), -1), lista = diaTipicoLista();
-  LS.set('gym_prot_' + ayer, lista); LS.set('gym_protmeal_' + ayer, lista.map(k => comidaHabitual(k, null)));
-  encolar('saveProteina', [protTotal(lista), lista.join(', '), ayer], 'prot-' + ayer);
+  const ayer = sumarDias(hoy(), -1), plantilla = diaTipicoLista(), lista = plantilla.map(expandirClave);
+  LS.set('gym_prot_' + ayer, lista); LS.set('gym_protmeal_' + ayer, plantilla.map(k => comidaHabitual(k, null)));
+  sincronizarDia(ayer, lista);
   hap('ok'); toast('Ayer: ' + protTotal(lista) + ' g ✓'); pintarTab();
 }
 function comidaDe(dia) {
@@ -3311,9 +3321,9 @@ function comidaDe(dia) {
 function diaTipicoLista() {
   // El que armaste tú (se guarda en el celular y en tu configuración de la hoja)
   const propio = ajuste('diaTipico', null) || DATA.diaTipico;
-  if (Array.isArray(propio)) return propio.filter(k => gDe(k) > 0);
+  if (Array.isArray(propio)) return propio.map(k => k === 'Licuado' ? '@licuado' : k).filter(k => gDe(k) > 0);
   // Si nunca lo has editado: el de antes (Martin) o lo que más registras
-  if (DATA.dueno) return ['Licuado', 'Tupper carne', 'Cena huevos', 'Scoop'];
+  if (DATA.dueno) return ['@licuado', 'Tupper carne', 'Cena huevos', 'Scoop'];
   const cuenta = LS.get('gym_food_counts', {});
   return FOODS.slice().sort((a, b) => (cuenta[b.k] || 0) - (cuenta[a.k] || 0)).filter(f => cuenta[f.k]).slice(0, 3).map(f => f.k);
 }
@@ -3341,7 +3351,8 @@ function pintarComida() {
     (verFalta ? '' : '<small>/' + meta + '</small>') + '</div><div class="muted">gramos</div></div></button>' +
     '<div class="row between falta"><div class="t1">' + (falta > 0 ? 'Te faltan ~' + falta + ' g' : '¡Meta cumplida!') + '</div>' +
     (falta <= 0 ? '<span class="pill ok">✓ Listo</span>' : '') + '</div>' +
-    '<div class="consejo">💡 ' + (falta > 0 ? textoCompletar(falta) : 'Bien hecho hoy') + '</div></div>';
+    '<div class="consejo">💡 ' + (falta > 0 ? textoCompletar(falta) : 'Bien hecho hoy') + '</div>' + tarjetaMacros() + '</div>';
+  h += filaSiempre();
   if (!prot.length && tipico.length) h += '<button class="tipico" onclick="diaTipico()"><span class="ic">🍽️</span><span style="flex:1"><b>Mi día típico</b> <span class="pill ok">+' +
     protTotal(tipico) + ' g</span><small>' + esc(tipico.map(k => FOODS.some(f => f.k === k) ? k : tDe(k).split(' · ')[0]).join(' · ')) + '</small></span><span class="mas">＋</span></button>';
   if (top.length) h += '<div class="row between"><h2>Lo que más comes</h2><span class="muted" style="font-size:12px">Frecuentes</span></div><div class="foods tops">' + top.map(f => botonComida(f, true)).join('') + '</div>';
@@ -3349,7 +3360,7 @@ function pintarComida() {
   if (favs.length || QUITAR_FAV) h += '<div class="row between"><h2>Mis comidas</h2><button class="link" onclick="QUITAR_FAV=!QUITAR_FAV;pintarComida()">' + (QUITAR_FAV ? 'Listo' : 'Editar') + '</button></div>' +
     (QUITAR_FAV ? '<div class="muted" style="margin:-4px 0 8px;font-size:13px">Toca una para quitarla de tus comidas</div>' : '') +
     '<div class="foods">' + (QUITAR_FAV ? misComidas() : favs).map(f => botonComida(f, false)).join('') + '</div>';
-  h += '<div class="row between"><h2>Agregar</h2><span class="rapido">Toque rápido</span></div><div class="foods">' + FOODS.filter(f => !top.includes(f)).map(f => botonComida(f, false)).join('') + '</div>';
+  h += '<div class="row between"><h2>Agregar</h2><span class="rapido">Toque rápido</span></div><div class="foods">' + FOODS.filter(f => !top.includes(f) && f.k !== 'Licuado').map(f => botonComida(f, false)).join('') + '</div>';
   // Primero los botones para agregar (lo que más usas); después en qué comida va y tu día típico
   h += tarjetaPorComida() + tarjetaComidaIA();
   if (!COMIDA_DIA) h += '<button class="link tipico-ed" onclick="editarTipico(true)">✏️ ' + (tipico.length ? 'Editar mi día típico' : 'Arma tu día típico: lo agregas con un toque') + '</button>';
@@ -3357,7 +3368,8 @@ function pintarComida() {
     const t = etiquetas(diaComida(), prot.length);
     h += '<h2>' + (COMIDA_DIA ? 'Ese día comiste' : 'Hoy comiste') + ' · toca para quitar</h2>' + COMIDAS.concat([[null, 'Sin comida marcada', '•']]).map(c => {
       const idx = prot.map((k, i) => i).filter(i => (t[i] || null) === c[0]);
-      return idx.length ? '<div class="muted comida-l">' + c[2] + ' ' + c[1] + '</div><div class="eaten">' + idx.map(i => '<button onclick="quitarProt(' + i + ')">' + esc(tDe(prot[i])) + ' ✕</button>').join('') + '</div>' : '';
+      return idx.length ? '<div class="muted comida-l">' + c[2] + ' ' + c[1] + '</div><div class="eaten">' + idx.map(i => { const m = macrosDe(prot[i]); return '<button onclick="quitarProt(' + i + ')">' + esc(tDe(prot[i])) + ' ✕' +
+        '<span class="mac">' + Math.round(m.p || 0) + ' g prot' + (m.k !== null && m.k !== undefined ? ' · ' + Math.round(m.k) + ' kcal' : '') + '</span></button>'; }).join('') + '</div>' : '';
     }).join('');
   }
   h += '<p class="muted" style="margin-top:14px">Cantidades aproximadas. Lo que cuenta es acercarte a la meta casi todos los días.</p>';
@@ -3375,12 +3387,13 @@ function botonComida(f, esTop) {
 const ICONO_COMIDA = { 'Licuado': '🥤', 'Scoop': '🥛', 'Tupper carne': '🍗', 'Tupper pasta': '🍝', 'Cena huevos': '🍳', 'Cena pollo': '🌮', 'Quesadillas': '🫓',
   'Huevos': '🥚', 'Atún': '🐟', 'Carne': '🥩', 'Leche': '🥛', 'Yogurt': '🍶', 'Calle': '🌯' };
 function iconoComida(f) {
+  if (esRec(f.k)) { const r = recetaDe(f.k.slice(1)); return r && r.ico || '🍽️'; }
   return ICONO_COMIDA[f.k] || '🍽️';
 }
 function cambiarProt() {
   const dia = diaComida();
   LS.set('gym_prot_' + dia, prot);
-  encolar('saveProteina', [protTotal(), prot.join(', '), dia], 'prot-' + dia);
+  sincronizarDia(dia, prot);
   if (dia === hoy()) { programarAvisoProt(); actualizarWidgets(); }
   pintarComida();
 }
@@ -3394,7 +3407,7 @@ function diaTipico() { const l = diaTipicoLista(); agregarAProt(l, l.map(k => co
 let TIPICO_TMP = null;
 function editarTipico(nuevo) {
   if (nuevo || !TIPICO_TMP) TIPICO_TMP = diaTipicoLista().slice();
-  const vistas = {}, todas = misComidas().concat(FOODS).filter(f => !vistas[f.k] && (vistas[f.k] = true));
+  const vistas = {}, todas = recetasComoBotones().concat(misComidas(), FOODS.filter(f => f.k !== 'Licuado')).filter(f => !vistas[f.k] && (vistas[f.k] = true));
   const cuantas = k => TIPICO_TMP.filter(x => x === k).length, tot = protTotal(TIPICO_TMP);
   $('sheet').innerHTML = '<div class="row between"><div class="t2">Mi día típico</div><button class="btn ghost sm" onclick="TIPICO_TMP=null;cerrarModal()">✕</button></div>' +
     '<div class="muted" style="margin:4px 0 10px">Lo que comes casi todos los días. Con un toque en Comida se agrega todo junto. Total: <b class="num" style="color:' +
@@ -3424,8 +3437,8 @@ const AVISO_PROT = 80;   // un aviso por día de la semana: ids 80 (dom) a 86 (s
 function completarProt(falta) {
   if (falta <= 0) return [];
   const cuenta = LS.get('gym_food_counts', {}), vistas = {};
-  const lista = misComidas().concat(FOODS).filter(f => f.g > 0 && !vistas[f.k] && (vistas[f.k] = true))
-    .sort((a, b) => ((cuenta[b.k] || 0) + (b.fav ? 2 : 0)) - ((cuenta[a.k] || 0) + (a.fav ? 2 : 0))).slice(0, 6);
+  const lista = recetasComoBotones().concat(misComidas(), FOODS.filter(f => f.k !== 'Licuado')).filter(f => f.g > 0 && !vistas[f.k] && (vistas[f.k] = true))
+    .sort((a, b) => ((cuenta[b.k] || 0) + (b.fav || b.rec ? 2 : 0)) - ((cuenta[a.k] || 0) + (a.fav || a.rec ? 2 : 0))).slice(0, 6);
   // Una sola que alcance (la más chica), o la pareja que alcanza con menos de sobra
   const una = lista.filter(f => f.g >= falta).sort((a, b) => a.g - b.g)[0];
   let par = null;
@@ -3433,7 +3446,7 @@ function completarProt(falta) {
   if (una && (!par || una.g <= par.t)) return [una];
   return par ? par.l : lista.sort((a, b) => b.g - a.g).slice(0, 2);
 }
-const nombreComida = f => (f.fav ? f.t : f.k.toLowerCase()) + ' (' + f.g + ' g)';
+const nombreComida = f => (f.fav || f.rec ? f.t.toLowerCase() : f.k.toLowerCase()) + ' (' + f.g + ' g)';
 function textoCompletar(falta) {
   const c = completarProt(falta), suma = c.reduce((a, f) => a + f.g, 0);
   return c.length ? 'Con ' + c.map(nombreComida).join(' + ') + (suma >= falta ? ' la cierras' : ' te acercas') : 'Te faltan ' + falta + ' g';
@@ -3544,8 +3557,10 @@ function ajustarItem(i, d) { const x = COMIDA_IA.items[i]; x.g = Math.max(0, x.g
 function agregarComidaIA() {
   const items = COMIDA_IA.items.filter(x => x.on && x.g > 0);
   const cuenta = LS.get('gym_food_counts', {});
-  const claves = items.map(x => clavePropia(x.nombre, x.g));
-  claves.forEach(k => { cuenta[k] = (cuenta[k] || 0) + 1; });
+  const claves = items.map(x => x.k !== undefined && x.k !== null
+    ? nuevoRegistro({ n: x.nombre, q: x.gramos || null, u: x.gramos ? 'g' : '', src: COMIDA_IA.deFoto ? 'foto' : 'ia', p: x.g, c: x.c, f: x.f, k: x.k, fib: x.fib })
+    : clavePropia(x.nombre, x.g));
+  items.forEach(x => { const k = clavePropia(x.nombre, x.g); cuenta[k] = (cuenta[k] || 0) + 1; });
   agregarAProt(claves, claves.map(() => comidaActual()));
   LS.set('gym_food_counts', cuenta);
   const tot = items.reduce((a, x) => a + x.g, 0);
@@ -3554,7 +3569,7 @@ function agregarComidaIA() {
 function guardarFav(i) {
   const x = COMIDA_IA.items[i];
   DATA.comidas = (DATA.comidas || []).filter(c => c.t !== x.nombre);
-  if (!x.fav) DATA.comidas.unshift({ t: x.nombre, g: x.g });
+  if (!x.fav) DATA.comidas.unshift(x.k !== undefined && x.k !== null ? { t: x.nombre, g: x.g, c: x.c, f: x.f, k: x.k, fib: x.fib } : { t: x.nombre, g: x.g });
   x.fav = !x.fav;
   encolar('saveConfig', [{ comidas: DATA.comidas.slice(0, 30) }], 'cfg-comidas');
   toast(x.fav ? 'Guardada en Mis comidas ⭐' : 'Quitada de Mis comidas'); pintarComida();
@@ -3725,6 +3740,8 @@ function contextoIA() {
             ultimos_30_dias: (R.serie30 || []).map(x => x.d + ' ' + x.v).join(', ') },
     cintura: { base: Cu.base, actual: Cu.actual, meta: Cu.meta, por_semana: (Cu.serie || []).map(x => x.d + ': ' + (x.cint || '—') + ' cm, ' + (x.peso || '—') + ' kg').join(' | ') },
     proteina: { meta: metaProt(), hoy_g: protTotal(protHoyLista), comido_hoy: protHoyLista.map(tDe), promedio_7_dias: R.protProm7 },
+    macros: (() => { const t = totalMacros(protHoyLista), m = metasHoy(); return { hoy: { kcal: t.k, carbs_g: t.c, grasa_g: t.f, fibra_g: t.fib }, metas: { kcal: m.k, carbs_g: m.c, grasa_g: m.f, fibra_g: m.fib },
+      promedio_7_dias: DATA.macros7 || null }; })(),
     gym: { dias_ultimos_7: R.gymDias7, dias_esta_semana: R.diasSemana, racha_semanas: R.racha,
            series_por_musculo_7_dias: (R.musculos || []).map(m => m.m + ' ' + m.series7).join(', '),
            records_recientes: (R.records || []).slice(0, 5) },

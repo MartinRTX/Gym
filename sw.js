@@ -1,11 +1,14 @@
 // Guarda la app en el celular para que abra rápido y funcione sin señal.
 // Cuando subas una versión nueva de la app, cambia el número de VERSION.
-const VERSION = 'gym-v8.1';
+const VERSION = 'gym-v8.2';
 // Miniaturas de YouTube, GIF e imágenes de técnica: caché aparte que NO se borra al cambiar de versión
 const MEDIA = 'gym-media';
 const MEDIA_MAX = 150;
+// Catálogo de alimentos (~730 KB): se baja la primera vez que buscas y se queda aunque cambie la versión de la app
+// (la app lo pide con ?v=N: si el catálogo cambia, sube N y se baja el nuevo)
+const DATOS = 'gym-datos';
 const ARCHIVOS = [
-  './', './index.html', './motor.js', './app.js', './manifest.webmanifest', './fonts/archivo.woff2',
+  './', './index.html', './motor.js', './nutricion.js', './comida.js', './app.js', './manifest.webmanifest', './fonts/archivo.woff2',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'
 ];
 
@@ -19,7 +22,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== MEDIA).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== MEDIA && k !== DATOS).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -51,6 +54,13 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (url.origin !== self.location.origin) {
     if (esMedia(url)) e.respondWith(deMedia(e.request));
+    return;
+  }
+  if (/\/datos\/alimentos\.json$/.test(url.pathname)) {
+    e.respondWith(caches.open(DATOS).then(cache => cache.match(e.request).then(hit => hit || fetch(e.request).then(resp => {
+      if (resp && resp.ok) { const copia = resp.clone(); cache.keys().then(ks => Promise.all(ks.map(k => cache.delete(k)))).then(() => cache.put(e.request, copia)); }
+      return resp;
+    }))));
     return;
   }
   e.respondWith(
