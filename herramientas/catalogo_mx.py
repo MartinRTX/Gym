@@ -64,22 +64,22 @@ def main():
         if re.search(r'l[ií]pid|grasa|extracto et[eé]reo', t) and not re.search(r'satur|monoins|poliins|trans|colest', t): return 'f'
         if re.search(r'hidratos|carbohidrat', t) and not re.search(r'disponib', t): return 'c'
         if re.search(r'energ', t) and 'kj' not in u: return 'k'
-        if re.search(r'fibra', t): return 'fd' if re.search(r'diet', t) else 'fb'
+        if re.search(r'fibra', t): return 'fd' if re.search(r'diet', t) and not re.search(r'insol', t) else ('fb' if re.search(r'bruta', t) else None)
+        if re.search(r'porci[oó]n comestible', t): return 'pc'
         return None
     vals = {}
     for c in cars:
         k = elegir(c.get('nombre') or '', c.get('nombre_corto') or '', c.get('unidad'))
         if not k or c.get('valor') is None: continue
         vals.setdefault(c['registro_id'], {}).setdefault(k, c['valor'])
-    nombreCampo = next((c for c in ('nombre_comun', 'nombre', 'descripcion', 'alimento', 'nombre_alimento') if c in cr), None)
-    grupoCampo = next((c for c in cr if re.search(r'grupo', c)), None)
     out = []
     for r in regs:
-        v = vals.get(r['id'], {})
+        v = vals.get(r['conabio_id'], {})
         if 'p' not in v and 'k' not in v: continue
-        out.append({'id': r['id'], 'n': r.get(nombreCampo), 'g': r.get(grupoCampo) if grupoCampo else None,
-                    'p': v.get('p'), 'c': v.get('c'), 'f': v.get('f'), 'k': v.get('k'), 'fib': v.get('fd', v.get('fb')),
-                    'extra': {k: r[k] for k in cr if k not in ('id', nombreCampo, grupoCampo) and r.get(k) not in (None, '')}})
+        # Ojo (nota 6 de la tabla): salvo lo que ya viene preparado (tortilla, pan, tacos, enlatados…), los valores son del alimento CRUDO
+        out.append({'id': r['conabio_id'], 'n': (r.get('descripcion_alimento') or '').strip(), 'en': (r.get('food_description') or '').strip(),
+                    'g': r.get('tipo_alimento'), 'pc': v.get('pc'),
+                    'p': v.get('p'), 'c': v.get('c'), 'f': v.get('f'), 'k': v.get('k'), 'fib': v.get('fd', v.get('fb'))})
     print('con macros:', len(out), 'de', len(regs))
     for x in out[:15]: print('  ', json.dumps(x, ensure_ascii=False)[:300])
     json.dump(out, open('datos/mexico.json', 'w'), ensure_ascii=False, separators=(',', ':'))
