@@ -16,19 +16,16 @@ jobs:
   explorar:
     runs-on: ubuntu-latest
     steps:
-      - name: Buscar los archivos de descarga (2)
+      - name: Explorar la API de CONABIO (3)
         run: |
           set +e
-          echo "=== listado download/"; curl -sSL -A "Mozilla/5.0" --max-time 40 https://siagro.conabio.gob.mx/nutricion/download/ | sed -e 's/<[^>]*>/ /g' | tr -s ' \n' | head -60
-          echo "=== SPA"; curl -sSL -A "Mozilla/5.0" --max-time 40 https://nutricion-siagro.conabio.gob.mx/spa -o spa.html -w "HTTP %{http_code} %{size_download}\n"; head -c 3000 spa.html; echo
-          for js in $(grep -oE '(src|href)="[^"]+\.js"' spa.html | cut -d'"' -f2); do
-            case "$js" in http*) u="$js";; /*) u="https://nutricion-siagro.conabio.gob.mx$js";; *) u="https://nutricion-siagro.conabio.gob.mx/spa/$js";; esac
-            echo "--- $u"; curl -sSL --max-time 40 "$u" -o b.js -w "HTTP %{http_code} %{size_download}\n"
-            grep -oE '"(https?:)?/[^"]{0,80}(api|graphql|registro|alimento|descarga|download|export|csv|xlsx)[^"]{0,60}"' b.js | sort -u | head -40
-            grep -oE "https?://[a-zA-Z0-9./_-]+" b.js | sort -u | head -40
+          G=https://nutricion-siagro.conabio.gob.mx/graphql
+          q() { curl -sS --max-time 60 -H 'Content-Type: application/json' -d "$1" "$G" | head -c ${2:-4000}; echo; }
+          echo "=== campos de Query"; q '{"query":"{__schema{queryType{fields{name args{name}}}}}"}' 6000
+          echo "=== tipos"; q '{"query":"{__schema{types{name kind fields{name}}}}"}' 12000
+          echo "=== meta_query"; curl -sS --max-time 30 https://nutricion-siagro.conabio.gob.mx/nutricion-graphql/meta_query | head -c 600; echo
+          pip -q install pypdf >/dev/null 2>&1
+          for f in Diccionario_datos Detalles_tecnicos; do
+            curl -sSL --max-time 60 https://siagro.conabio.gob.mx/nutricion/download/$f.pdf -o $f.pdf
+            python3 -c "import pypdf,sys;r=pypdf.PdfReader('$f.pdf');print('\n'.join((p.extract_text() or '') for p in r.pages)[:7000])"
           done
-          echo "=== datos.gob.mx"
-          curl -sSL --max-time 40 "https://datos.gob.mx/busca/api/3/action/package_search?q=composicion%20alimentos&rows=10" | head -c 3000; echo
-          curl -sSL --max-time 40 "https://www.datos.gob.mx/api/3/action/package_search?q=alimentos%20nutrimentos&rows=10" | head -c 3000; echo
-          echo "=== INSP BAM links"
-          curl -sSL -A "Mozilla/5.0" --max-time 40 https://www.insp.mx/informacion-relevante/bam-bienvenida | grep -oiE 'https?://[^"<> ]*(bam|base-de-alimentos|alimentos)[^"<> ]*' | sort -u | head -40
