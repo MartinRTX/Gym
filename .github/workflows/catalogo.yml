@@ -1,5 +1,6 @@
-# Arma el catálogo de alimentos (datos/) con las tablas de México (INCMNSZ / BAM) en los servidores de GitHub,
-# que sí tienen acceso a esas páginas. Corre al cambiar este archivo o herramientas/catalogo*, o a mano desde Actions.
+# Baja la tabla mexicana de composición de alimentos (INCMNSZ, en el SiAgro de CONABIO) en los servidores de GitHub
+# —desde aquí sí hay acceso— y la guarda en datos/mexico.json en la misma rama.
+# Corre al cambiar este archivo o herramientas/catalogo*, o a mano desde la pestaña Actions.
 name: Catálogo de alimentos
 
 on:
@@ -10,22 +11,20 @@ on:
       - 'herramientas/catalogo*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  explorar:
+  mexico:
     runs-on: ubuntu-latest
     steps:
-      - name: Explorar la API de CONABIO (3)
+      - uses: actions/checkout@v4
+      - name: Bajar la tabla de México (CONABIO / INCMNSZ)
+        run: python3 herramientas/catalogo_mx.py
+      - name: Guardar datos/mexico.json en la rama
         run: |
-          set +e
-          G=https://nutricion-siagro.conabio.gob.mx/graphql
-          q() { curl -sS --max-time 60 -H 'Content-Type: application/json' -d "$1" "$G" | head -c ${2:-4000}; echo; }
-          echo "=== campos de Query"; q '{"query":"{__schema{queryType{fields{name args{name}}}}}"}' 6000
-          echo "=== tipos"; q '{"query":"{__schema{types{name kind fields{name}}}}"}' 12000
-          echo "=== meta_query"; curl -sS --max-time 30 https://nutricion-siagro.conabio.gob.mx/nutricion-graphql/meta_query | head -c 600; echo
-          pip -q install pypdf >/dev/null 2>&1
-          for f in Diccionario_datos Detalles_tecnicos; do
-            curl -sSL --max-time 60 https://siagro.conabio.gob.mx/nutricion/download/$f.pdf -o $f.pdf
-            python3 -c "import pypdf,sys;r=pypdf.PdfReader('$f.pdf');print('\n'.join((p.extract_text() or '') for p in r.pages)[:7000])"
-          done
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add datos/mexico.json
+          git diff --cached --quiet && echo "Sin cambios" && exit 0
+          git commit -m "Catálogo: tabla de México (CONABIO / INCMNSZ) actualizada"
+          git push
