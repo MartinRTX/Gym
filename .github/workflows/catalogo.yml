@@ -1,5 +1,5 @@
 # Baja la tabla mexicana de composición de alimentos (INCMNSZ, en el SiAgro de CONABIO) en los servidores de GitHub
-# —desde aquí sí hay acceso— y la guarda en datos/mexico.json en la misma rama.
+# —desde aquí sí hay acceso—, arma el catálogo completo con el USDA y guarda datos/ en la misma rama.
 # Corre al cambiar este archivo o herramientas/catalogo*, o a mano desde la pestaña Actions.
 name: Catálogo de alimentos
 
@@ -20,11 +20,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Bajar la tabla de México (CONABIO / INCMNSZ)
         run: python3 herramientas/catalogo_mx.py
-      - name: Guardar datos/mexico.json en la rama
+      - name: Armar el catálogo completo (México + USDA)
+        run: python3 herramientas/catalogo.py
+      - name: Guardar datos/ en la rama
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add datos/mexico.json
+          git add datos/mexico.json datos/alimentos.json
           git diff --cached --quiet && echo "Sin cambios" && exit 0
-          git commit -m "Catálogo: tabla de México (CONABIO / INCMNSZ) actualizada"
+          git commit -m "Catálogo de alimentos actualizado (México + USDA)"
           git push
