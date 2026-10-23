@@ -849,36 +849,71 @@ const CSS_V8 = `
   .week .y i, .week div.y i { background: var(--pri); box-shadow: none; }
   :focus-visible { outline: 2px solid var(--rut, var(--pri)); outline-offset: 2px; }
 
-  /* Hoy: el grupo en grande y la barra que se carga con un disco por ejercicio guardado */
-  .hoy { margin: 2px 0 14px; }
-  .hoy .grupo { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-  .hoy .grupo b { font-size: 64px; line-height: .9; font-weight: 850; font-stretch: 70%; letter-spacing: -.02em; color: var(--rut); }
-  .hoy .grupo span { color: var(--muted); font-size: 14.5px; text-align: right; }
-  .hoy .grupo span strong { display: block; color: var(--text); font-size: 22px; font-weight: 750; font-stretch: 78%; font-variant-numeric: tabular-nums; }
-  .barra { display: block; width: 100%; height: auto; aspect-ratio: 340 / 72; max-height: 76px; margin-top: 10px; }
-  .ruta > .btn.block { background: var(--rut); color: var(--on-rut); }
-  .barra .eje { fill: color-mix(in srgb, var(--muted) 45%, var(--card2)); }
-  .barra .manga { fill: color-mix(in srgb, var(--muted) 62%, var(--card2)); }
-  .barra .tope { fill: color-mix(in srgb, var(--muted) 85%, var(--card2)); }
-  .barra .disco { fill: var(--rut); stroke: var(--bg); stroke-width: 1.5; }
-  .barra .falta { fill: color-mix(in srgb, var(--rut) 9%, transparent); stroke: color-mix(in srgb, var(--rut) 45%, var(--line)); stroke-width: 1.5; stroke-dasharray: 4 3; }
-  @media (prefers-reduced-motion: no-preference) {
-    .barra .entra { animation: disco .55s cubic-bezier(.2, .9, .25, 1.15) both; transform-box: fill-box; }
-    .barra .entra.izq { --desde: -40px; } .barra .entra.der { --desde: 40px; }
-    @keyframes disco { from { transform: translateX(var(--desde)); opacity: 0; } to { transform: none; opacity: 1; } }
-  }
-  /* Lo pendiente de hoy: botones chicos en una fila; cada uno abre su tarjeta */
-  .porhacer { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px 14px; padding: 0 16px 2px; scrollbar-width: none; }
-  .porhacer::-webkit-scrollbar { display: none; }
-  .porhacer button { flex: none; display: flex; align-items: center; gap: 7px; border: 1px solid var(--line); background: var(--card);
-                 color: var(--text); border-radius: 999px; padding: 9px 14px; font-size: 14.5px; font-weight: 600; white-space: nowrap; }
-  .porhacer button .i { font-size: 16px; }
-  .porhacer button.ojo { border-color: color-mix(in srgb, var(--acc) 55%, var(--line)); }
-  .porhacer button b { font-weight: 750; font-stretch: 80%; font-variant-numeric: tabular-nums; }
   .sheet .pendiente .card { margin: 0; border: 0; padding: 0; background: transparent; box-shadow: none; }
   .pesohdr { margin-left: 6px; padding: 2px 10px; border-radius: 999px; background: var(--card2); color: var(--text); font: inherit; font-weight: 650;
              font-stretch: 80%; font-variant-numeric: tabular-nums; border: 0; }
   .ring .v { font-stretch: 72%; }
+  /* v8.1 — Hoy compacto: grupo a la izquierda, avance a la derecha y el rack debajo */
+  .hoy { margin: 0 0 12px; }
+  .hoy .grupo { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .hoy .grupo b { font-size: 54px; line-height: .86; font-weight: 850; font-stretch: 70%; letter-spacing: -.02em; color: var(--rut); }
+  .hoy .grupo span { color: var(--muted); font-size: 13.5px; text-align: right; line-height: 1.25; }
+  .hoy .grupo span strong { display: block; color: var(--text); font-size: 20px; font-weight: 750; font-stretch: 78%; font-variant-numeric: tabular-nums; }
+  .rack { display: block; height: auto; max-width: 100%; margin-top: 10px; overflow: visible; }
+  .rack .repisa { fill: var(--line); }
+  .rack .mancuerna rect { fill: var(--rut); }
+  .rack .falta rect { fill: color-mix(in srgb, var(--rut) 8%, transparent); stroke: color-mix(in srgb, var(--rut) 65%, var(--line)); stroke-width: 1.3; stroke-dasharray: 3 2.5; }
+  @media (prefers-reduced-motion: no-preference) {
+    .rack .mancuerna.entra { animation: cae .55s cubic-bezier(.3, 1.4, .5, 1) both; transform-box: fill-box; transform-origin: 50% 100%; }
+    @keyframes cae { from { transform: translateY(-16px); opacity: 0; } 50% { opacity: 1; } to { transform: none; } }
+    ::view-transition-group(*) { animation-duration: .38s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+  }
+  /* Tu día en mosaicos chicos, sin borde: estado, no botones de grupo */
+  .mosaicos { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px 12px; padding: 0 16px 2px; scrollbar-width: none; }
+  .mosaicos::-webkit-scrollbar { display: none; }
+  .mosaicos button { flex: 1 0 calc((100% - 16px) / 3); min-width: 0; position: relative; display: flex; flex-direction: column; gap: 1px; text-align: left;
+                     border: 0; border-radius: 14px; background: var(--card); color: var(--text); padding: 9px 12px 13px; overflow: hidden; }
+  .mosaicos .et { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mosaicos .v { font-size: 14px; font-weight: 600; font-stretch: 85%; white-space: nowrap; }
+  .mosaicos .v b { font-size: 19px; font-weight: 750; }
+  .mosaicos button.ojo .et::after { content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--acc); vertical-align: 2px; }
+  .mosaicos i { position: absolute; left: 12px; right: 12px; bottom: 6px; height: 3px; border-radius: 2px; background: var(--card2); }
+  .mosaicos i::after { content: ''; display: block; width: var(--p); height: 100%; border-radius: inherit; background: var(--rut, var(--pri)); }
+  body[data-tab=Entrenar] .pesohdr { display: none; }
+  /* Buscador: una lupa al inicio de la fila de grupos */
+  .chip.lupa { --c: var(--muted); padding: 9px 13px; }
+  .chip.lupa .icon { width: 18px; height: 18px; }
+  .buscarfila { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .buscarfila .buscar { flex: 1; margin: 0; }
+  h2.conboton { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  h2.conboton .link { font-size: 14px; }
+  /* Series: la hecha se rellena del color del grupo y se apaga; la que sigue lleva una raya a la izquierda */
+  .set.hecho { background: color-mix(in srgb, var(--rut) 8%, transparent); box-shadow: none; }
+  .set.hecho .val, .set.hecho .ant, .set.hecho .tipo { opacity: .55; }
+  .set.hecho .val { background: transparent; border-color: transparent; }
+  .set.hecho .chk { background: var(--rut); border-color: var(--rut); color: var(--on-rut); }
+  .ex.open .set.sig, body.descansando .ex.open .set.sig { background: color-mix(in srgb, var(--rut) 6%, transparent); box-shadow: inset 3px 0 0 var(--rut); }
+  .ex.open .set.sig .tipo, body.descansando .ex.open .set.sig .tipo { color: var(--rut); }
+  /* Avisos: fondo sólido con borde, nunca se transparenta con el texto de atrás */
+  .toast { background: var(--card2); color: var(--text); border: 1px solid var(--line); box-shadow: 0 14px 34px -10px rgba(0, 0, 0, .6); }
+  /* Comida: anillo 20 % más chico para que los botones de agregar entren en la primera pantalla */
+  .ring { width: 160px; height: 160px; margin: 8px auto 10px; }
+  .ring .v { font-size: 40px; }
+  .ring .lbl { display: none; }
+  /* Barra inferior: todas iguales; la pestaña donde estás crece y sube (con su color) para que sepas dónde estás */
+  #nav { --tabc: var(--pri); --on-tabc: var(--on-pri); }
+  body[data-tab=Entrenar] #nav { --tabc: var(--rut); --on-tabc: var(--on-rut); }
+  #nav button::before { display: none; }
+  #nav button { color: var(--muted); gap: 2px; }
+  #nav button.on { color: var(--tabc); }
+  #nav button .bola { display: grid; place-items: center; width: 40px; height: 30px; margin-top: 0; border-radius: 15px; background: transparent; color: inherit;
+                      box-shadow: none; filter: none; transition: width .4s cubic-bezier(.3, 1.4, .5, 1), height .4s cubic-bezier(.3, 1.4, .5, 1),
+                      margin .4s cubic-bezier(.3, 1.4, .5, 1), border-radius .4s, background-color .25s, box-shadow .25s; }
+  #nav button .bola .icon { width: 22px; height: 22px; transform: none; transition: width .4s, height .4s; }
+  #nav button.on .bola { width: 56px; height: 56px; margin-top: -26px; border-radius: 20px; background: var(--tabc); color: var(--on-tabc); box-shadow: 0 0 0 5px var(--bg); }
+  #nav button.on .bola .icon { width: 27px; height: 27px; }
+  #nav button:active .bola { transform: scale(.94); }
+  @media (prefers-reduced-motion: reduce) { #nav button .bola, #nav button .bola .icon { transition: none; } }
   /* El grupo elegido se ve como un disco: relleno de su color, sin brillo */
   .chip.on, .chip.r-Trote.on { background: var(--c); border-color: var(--c); color: var(--on-rut); box-shadow: none; }
   .plan5k { background: var(--card); }
@@ -1105,7 +1140,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v8.0';
+const VERSION_APP = 'v8.1';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1437,7 +1472,7 @@ function resumenSets(sets) {
   return t.map(s => s.w + '×' + s.r).join(' · ');
 }
 
-/* ----- Hoy (v8): el grupo en grande y una barra que se carga con un disco por cada ejercicio guardado ----- */
+/* ----- Hoy (v8): el grupo en grande y un rack con una mancuerna por ejercicio; las que guardas se llenan ----- */
 const DISCOS_VISTOS = {};
 function tarjetaHoy() {
   const secs = ordenGrupo(GRUPO), todos = secs.flat(), hechosL = todos.filter(e => cardDone(e.name));
@@ -1447,39 +1482,39 @@ function tarjetaHoy() {
   DISCOS_VISTOS[clave] = hechos;
   const bloque = GRUPOS3.includes(GRUPO) && DATA.bloquePara ? DATA.bloquePara[GRUPO] : '';
   const lado = hechos ? '<strong>' + hechos + ' de ' + total + '</strong>' + (hechos >= total ? 'completo' : 'hechos')
-    : (bloque ? 'Bloque ' + bloque : 'Hoy') + '<strong>' + total + ' ejercicio' + (total === 1 ? '' : 's') + '</strong>';
-  return '<div class="hoy"><div class="grupo"><b>' + esc(GRUPO) + '</b><span>' + lado + '</span></div>' + barra(hechos, total, antes) + '</div>';
+    : '<strong>' + total + ' ejercicio' + (total === 1 ? '' : 's') + '</strong>' + (bloque ? 'bloque ' + bloque : 'para hoy');
+  return '<div class="hoy"><div class="grupo"><b>' + esc(GRUPO) + '</b><span>' + lado + '</span></div>' + rack(hechos, total, antes) + '</div>';
 }
-// Barra olímpica vista de frente: los discos entran del tope hacia afuera, alternando lados; los que faltan, punteados
-function barra(hechos, total, antes) {
-  const n = Math.min(total, 10);
-  let d = '<rect class="eje" x="100" y="33" width="140" height="6" rx="3"/><rect class="manga" x="4" y="30" width="92" height="12" rx="4"/><rect class="manga" x="244" y="30" width="92" height="12" rx="4"/>' +
-    '<rect class="tope" x="90" y="21" width="9" height="30" rx="2"/><rect class="tope" x="241" y="21" width="9" height="30" rx="2"/>';
+// Rack de mancuernas: una por ejercicio; las que faltan, punteadas. Las recién guardadas caen en su lugar
+function rack(hechos, total, antes) {
+  const n = Math.min(total, 10), W = 40;
+  let d = '<rect class="repisa" x="0" y="27" width="' + n * W + '" height="3" rx="1.5"/>';
   for (let k = 0; k < n; k++) {
-    const izq = k % 2 === 0, j = Math.floor(k / 2), h = 66 - j * 6, x = izq ? 90 - (j + 1) * 17 : 250 + j * 17;
-    const cls = k < hechos ? 'disco' + (k >= antes ? ' entra ' + (izq ? 'izq' : 'der') : '') : 'falta';
-    d += '<rect class="' + cls + '" x="' + x + '" y="' + (36 - h / 2) + '" width="16" height="' + h + '" rx="3"' + (k >= antes && k < hechos ? ' style="animation-delay:' + ((k - antes) * 90) + 'ms"' : '') + '/>';
+    const x = k * W + 4, cls = k < hechos ? 'mancuerna' + (k >= antes ? ' entra' : '') : 'falta';
+    d += '<g class="' + cls + '"' + (k >= antes && k < hechos ? ' style="animation-delay:' + ((k - antes) * 110) + 'ms"' : '') + '>' +
+      '<rect x="' + x + '" y="4" width="8" height="21" rx="2.5"/><rect x="' + (x + 8) + '" y="12" width="16" height="5" rx="2"/><rect x="' + (x + 24) + '" y="4" width="8" height="21" rx="2.5"/></g>';
   }
-  return '<svg class="barra" viewBox="0 0 340 72" role="img" aria-label="' + hechos + ' de ' + total + ' ejercicios hechos">' + d + '</svg>';
+  return '<svg class="rack" viewBox="0 0 ' + n * W + ' 30" style="width:' + Math.min(100, n * 15) + '%" role="img" aria-label="' + hechos + ' de ' + total + ' ejercicios hechos">' + d + '</svg>';
 }
-// Lo pendiente de hoy (pesarte, proteína, pasos, permisos, ayer, cintura, descarga): una fila de botones chicos.
-// Así lo primero que ves es tu entrenamiento; cada botón abre su tarjeta
+// Tu día en una fila de mosaicos chicos (peso, proteína, pasos y lo que esté pendiente): cada uno abre su tarjeta
 let PEND = [];
 function pendientesHoy(activa, conDescarga) {
   PEND = [];
   if (FECHA) return '';
-  const add = (ico, txt, html, fn, ojo) => { if (html || fn) PEND.push({ ico: ico, txt: txt, html: html, fn: fn, ojo: ojo }); };
-  if (pesoDe(hoy()) === null && !activa) add('⚖️', 'Pesarte', '', "PESO_TMP='';tecladoPeso()", true);
-  else if (new Date().getDay() === 0 && !activa) add('📏', 'Medir cintura', tarjetaCintura(), null, true);
-  if (!activa) add('🍽️', 'Comida de ayer', tarjetaAyer());
-  const p6 = activa ? '' : tarjetaProt6();
-  if (p6) { const tot = protTotal(cargarProt(hoy())); add('🥩', 'Proteína <b>' + tot + '/' + metaProt() + ' g</b>', p6, null, true); }
-  const pa = tarjetaPasos();
-  if (pa) { const x = ((LS.get('gym_salud', {}) || {}).pasos || []).find(q => q.k === hoy()); add('🚶', '<b>' + (x ? x.v.toLocaleString('es-MX') : 0) + '</b> pasos', pa); }
-  add('🔔', 'Permiso de pasos', tarjetaPermisoFondo());
-  if (conDescarga && !activa) add('🔋', 'Descarga sugerida', tarjetaDescarga());
-  if (!PEND.length) return '';
-  return '<div class="porhacer">' + PEND.map((x, i) => '<button class="' + (x.ojo ? 'ojo' : '') + '" onclick="' + (x.fn || 'abrirPendiente(' + i + ')') + '"><span class="i">' + x.ico + '</span>' + x.txt + '</button>').join('') + '</div>';
+  const add = (o) => { if (o.html || o.fn) PEND.push(o); };
+  const p = pesoDe(hoy());
+  add({ et: 'Peso', val: p !== null ? '<b>' + p + '</b> kg' : 'Pesarte', ojo: p === null, fn: p !== null ? 'PESO_TMP=' + p + ';tecladoPeso(hoy())' : "PESO_TMP='';tecladoPeso()" });
+  const tot = protTotal(cargarProt(hoy())), meta = metaProt(), p6 = activa ? '' : tarjetaProt6();
+  add({ et: 'Proteína', val: '<b>' + tot + '</b>/' + meta + ' g', pct: tot / meta, ojo: !!p6, html: p6, fn: p6 ? '' : "verTab('Comida')" });
+  const sal = LS.get('gym_salud', null), x = sal && (sal.pasos || []).find(q => q.k === hoy());
+  if (x) { const pa = tarjetaPasos(); add({ et: 'Pasos', val: '<b>' + x.v.toLocaleString('es-MX') + '</b>', pct: x.v / META_PASOS(), ojo: !!pa, html: pa, fn: pa ? '' : "verTab('Progreso')" }); }
+  if (p !== null && new Date().getDay() === 0 && !activa) add({ et: 'Cintura', val: 'Medir', ojo: true, html: tarjetaCintura() });
+  if (!activa) add({ et: 'Comida de ayer', val: 'Anotar', html: tarjetaAyer() });
+  add({ et: 'Aviso de pasos', val: 'Permiso', ojo: true, html: tarjetaPermisoFondo() });
+  if (conDescarga && !activa) add({ et: 'Recuperación', val: 'Descarga', ojo: true, html: tarjetaDescarga() });
+  return '<div class="mosaicos">' + PEND.map((t, i) => '<button class="' + (t.ojo ? 'ojo' : '') + '" onclick="' + (t.html ? 'abrirPendiente(' + i + ')' : t.fn) + '">' +
+    '<span class="et">' + t.et + '</span><span class="v num">' + t.val + '</span>' +
+    (t.pct !== undefined ? '<i style="--p:' + Math.min(100, Math.round(t.pct * 100)) + '%"></i>' : '') + '</button>').join('') + '</div>';
 }
 function abrirPendiente(i) {
   const x = PEND[i];
@@ -1511,7 +1546,9 @@ function pintarEntrenar() {
   if (!FECHA && !activa && diasSin >= 3 && !sesion().log.length)
     h += '<div class="aviso">' + ICO.flame + '<span>Llevas ' + diasSin + ' días sin ir. Hoy toca ' + esc(DATA.sugGrupo) + ': aunque sean 30 minutos, cuenta.</span></div>';
   if (FECHA && pesoDe(FECHA) === null) h += tarjetaPeso();   // otro día: el peso de ese día, a la vista
-  h += '<input class="buscar" id="buscar" type="search" placeholder="Buscar ejercicio…" value="' + esc(BUSCA) + '" oninput="buscar(this.value)">';
+  // El buscador se abre con la lupa de la fila de grupos (casi siempre sigues tu rutina: no ocupa una fila diario)
+  if (BUSCA_ABIERTA || BUSCA) h += '<div class="buscarfila"><input class="buscar" id="buscar" type="search" placeholder="Buscar ejercicio…" value="' + esc(BUSCA) + '" oninput="buscar(this.value)">' +
+    '<button class="link" onclick="cerrarBuscar()">Cancelar</button></div>';
   const corte = h.length;   // de aquí para abajo es lo que cambia al buscar
   if (BUSCA) {
     const q = BUSCA.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -1522,7 +1559,7 @@ function pintarEntrenar() {
   const comp = parejaDisponible();
   if (comp && !FECHA) h += '<button class="parbtn' + (parejaHoy() ? ' on' : '') + '" onclick="alternarPareja()"><span>👥 ' +
     (parejaHoy() ? 'Entrenando con ' + esc(comp.nombre) + (PAR && !PAR.exs ? ' · cargando…' : '') : '¿Entrenas con ' + esc(comp.nombre) + ' hoy?') + '</span><span class="sw"></span></button>';
-  h += '<div class="chips">' + DATA.chips.concat(['Trote']).map(g => '<button class="chip r-' + g + (g === GRUPO ? ' on' : '') + '" onclick="elegirGrupo(\'' + g + '\')">' +
+  h += '<div class="chips">' + (BUSCA_ABIERTA ? '' : '<button class="chip lupa" onclick="abrirBuscar()" aria-label="Buscar ejercicio">' + ICO_LUPA + '</button>') + DATA.chips.concat(['Trote']).map(g => '<button class="chip r-' + g + (g === GRUPO ? ' on' : '') + '" onclick="elegirGrupo(\'' + g + '\')">' +
     (g === 'Trote' ? ICO.flame : '') + g + (g === DATA.sugGrupo ? '<span class="dot"></span>' : '') + '</button>').join('') + '</div>';
   if (GRUPO === 'Trote') return ponerEntrenar(h + vistaTrote() + pieFecha(), corte);
   h += tarjetaFoco();
@@ -1530,9 +1567,13 @@ function pintarEntrenar() {
   const hechos = ordenGrupo(GRUPO).flat().filter(e => cardDone(e.name));
   if (hechos.length) h += '<details class="sec hechos"' + (PLEG['hechos' + GRUPO] || hechos.some(e => e.name === OPEN) ? ' open' : '') +
     ' ontoggle="PLEG[\'hechos' + GRUPO + '\']=this.open"><summary>✓ Completados · ' + hechos.length + '</summary>' + hechos.map(tarjetaEjercicio).join('') + '</details>';
-  const secs = ordenGrupo(GRUPO).map(items => items.filter(e => !cardDone(e.name)));
-  if (hechos.length && !secs.some(x => x.length)) h += '<div class="tip">' + ICO.check + ' Terminaste todo ' + esc(GRUPO) + '. Toca «Terminar» arriba para ver tu resumen.</div>';
-  const titulos = (rutaAceptada(GRUPO) ? ['🧭 Tu ruta de hoy'] : []).concat(GRUPO === 'Core' ? ['Elige 1 o 2 al final de cualquier día']
+  // Lo que estás haciendo (tú o tu compañero) sube aquí y se queda abierto: no tienes que buscarlo
+  const ahora = ordenGrupo(GRUPO).flat().filter(e => !cardDone(e.name) && enMarcha(e.name));
+  if (ahora.length) h += '<h2>Ahora</h2>' + ahora.map(tarjetaEjercicio).join('');
+  const secs = ordenGrupo(GRUPO).map(items => items.filter(e => !cardDone(e.name) && !ahora.includes(e)));
+  if (hechos.length && !ahora.length && !secs.some(x => x.length)) h += '<div class="tip">' + ICO.check + ' Terminaste todo ' + esc(GRUPO) + '. Toca «Terminar» arriba para ver tu resumen.</div>';
+  const acep = rutaAceptada(GRUPO), hR = acep ? acep.filter(x => cardDone(x.name)).length : 0;
+  const titulos = (acep ? ['<span>🧭 Tu ruta de hoy: ' + hR + ' de ' + acep.length + '</span><button class="link" onclick="quitarRuta()">Quitar</button>'] : []).concat(GRUPO === 'Core' ? ['Elige 1 o 2 al final de cualquier día']
     : ['Recomendado · bloque ' + DATA.bloquePara[GRUPO], 'Bloque ' + (DATA.bloquePara[GRUPO] === 'A' ? 'B' : 'A'), 'Más ejercicios']);
   let primera = true;
   secs.forEach((items, i) => {
@@ -1540,7 +1581,7 @@ function pintarEntrenar() {
     // La primera sección con ejercicios va abierta; las demás plegadas salvo que tengan algo en curso o las abras
     const activa2 = items.some(e => e.name === OPEN || state[e.name].done || state[e.name].sets.some(s => s.ok));
     const abierta = primera || activa2 || PLEG[GRUPO + i];
-    if (primera) h += '<h2>' + titulos[i] + '</h2>' + items.map(tarjetaEjercicio).join('');
+    if (primera) h += '<h2' + (acep && i === 0 ? ' class="conboton"' : '') + '>' + titulos[i] + '</h2>' + items.map(tarjetaEjercicio).join('');
     else h += '<details class="sec"' + (abierta ? ' open' : '') + ' ontoggle="PLEG[\'' + GRUPO + i + '\']=this.open"><summary>' + titulos[i] + ' · ' + items.length + '</summary>' +
       items.map(tarjetaEjercicio).join('') + '</details>';
     primera = false;
@@ -1560,6 +1601,10 @@ function ponerEntrenar(html, corte) {
   if (SOLO_CUERPO && $('buscar') && $('entCuerpo')) { $('entCuerpo').innerHTML = html.slice(corte); return; }
   $('vEntrenar').innerHTML = html.slice(0, corte) + '<div id="entCuerpo">' + html.slice(corte) + '</div>';
 }
+let BUSCA_ABIERTA = false;
+const ICO_LUPA = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>';
+function abrirBuscar() { BUSCA_ABIERTA = true; pintarEntrenar(); setTimeout(() => { const b = $('buscar'); if (b) b.focus(); }, 30); }
+function cerrarBuscar() { BUSCA_ABIERTA = false; BUSCA = ''; pintarEntrenar(); }
 function buscar(v) {
   BUSCA = v;
   SOLO_CUERPO = true;
@@ -1652,9 +1697,18 @@ function anillo(hechas, total, done) {
     (pct ? '<circle cx="19" cy="19" r="' + R + '" fill="none" stroke="' + (done ? 'var(--ok)' : 'var(--acc)') + '" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - pct)) + '"/>' : '') +
     '</svg>';
 }
+const tarjetaVisible = b => OPEN === b || (enMarcha(b) && !CERRADAS[b]);
+// La tarjeta cambia de lugar (sube a "Ahora" al marcar su primera serie, o regresa): se desliza a su nuevo lugar y la pantalla la sigue
+function moverTarjeta(base) {
+  conTransicion(() => {
+    pintarEntrenar();
+    const el = document.getElementById('ex-' + base);
+    if (el) window.scrollTo(0, Math.max(0, el.getBoundingClientRect().top + window.scrollY - (sesionActiva() && !FECHA ? 76 : 12)));
+  });
+}
 function abiertaTarjeta(name) {
   if (state[name].done) return false;
-  if (OPEN === name) return true;
+  if (OPEN === name || (enMarcha(name) && !CERRADAS[name])) return true;
   const p = companero(name);
   return !!(p && OPEN === p);
 }
@@ -1925,7 +1979,7 @@ function notaDeHoy(k) {
 function tarjetaPareja(ex) {
   const base = ex.name, pk = parKey(base), yo = state[base], pa = state[pk], mapeado = pk !== 'P|' + base;
   const lado = ladoVisible(base) === 'par' ? 'par' : 'yo', k = lado === 'par' ? pk : base, st = state[k], exV = exDe(k);
-  const hecho = cardDone(base), abierto = OPEN === base || (companero(base) && OPEN === companero(base));
+  const hecho = cardDone(base), abierto = OPEN === base || (companero(base) && OPEN === companero(base)) || (!hecho && enMarcha(base) && !CERRADAS[base]);
   const cuenta = x => { const t = x.sets.filter(s => s.t !== 'C'); return { h: t.filter(s => s.ok).length, t: t.length }; };
   const cy = cuenta(yo), cp = cuenta(pa);
   const prog = (x, c, l) => x.done ? '✓' : saltado(base, l) ? 'no hoy' : c.h + '/' + c.t;
@@ -2060,10 +2114,16 @@ function elegirGrupo(g) {
   guardarPendientes();
   GRUPO = g; BUSCA = ''; OPEN = siguiente(g, ''); pintarEntrenar();
 }
+// Varias tarjetas pueden estar abiertas: la que tocaste (OPEN) y las que van a la mitad (las cierras tocándolas)
+const CERRADAS = {};
+function enMarcha(base) {
+  const yo = state[base], pa = parOn() ? state[parKey(base)] : null, va = st => !!st && !st.done && st.sets.some(s => s.ok);
+  return va(yo) || va(pa);
+}
 function abrir(name) {
   guardarPendientes(name);
-  const p = companero(name);
-  OPEN = (OPEN === name || (p && OPEN === p)) ? '' : name;
+  const p = companero(name), abierta = OPEN === name || (p && OPEN === p) || (enMarcha(name) && !CERRADAS[name] && !cardDone(name));
+  if (abierta) { CERRADAS[name] = true; if (p) CERRADAS[p] = true; OPEN = ''; } else { delete CERRADAS[name]; if (p) delete CERRADAS[p]; OPEN = name; }
   ANIM_ABRE = OPEN;
   if (OPEN && ajuste('calentamiento', true) && calientaConSeries(exDe(OPEN)) && !state[OPEN].edited && !state[OPEN].sets.some(s => s.t === 'C')) agregarCalentamiento(OPEN, true);
   if (OPEN) LS.set('gym_tipcount', LS.get('gym_tipcount', 0) + 1);
@@ -2409,21 +2469,22 @@ function marcar(name, i) {
     CERO_OK = name + '#' + i; setTimeout(() => { if (CERO_OK === name + '#' + i) CERO_OK = ''; }, 5000);
     hap('atencion'); return toast((esPar(name) ? quienDe(name) : '') + '¿0 ' + state[name].unit + '? Pon el peso, o toca ✓ otra vez si de verdad fue sin peso');
   }
+  const base = baseVista(name), antes = enMarcha(base);
+  delete CERRADAS[base];
   s.ok = !s.ok;
   if (s.ok) { hap('serie'); iniciarSesion(); ANIM_SET = name + '#' + i; ULT_SERIE = name; }
-  cambio(name);
-  if (!s.ok) return;
+  cambio(name, false);
+  const pinta = () => antes !== enMarcha(base) && TAB === 'Entrenar' && !BUSCA ? moverTarjeta(base) : pintarEntrenar();
+  if (!s.ok) return pinta();
+  if (!terminado(st) && s.t !== 'C') { decidirSerie(name, i); clearTimeout(IA_TIMER[name]); }
+  pinta();
   // Última serie: la tarjeta se queda abierta para que marques cómo terminó; al tocar el esfuerzo se guarda
   if (terminado(st)) {
     setTimeout(() => { const el = document.querySelector('[id="ex-' + baseVista(name) + '"] .rirx'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60);
     return;
   }
   // Coach IA: espera unos segundos por si marcas el esfuerzo de esta serie; si lo marcas, pregunta al momento
-  if (s.t !== 'C') {
-    decidirSerie(name, i); clearTimeout(IA_TIMER[name]);
-    if (st.ia && !st.ia.pideRir) IA_TIMER[name] = setTimeout(() => consejoIA(name, i), 4000);
-    pintarEntrenar();
-  }
+  if (s.t !== 'C' && st.ia && !st.ia.pideRir) IA_TIMER[name] = setTimeout(() => consejoIA(name, i), 4000);
   if (s.t === 'C' || FECHA) return;
   const p = companero(name);
   if (p && !state[p].done) {
@@ -2507,7 +2568,7 @@ async function consejoIA(name, i) {
   const st = state[name];
   if (!st || st.done || FECHA || terminado(st)) return;
   decidirSerie(name, i);
-  if (TAB === 'Entrenar' && OPEN === baseVista(name)) pintarEntrenar();
+  if (TAB === 'Entrenar' && tarjetaVisible(baseVista(name))) pintarEntrenar();
   if (!st.ia || st.ia.pideRir || !ajuste('ia', true) || !navigator.onLine || !DATA.ia) return;
   const seq = ++IA_SEQ, m = st.ia.motor;
   st.ia.afinando = true;
@@ -2525,7 +2586,7 @@ async function consejoIA(name, i) {
     if (state[name] && state[name].ia) state[name].ia.afinando = false;   // se queda el consejo del motor
     if (e.message !== 'tiempo' && !/Failed to fetch|NetworkError|Load failed/i.test(e.message) && !IA_AVISADO) { IA_AVISADO = true; toast('Coach IA: ' + e.message.slice(0, 120)); }
   }
-  if (TAB === 'Entrenar' && OPEN === baseVista(name)) pintarEntrenar();
+  if (TAB === 'Entrenar' && tarjetaVisible(baseVista(name))) pintarEntrenar();
 }
 // "Usar": el peso nuevo va a TODAS las series pendientes (una serie de retroceso se sostiene) y las reps a la siguiente
 function usarIA(name) {
@@ -3272,26 +3333,26 @@ function pintarComida() {
   h += '<div class="card protcard"><div class="row between"><div class="t2">Proteína de ' + (COMIDA_DIA ? 'ese día' : 'hoy') + '</div>' +
     '<span class="muted">Meta ' + meta + ' g</span></div>' +
     '<button class="ring" onclick="RING_FALTA=!RING_FALTA;hap(\'tecla\');pintarComida()" aria-label="Cambiar entre registrado y lo que falta"><svg viewBox="0 0 170 170">' +
-    '<defs><linearGradient id="ringG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--cyan)"/><stop offset="1" stop-color="var(--ok)"/></linearGradient></defs>' +
     '<circle cx="85" cy="85" r="' + R + '" fill="none" stroke="var(--card2)" stroke-width="13"/>' +
     '<circle cx="85" cy="85" r="' + (R - 14) + '" fill="none" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 5"/>' +
-    '<circle cx="85" cy="85" r="' + R + '" fill="none" stroke="url(#ringG)" stroke-width="13" stroke-linecap="round" ' +
+    '<circle cx="85" cy="85" r="' + R + '" fill="none" stroke="var(--ok)" stroke-width="13" stroke-linecap="round" ' +
     'stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - pct)) + '" style="transition:stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1)"/></svg>' +
     '<div><div class="lbl">' + (verFalta ? 'Te faltan' : 'Registrado') + '</div><div class="v num">' + (verFalta ? falta : tot) +
     (verFalta ? '' : '<small>/' + meta + '</small>') + '</div><div class="muted">gramos</div></div></button>' +
     '<div class="row between falta"><div class="t1">' + (falta > 0 ? 'Te faltan ~' + falta + ' g' : '¡Meta cumplida!') + '</div>' +
     (falta <= 0 ? '<span class="pill ok">✓ Listo</span>' : '') + '</div>' +
     '<div class="consejo">💡 ' + (falta > 0 ? textoCompletar(falta) : 'Bien hecho hoy') + '</div></div>';
-  h += tarjetaPorComida() + tarjetaComidaIA();
   if (!prot.length && tipico.length) h += '<button class="tipico" onclick="diaTipico()"><span class="ic">🍽️</span><span style="flex:1"><b>Mi día típico</b> <span class="pill ok">+' +
     protTotal(tipico) + ' g</span><small>' + esc(tipico.map(k => FOODS.some(f => f.k === k) ? k : tDe(k).split(' · ')[0]).join(' · ')) + '</small></span><span class="mas">＋</span></button>';
-  if (!COMIDA_DIA) h += '<button class="link tipico-ed" onclick="editarTipico(true)">✏️ ' + (tipico.length ? 'Editar mi día típico' : 'Arma tu día típico: lo agregas con un toque') + '</button>';
   if (top.length) h += '<div class="row between"><h2>Lo que más comes</h2><span class="muted" style="font-size:12px">Frecuentes</span></div><div class="foods tops">' + top.map(f => botonComida(f, true)).join('') + '</div>';
   const favs = misComidas().filter(f => !top.some(t => t.k === f.k));
   if (favs.length || QUITAR_FAV) h += '<div class="row between"><h2>Mis comidas</h2><button class="link" onclick="QUITAR_FAV=!QUITAR_FAV;pintarComida()">' + (QUITAR_FAV ? 'Listo' : 'Editar') + '</button></div>' +
     (QUITAR_FAV ? '<div class="muted" style="margin:-4px 0 8px;font-size:13px">Toca una para quitarla de tus comidas</div>' : '') +
     '<div class="foods">' + (QUITAR_FAV ? misComidas() : favs).map(f => botonComida(f, false)).join('') + '</div>';
   h += '<div class="row between"><h2>Agregar</h2><span class="rapido">Toque rápido</span></div><div class="foods">' + FOODS.filter(f => !top.includes(f)).map(f => botonComida(f, false)).join('') + '</div>';
+  // Primero los botones para agregar (lo que más usas); después en qué comida va y tu día típico
+  h += tarjetaPorComida() + tarjetaComidaIA();
+  if (!COMIDA_DIA) h += '<button class="link tipico-ed" onclick="editarTipico(true)">✏️ ' + (tipico.length ? 'Editar mi día típico' : 'Arma tu día típico: lo agregas con un toque') + '</button>';
   if (prot.length) {
     const t = etiquetas(diaComida(), prot.length);
     h += '<h2>' + (COMIDA_DIA ? 'Ese día comiste' : 'Hoy comiste') + ' · toca para quitar</h2>' + COMIDAS.concat([[null, 'Sin comida marcada', '•']]).map(c => {
@@ -3573,7 +3634,7 @@ function asegurarTabCoach() {
   $('vProgreso').after(v);
   const b = document.createElement('button'); b.id = 'nCoach';
   b.setAttribute('onclick', "verTab('Coach')");
-  b.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></svg>Coach';
+  b.innerHTML = '<span class="bola"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></svg></span>Coach';
   // Con Coach la barra queda simétrica: Comida · Progreso · ENTRENAR · Músculos · Coach
   $('nMusculos').after(b);
 }
@@ -4214,6 +4275,7 @@ function tarjetaRuta() {
   const k = claveRuta(GRUPO), acep = rutaAceptada(GRUPO);
   if (acep) {
     const hechos = acep.filter(x => cardDone(x.name) || (state[x.name] && state[x.name].done)).length;
+    if (hechos < acep.length) return '';
     return '<div class="ruta corta"><span class="i">🧭</span><div style="flex:1"><b>Ruta de hoy: ' + hechos + ' de ' + acep.length + '</b>' +
       (hechos === acep.length ? ' · ✓ cerraste lo que faltaba' : '') + '</div><button class="link" onclick="quitarRuta()">Quitar</button></div>';
   }
@@ -4240,7 +4302,6 @@ function seguirRuta() {
   OPEN = r.items[0].name; ANIM_ABRE = OPEN; hap('ok');
   pintarEntrenar(); irA(OPEN);
   actualizarWidgets();
-  toast('Ruta de hoy: ' + r.items.map(x => exDe(x.name).ejercicio.split(' (')[0]).join(' → '));
 }
 function quitarRuta() { LS.del(claveRuta(GRUPO)); LS.set(claveRuta(GRUPO) + '_no', true); pintarEntrenar(); actualizarWidgets(); }
 

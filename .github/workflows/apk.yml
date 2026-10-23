@@ -50,12 +50,21 @@ jobs:
       - name: Ícono de la app
         run: |
           mkdir -p assets
-          cp ../icon-512.png assets/icon-only.png || true
-          cp ../icon-512.png assets/splash.png || true
+          # apk/icono/ lo arma herramientas/icono.py: ícono clásico + las dos capas del adaptable (Android 8+).
+          # Sin las dos capas Android muestra el ícono de fábrica de Capacitor.
+          if [ -f icono/icon-foreground.png ] && [ -f icono/icon-background.png ]; then
+            cp icono/icon-only.png icono/icon-foreground.png icono/icon-background.png assets/
+            cp icono/icon-only.png assets/splash.png
+          else
+            cp ../icon-512.png assets/icon-only.png
+            cp ../icon-512.png assets/splash.png
+          fi
           npx --yes @capacitor/assets@3.0.5 generate --android \
             --iconBackgroundColor '#0E0C14' --iconBackgroundColorDark '#0E0C14' \
             --splashBackgroundColor '#0E0C14' --splashBackgroundColorDark '#0E0C14' \
             || echo "No se pudo generar el ícono; se queda el de Capacitor"
+          ls android/app/src/main/res/mipmap-anydpi-v26/ || true
+          ls android/app/src/main/res/mipmap-xxxhdpi/
 
       - name: Permiso para el dictado por voz (Android 11+ necesita ver el servicio de reconocimiento)
         run: |
@@ -69,7 +78,7 @@ jobs:
           CODIGO=$(( ($(date +%s) - 1767225600) / 60 ))
           echo "versionCode $CODIGO"
           sed -i -E "s/versionCode [0-9]+/versionCode $CODIGO/" android/app/build.gradle
-          sed -i -E "s/versionName \"[^\"]*\"/versionName \"7.6.${{ github.run_number }}\"/" android/app/build.gradle
+          sed -i -E "s/versionName \"[^\"]*\"/versionName \"8.1.${{ github.run_number }}\"/" android/app/build.gradle
 
       - name: Sincronizar
         run: npx cap sync android
