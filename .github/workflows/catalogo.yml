@@ -1,0 +1,29 @@
+# Arma el catálogo de alimentos (datos/) con las tablas de México (INCMNSZ / BAM) en los servidores de GitHub,
+# que sí tienen acceso a esas páginas. Corre al cambiar este archivo o herramientas/catalogo*, o a mano desde Actions.
+name: Catálogo de alimentos
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/catalogo.yml'
+      - 'herramientas/catalogo*'
+
+permissions:
+  contents: read
+
+jobs:
+  explorar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Buscar los archivos de descarga
+        run: |
+          set +e
+          for u in https://siagro.conabio.gob.mx/nutricion/ https://siagro.conabio.gob.mx/nutricion/download/ \
+                   https://www.insp.mx/informacion-relevante/bam-bienvenida https://www.insp.mx/bam \
+                   https://fdc.nal.usda.gov/download-datasets; do
+            echo "=================== $u"
+            curl -sSL -A "Mozilla/5.0" --max-time 40 "$u" -o pagina.html -w "HTTP %{http_code} %{size_download} bytes %{url_effective}\n"
+            grep -oiE '(href|src)="[^"]+"' pagina.html | grep -iE 'download|\.csv|\.xlsx?|\.zip|\.json|api|bam|nutri|tabla|datos' | sort -u | head -80
+            grep -oiE '"[^"]*(api|download)[^"]*"' pagina.html | sort -u | head -30
+          done
