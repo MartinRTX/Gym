@@ -16,14 +16,19 @@ jobs:
   explorar:
     runs-on: ubuntu-latest
     steps:
-      - name: Buscar los archivos de descarga
+      - name: Buscar los archivos de descarga (2)
         run: |
           set +e
-          for u in https://siagro.conabio.gob.mx/nutricion/ https://siagro.conabio.gob.mx/nutricion/download/ \
-                   https://www.insp.mx/informacion-relevante/bam-bienvenida https://www.insp.mx/bam \
-                   https://fdc.nal.usda.gov/download-datasets; do
-            echo "=================== $u"
-            curl -sSL -A "Mozilla/5.0" --max-time 40 "$u" -o pagina.html -w "HTTP %{http_code} %{size_download} bytes %{url_effective}\n"
-            grep -oiE '(href|src)="[^"]+"' pagina.html | grep -iE 'download|\.csv|\.xlsx?|\.zip|\.json|api|bam|nutri|tabla|datos' | sort -u | head -80
-            grep -oiE '"[^"]*(api|download)[^"]*"' pagina.html | sort -u | head -30
+          echo "=== listado download/"; curl -sSL -A "Mozilla/5.0" --max-time 40 https://siagro.conabio.gob.mx/nutricion/download/ | sed -e 's/<[^>]*>/ /g' | tr -s ' \n' | head -60
+          echo "=== SPA"; curl -sSL -A "Mozilla/5.0" --max-time 40 https://nutricion-siagro.conabio.gob.mx/spa -o spa.html -w "HTTP %{http_code} %{size_download}\n"; head -c 3000 spa.html; echo
+          for js in $(grep -oE '(src|href)="[^"]+\.js"' spa.html | cut -d'"' -f2); do
+            case "$js" in http*) u="$js";; /*) u="https://nutricion-siagro.conabio.gob.mx$js";; *) u="https://nutricion-siagro.conabio.gob.mx/spa/$js";; esac
+            echo "--- $u"; curl -sSL --max-time 40 "$u" -o b.js -w "HTTP %{http_code} %{size_download}\n"
+            grep -oE '"(https?:)?/[^"]{0,80}(api|graphql|registro|alimento|descarga|download|export|csv|xlsx)[^"]{0,60}"' b.js | sort -u | head -40
+            grep -oE "https?://[a-zA-Z0-9./_-]+" b.js | sort -u | head -40
           done
+          echo "=== datos.gob.mx"
+          curl -sSL --max-time 40 "https://datos.gob.mx/busca/api/3/action/package_search?q=composicion%20alimentos&rows=10" | head -c 3000; echo
+          curl -sSL --max-time 40 "https://www.datos.gob.mx/api/3/action/package_search?q=alimentos%20nutrimentos&rows=10" | head -c 3000; echo
+          echo "=== INSP BAM links"
+          curl -sSL -A "Mozilla/5.0" --max-time 40 https://www.insp.mx/informacion-relevante/bam-bienvenida | grep -oiE 'https?://[^"<> ]*(bam|base-de-alimentos|alimentos)[^"<> ]*' | sort -u | head -40
