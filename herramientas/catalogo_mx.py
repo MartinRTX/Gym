@@ -82,6 +82,7 @@ def main():
                     'p': v.get('p'), 'c': v.get('c'), 'f': v.get('f'), 'k': v.get('k'), 'fib': v.get('fd', v.get('fb'))})
     print('con macros:', len(out), 'de', len(regs))
     for x in out[:15]: print('  ', json.dumps(x, ensure_ascii=False)[:300])
+    import os; os.makedirs('datos', exist_ok=True)
     json.dump(out, open('datos/mexico.json', 'w'), ensure_ascii=False, separators=(',', ':'))
 
 
