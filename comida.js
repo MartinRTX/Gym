@@ -87,6 +87,14 @@ function sincronizarDia(dia, lista) {
   });
   encolar('saveComidas', [dia, items], 'cmd-' + dia);
 }
+// La primera vez que la app ve el script 7.7: sube lo de hoy y ayer (así aparece la pestaña Comidas sin esperar a que anotes algo)
+// y respalda tus recetas
+function primerSyncNut() {
+  if (!scriptNut() || LS.get('gym_nut_sync77', false)) return;
+  LS.set('gym_nut_sync77', true);
+  [sumarDias(hoy(), -1), hoy()].forEach(dia => { const l = LS.get('gym_prot_' + dia, null); if (l && l.length) sincronizarDia(dia, l); });
+  guardarNut(nutCfg());
+}
 const horaHHMM = ts => { const d = new Date(ts); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
 // Lo que llegó de la hoja (otro celular): se arma la lista con registros
 function listaDesdeHoja(dia) {
@@ -104,17 +112,34 @@ function listaDesdeHoja(dia) {
 
 /* ----- Tu configuración de comida: recetas, productos escaneados, tuppers que aprendió y metas a mano.
    Vive en el celular y se respalda en tu configuración de la hoja (script 7.7) ----- */
+// Siempre con la forma correcta (aunque lo guardado venga incompleto de otra versión o de la hoja) y leída una sola vez
+let NUT_C = null, NUT_C_DE = undefined;
+function normalNut(c) {
+  c = c && typeof c === 'object' ? c : {};
+  const r = { ts: Number(c.ts) || 0, metas: c.metas && c.metas.k ? c.metas : null,
+    productos: Array.isArray(c.productos) ? c.productos.filter(p => p && p.id) : [],
+    tuppers: c.tuppers && typeof c.tuppers === 'object' && !Array.isArray(c.tuppers) ? c.tuppers : {},
+    recetas: (Array.isArray(c.recetas) ? c.recetas : []).filter(x => x && x.id).map(x => Object.assign({}, x, { items: Array.isArray(x.items) ? x.items.filter(i => i && i.ref) : [] })) };
+  // Las de fábrica que falten (o que llegaron vacías) se reponen
+  NUT.RECETAS.forEach(f => {
+    const i = r.recetas.findIndex(x => x.id === f.id);
+    if (i < 0) r.recetas.push(JSON.parse(JSON.stringify(f)));
+    else if (!r.recetas[i].items.length) r.recetas[i] = Object.assign(JSON.parse(JSON.stringify(f)), { n: r.recetas[i].n || f.n });
+  });
+  return r;
+}
 function nutCfg() {
-  let c = LS.get('gym_nut', null);
-  if (!c) c = { ts: 0, recetas: JSON.parse(JSON.stringify(NUT.RECETAS)), productos: [], tuppers: {}, metas: null };
+  const deHoja = DATA ? DATA.nutricion : null;
+  if (NUT_C && NUT_C_DE === deHoja) return NUT_C;
+  let c = normalNut(LS.get('gym_nut', null));
   // Lo de la hoja gana si es más nuevo (lo cambiaste en otro celular)
-  if (DATA && DATA.nutricion && DATA.nutricion.ts > c.ts) { c = Object.assign({ recetas: [], productos: [], tuppers: {}, metas: null }, DATA.nutricion); LS.set('gym_nut', c); }
-  NUT.RECETAS.forEach(r => { if (!c.recetas.some(x => x.id === r.id)) c.recetas.push(JSON.parse(JSON.stringify(r))); });
+  if (deHoja && Number(deHoja.ts) > c.ts) { c = normalNut(deHoja); LS.set('gym_nut', c); }
+  NUT_C = c; NUT_C_DE = deHoja;
   return c;
 }
 function guardarNut(c) {
   c.ts = Date.now();
-  LS.set('gym_nut', c);
+  LS.set('gym_nut', c); NUT_C = c;
   if (scriptNut()) encolar('saveConfig', [{ nutricion: c }], 'cfg-nut');
 }
 const recetaDe = id => nutCfg().recetas.find(r => r.id === id) || null;
@@ -136,6 +161,11 @@ function recordarAlimento(al) {
   LS.set('gym_alim_usados', u);
 }
 
+// Lo nuevo de Comida nunca debe dejar la pantalla en blanco: si algo falla, se omite esa parte y queda anotado
+function seguroNut(fn, donde) {
+  try { return fn(); } catch (e) { try { registrarError('Comida (' + donde + '): ' + e.message, donde, e.stack); } catch (x) {} return ''; }
+}
+
 /* ----- Metas del día ----- */
 function metasHoy() {
   const m = nutCfg().metas;
@@ -145,7 +175,7 @@ function metasHoy() {
   const auto = NUT.metas({ peso: DATA.ultimoPeso, metaProt: metaProt(), diasGym: (DATA.dias || [1, 2, 3, 4]).length, kmSemana: kmSem,
                            ritmoPct: rp ? rp.pct : null, bajaCintura: cs.length >= 2 && cs[cs.length - 1].cint < cs[cs.length - 2].cint });
   if (!m) return Object.assign(auto, { auto: true });
-  return Object.assign({}, auto, { k: m.k, c: m.c, f: m.f, fib: m.fib || auto.fib, p: metaProt(), auto: false });
+  return Object.assign({}, auto, { k: Number(m.k) || auto.k, c: Number(m.c) || auto.c, f: Number(m.f) || auto.f, fib: Number(m.fib) || auto.fib, p: metaProt(), auto: false });
 }
 
 /* ----- Pantalla: la línea de macros bajo el anillo de proteína ----- */

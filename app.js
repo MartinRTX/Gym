@@ -1116,6 +1116,13 @@ function arrancar() {
       if (ocupado()) RECARGA_PENDIENTE = true; else location.reload();
     });
     navigator.serviceWorker.register('sw.js').then(reg => reg.update()).catch(() => {});
+    // El APK casi nunca se cierra del todo: al regresar a la app también se busca la versión nueva (máximo cada 10 min)
+    let ultimaRevision = Date.now();
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible' || Date.now() - ultimaRevision < 10 * 60e3) return;
+      ultimaRevision = Date.now();
+      navigator.serviceWorker.getRegistration().then(reg => reg && reg.update()).catch(() => {});
+    });
   }
   if (!API || !KEY) { $('loading').classList.add('hide'); $('setup').classList.remove('hide'); return; }
 
@@ -1140,7 +1147,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v8.2';
+const VERSION_APP = 'v8.2.1';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1182,6 +1189,7 @@ async function actualizar(intento) {
     DATA = d; LS.set('gym_data', d);
     if (!igual || DIA_PINTADO !== hoy()) pintarTodo();   // si no cambió nada, no se borra lo que estés escribiendo
     if (!NATIVO_LISTO) iniciarNativo();                   // primera vez en este celular (sin datos guardados)
+    seguroNut(primerSyncNut, 'primer envío');           // script 7.7 recién puesto: sube hoy y ayer a la pestaña Comidas
     precargarMedia();
     if (DATA.perfil === false && !LS.get('gym_bienvenida', false)) abrirBienvenida();
     else revisarMedallas();
@@ -1406,7 +1414,7 @@ function gDe(k) { const n = gDeNut(k); if (n !== null) return n; const f = FOODS
 function tDe(k) { const n = tDeNut(k); if (n !== null) return n; const f = FOODS.find(x => x.k === k); if (f) return f.t; const m = RE_PROPIO.exec(k); return m ? m[1] + ' · ' + m[2] + ' g' : k; }
 const clavePropia = (t, g) => String(t).replace(/[,()]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40) + ' (' + Math.round(g) + ' g)';
 // Tus recetas como botones (widget y día típico): '@licuado' se vuelve registro con lo que lleve tu receta ese día
-function recetasComoBotones() { return nutCfg().recetas.map(r => ({ k: '@' + r.id, t: r.n, g: Math.round((totReceta(r.id) || { p: 0 }).p), rec: true })); }
+function recetasComoBotones() { return seguroNut(() => nutCfg().recetas.map(r => ({ k: '@' + r.id, t: r.n, g: Math.round((totReceta(r.id) || { p: 0 }).p), rec: true })), 'recetas') || []; }
 // Mis comidas: las que guardaste con ⭐ (se guardan en tu configuración, no en el código)
 function misComidas() { return (DATA.comidas || []).map(c => ({ k: clavePropia(c.t, c.g), t: c.t, g: c.g, fav: true })); }
 function pesoDe(dia) {
@@ -3351,8 +3359,8 @@ function pintarComida() {
     (verFalta ? '' : '<small>/' + meta + '</small>') + '</div><div class="muted">gramos</div></div></button>' +
     '<div class="row between falta"><div class="t1">' + (falta > 0 ? 'Te faltan ~' + falta + ' g' : '¡Meta cumplida!') + '</div>' +
     (falta <= 0 ? '<span class="pill ok">✓ Listo</span>' : '') + '</div>' +
-    '<div class="consejo">💡 ' + (falta > 0 ? textoCompletar(falta) : 'Bien hecho hoy') + '</div>' + tarjetaMacros() + '</div>';
-  h += filaSiempre();
+    '<div class="consejo">💡 ' + (falta > 0 ? textoCompletar(falta) : 'Bien hecho hoy') + '</div>' + seguroNut(tarjetaMacros, 'macros') + '</div>';
+  h += seguroNut(filaSiempre, 'de siempre');
   if (!prot.length && tipico.length) h += '<button class="tipico" onclick="diaTipico()"><span class="ic">🍽️</span><span style="flex:1"><b>Mi día típico</b> <span class="pill ok">+' +
     protTotal(tipico) + ' g</span><small>' + esc(tipico.map(k => FOODS.some(f => f.k === k) ? k : tDe(k).split(' · ')[0]).join(' · ')) + '</small></span><span class="mas">＋</span></button>';
   if (top.length) h += '<div class="row between"><h2>Lo que más comes</h2><span class="muted" style="font-size:12px">Frecuentes</span></div><div class="foods tops">' + top.map(f => botonComida(f, true)).join('') + '</div>';
