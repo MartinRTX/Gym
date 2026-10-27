@@ -278,6 +278,11 @@ function iniciarNativo() {
   if (!NATIVO || NATIVO_LISTO) return;
   NATIVO_LISTO = true;
   try { window.Capacitor.addListener('GymNativo', 'accion', () => consumirAccion()); } catch (e) { /* APK anterior: sin widgets */ }
+  // Tocar un aviso (ej. el de las 7 am) abre lo suyo
+  try { window.Capacitor.addListener('LocalNotifications', 'localNotificationActionPerformed', e => {
+    const a = e && e.notification && e.notification.extra && e.notification.extra.accion;
+    if (a) setTimeout(() => abrirAccion('gymmb://accion/' + a), 300);
+  }); } catch (e) { /* sin avisos */ }
   consumirAccion(); tomarColaWidget(); leerSalud(); configurarPasos();
   apkNuevo().then(ok => { if (ok) repintarEntrenar(); });
 }
@@ -945,6 +950,38 @@ const CSS_V85 = `
   .maqok small { display: block; color: var(--muted); font-size: 13px; margin-top: 4px; }
   .hechos span { background: color-mix(in srgb, var(--ok) 13%, transparent); color: var(--ok); border-radius: 99px; padding: 4px 10px; font-size: 12.5px; font-weight: 600; }
 `;
+/* v8.6: modo sencillo, Hoy te toca, tour, foto de tu máquina, grupos con nombre normal */
+const CSS_V86 = `
+  body.sencillo #nMusculos, body.sencillo #nCoach { display: none; }
+  body.sencillo #nEntrenar { order: 2; } body.sencillo #nProgreso { order: 3; }
+  .chip .cht { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
+  .chip .cht small { font-size: 11px; font-weight: 600; opacity: .75; margin-top: 2px; white-space: nowrap; }
+  .chip.on .cht small { opacity: .9; }
+  .hoytoca { background: var(--card); border: 2px solid var(--pri); border-radius: 22px; padding: 14px 14px 12px; margin: 0 0 14px; }
+  .hoytoca .t2 { margin: 0 2px 10px; }
+  .hoytoca ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .hoytoca li button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 11px 12px; border: 0; border-radius: 14px; background: var(--card2); color: var(--text); text-align: left; font-weight: 650; font-size: 16px; }
+  .hoytoca li i { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-weight: 800; background: var(--card); border: 2px solid var(--line); color: var(--pri); }
+  .hoytoca li small { display: block; font-weight: 500; font-size: 13px; color: var(--muted); margin-top: 1px; }
+  .hoytoca li.ok button { background: color-mix(in srgb, var(--ok) 13%, transparent); color: var(--ok); }
+  .hoytoca li.ok i { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .hoytoca li.ya button { background: var(--pri); color: #fff; }
+  .hoytoca li.ya small { color: inherit; opacity: .85; }
+  .hoytoca li.ya i { border-color: currentColor; background: transparent; color: inherit; }
+  .facil { background: var(--pri); color: #fff; border-radius: 14px; padding: 12px 14px; font-weight: 650; font-size: 16px; line-height: 1.35; margin-bottom: 10px; }
+  .exfoto { display: block; width: 100%; height: 120px; object-fit: cover; border-radius: 14px; margin-bottom: 10px; }
+  .exfoto.grande { height: 190px; }
+  .exfoto-vacia { display: block; width: 100%; border: 1.5px dashed var(--line); background: none; color: var(--text); border-radius: 14px; padding: 12px; margin-bottom: 10px; font-weight: 650; text-align: left; }
+  .exfoto-vacia small { display: block; color: var(--muted); font-weight: 500; font-size: 12.5px; }
+  .sets-h span { white-space: nowrap; }
+  #tour { position: fixed; inset: 0; z-index: 300; }
+  #tour .tour-tapa { position: absolute; inset: 0; }
+  #tour .tour-luz { position: fixed; border-radius: 18px; box-shadow: 0 0 0 4px #fff, 0 0 0 9999px rgba(15, 10, 35, .66); pointer-events: none; }
+  #tour .tour-burbuja { position: fixed; left: 16px; right: 16px; max-width: 480px; margin: 0 auto; background: var(--card); color: var(--text); border-radius: 20px; padding: 16px 18px; font-size: 16px; line-height: 1.4;
+    box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .5); animation: up2 .25s ease; }
+  .falla { background: var(--card2); border-radius: 12px; padding: 9px 12px; margin-bottom: 6px; font-size: 13.5px; }
+  .falla small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+`;
 /* v7.5: pasos de la tarde, ritmo de peso, proteína por comida, después de la carrera, diagnóstico */
 const CSS_V75 = `
   .pill.red { background: color-mix(in srgb, var(--red) 15%, transparent); color: var(--red); }
@@ -1005,6 +1042,10 @@ const metaProt = () => (DATA && DATA.metaProteina) || 130;
 const DESCANSOS = [60, 90, 120, 180];
 const TIPOS_TROTE = ['Fácil', 'Calidad', 'Larga', 'Carrera', 'Libre'];
 const ajuste = (k, d) => LS.get('gym_cfg_' + k, d);
+// Modo sencillo: para quien empieza (menos pestañas, instrucciones en palabras normales)
+const sencillo = () => ajuste('sencillo', false);
+const NOMBRE_GRUPO = { Push: 'Pecho y hombro', Pull: 'Espalda y bíceps', Legs: 'Pierna', Core: 'Abdomen', Trote: 'Correr' };
+function aplicarSencillo() { document.body.classList.toggle('sencillo', !!sencillo()); }
 const setAjuste = (k, v) => LS.set('gym_cfg_' + k, v);
 const diaReg = () => FECHA || hoy();
 const tsReg = () => FECHA ? new Date(FECHA + 'T07:00:00').getTime() : Date.now();
@@ -1108,7 +1149,8 @@ function avisoErrores() {
 
 /* ===================== Arranque ===================== */
 function arrancar() {
-  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72 + CSS_V75 + CSS_V8 + CSS_V85; document.head.appendChild(st);
+  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72 + CSS_V75 + CSS_V8 + CSS_V85 + CSS_V86; document.head.appendChild(st);
+  aplicarSencillo();
   // Link de configuración: ?api=…&k=… o #api=…&k=… (también acepta key=)
   const p = new URLSearchParams(location.search), ph = new URLSearchParams(location.hash.slice(1));
   const linkApi = (p.get('api') || ph.get('api') || '').trim(), linkKey = (p.get('k') || p.get('key') || ph.get('k') || ph.get('key') || '').trim();
@@ -1174,7 +1216,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v8.5';
+const VERSION_APP = 'v8.6';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1219,7 +1261,7 @@ async function actualizar(intento) {
     seguroNut(primerSyncNut, 'primer envío');           // script 7.7 recién puesto: sube hoy y ayer a la pestaña Comidas
     precargarMedia();
     if (DATA.perfil === false && !LS.get('gym_bienvenida', false)) abrirBienvenida();
-    else revisarMedallas();
+    else { revisarMedallas(); setTimeout(tourSiToca, 700); }
   } catch (e) {
     if (!DATA) $('loading').textContent = /Clave/.test(e.message)
       ? 'La clave no coincide. Vuelve a abrir el link de configuración.'
@@ -1549,13 +1591,35 @@ function pendientesHoy(activa, conDescarga) {
   add({ et: 'Proteína', val: '<b>' + tot + '</b>/' + meta + ' g', pct: tot / meta, ojo: !!p6, html: p6, fn: p6 ? '' : "verTab('Comida')" });
   const sal = LS.get('gym_salud', null), x = sal && (sal.pasos || []).find(q => q.k === hoy());
   if (x) { const pa = tarjetaPasos(); add({ et: 'Pasos', val: '<b>' + x.v.toLocaleString('es-MX') + '</b>', pct: x.v / META_PASOS(), ojo: !!pa, html: pa, fn: pa ? '' : "verTab('Progreso')" }); }
-  if (p !== null && new Date().getDay() === 0 && !activa) add({ et: 'Cintura', val: 'Medir', ojo: true, html: tarjetaCintura() });
+  if (new Date().getDay() === 0 && !activa) add({ et: 'Cintura', val: 'Medir', ojo: true, html: tarjetaCintura() });
   if (!activa) add({ et: 'Comida de ayer', val: 'Anotar', html: tarjetaAyer() });
   add({ et: 'Aviso de pasos', val: 'Permiso', ojo: true, html: tarjetaPermisoFondo() });
   if (conDescarga && !activa) add({ et: 'Recuperación', val: 'Descarga', ojo: true, html: tarjetaDescarga() });
+  if (sencillo() && !activa) return hoyTeToca(p, tot, meta);
   return '<div class="mosaicos">' + PEND.map((t, i) => '<button class="' + (t.ojo ? 'ojo' : '') + '" onclick="' + (t.html ? 'abrirPendiente(' + i + ')' : t.fn) + '">' +
     '<span class="et">' + t.et + '</span><span class="v num">' + t.val + '</span>' +
     (t.pct !== undefined ? '<i style="--p:' + Math.min(100, Math.round(t.pct * 100)) + '%"></i>' : '') + '</button>').join('') + '</div>';
+}
+// Modo sencillo: tu día en 3 pasos en orden (pesarte, entrenar, comida); el que sigue va resaltado
+function hoyTeToca(p, tot, meta) {
+  const g = GRUPO && GRUPO !== 'Trote' ? GRUPO : DATA.sugGrupo, recs = g && g !== 'Trote' ? recomendadosHoy(g) : [];
+  const hechos = recs.filter(e => state[e.name] && state[e.name].done).length;
+  const pasos = [
+    { ok: p !== null, t: 'Pesarte', s: p !== null ? p + ' kg · listo' : 'En ayunas, después del baño: toca aquí', fn: p !== null ? 'PESO_TMP=' + p + ';tecladoPeso(hoy())' : "PESO_TMP='';tecladoPeso()" },
+    { ok: recs.length > 0 && hechos === recs.length, t: g === 'Trote' ? 'Salir a correr' : 'Entrenar ' + (NOMBRE_GRUPO[g] || g || '').toLowerCase(),
+      s: !recs.length ? 'Toca para ver tu plan' : hechos === recs.length ? 'Listo por hoy 💪' : hechos ? hechos + ' de ' + recs.length + ' ejercicios · toca para seguir' : recs.length + ' ejercicios · toca para empezar',
+      fn: 'empezarHoy()' },
+    { ok: tot >= meta, t: 'Anotar lo que comes', s: 'Llevas ' + tot + ' de ' + meta + ' g de proteína', fn: "verTab('Comida')" }
+  ];
+  const sig = pasos.findIndex(x => !x.ok);
+  return '<div class="hoytoca"><div class="t2">Hoy te toca</div><ol>' + pasos.map((x, i) => '<li class="' + (x.ok ? 'ok' : i === sig ? 'ya' : '') + '"><button onclick="' + x.fn + '">' +
+    '<i>' + (x.ok ? '✓' : i + 1) + '</i><span>' + esc(x.t) + '<small>' + esc(x.s) + '</small></span></button></li>').join('') + '</ol></div>';
+}
+function empezarHoy() {
+  const g = GRUPO && GRUPO !== 'Trote' ? GRUPO : DATA.sugGrupo;
+  const e = g && g !== 'Trote' ? recomendadosHoy(g).find(x => !(state[x.name] && state[x.name].done)) : null;
+  if (e) return irAEjercicio(e.name);
+  const c = document.querySelector('#vEntrenar .chips'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function abrirPendiente(i) {
   const x = PEND[i];
@@ -1602,7 +1666,8 @@ function pintarEntrenar() {
   if (comp && !FECHA) h += '<button class="parbtn' + (parejaHoy() ? ' on' : '') + '" onclick="alternarPareja()"><span>👥 ' +
     (parejaHoy() ? 'Entrenando con ' + esc(comp.nombre) + (PAR && !PAR.exs ? ' · cargando…' : '') : '¿Entrenas con ' + esc(comp.nombre) + ' hoy?') + '</span><span class="sw"></span></button>';
   h += '<div class="chips">' + (BUSCA_ABIERTA ? '' : '<button class="chip lupa" onclick="abrirBuscar()" aria-label="Buscar ejercicio">' + ICO_LUPA + '</button>') + DATA.chips.concat(['Trote']).map(g => '<button class="chip r-' + g + (g === GRUPO ? ' on' : '') + '" onclick="elegirGrupo(\'' + g + '\')">' +
-    (g === 'Trote' ? ICO.flame : '') + g + (g === DATA.sugGrupo ? '<span class="dot"></span>' : '') + '</button>').join('') + '</div>';
+    (g === 'Trote' ? ICO.flame : '') + '<span class="cht"><span>' + g + (g === DATA.sugGrupo ? '<span class="dot"></span>' : '') + '</span>' +
+    (NOMBRE_GRUPO[g] ? '<small>' + NOMBRE_GRUPO[g] + '</small>' : '') + '</span></button>').join('') + '</div>';
   if (GRUPO === 'Trote') return ponerEntrenar(h + vistaTrote() + pieFecha(), corte);
   h += tarjetaFoco();
   h += tarjetaRuta();
@@ -1709,7 +1774,7 @@ function guardarPeso() {
   const dia = PESO_DIA || diaReg(); PESO_DIA = null;
   LS.set('gym_peso_' + dia, v);
   encolar('savePeso', [v, dia], 'peso-' + dia);
-  actualizarWidgets();
+  actualizarWidgets(); programarAvisoProt();
   hap('ok'); toast('Peso guardado ✓'); pintarFecha(); pintarEntrenar();
 }
 function guardarCintura(confirmada) {
@@ -1790,6 +1855,58 @@ function tarjetaEjercicio(ex) {
   return h + '</div>';
 }
 
+// Modo sencillo: una sola instrucción con lo que toca en la siguiente serie
+function instruccionFacil(ex, st) {
+  const k = st.sets.findIndex(x => !x.ok);
+  if (k < 0) return '¡Terminaste! Toca «Guardar ejercicio» abajo.';
+  const s = st.sets[k], trabajo = st.sets.filter(x => x.t !== 'C'), num = st.sets.slice(0, k + 1).filter(x => x.t !== 'C').length;
+  const paso1 = String(ex.tecnica || '').split(' · ')[0].replace(/[.\s]+$/, '');
+  const veces = !vacio(s.r) ? s.r : ex.min + ' a ' + ex.max;
+  const peso = !vacio(s.w) && Number(s.w) > 0 ? ' con ' + s.w + ' ' + st.unit : ex.anterior.length || ex.sinPeso ? '' : ' con un peso que puedas mover bien';
+  const quien = s.t === 'C' ? 'Calentamiento: hazlo ' : 'Serie ' + num + ' de ' + trabajo.length + ': hazlo ';
+  return (paso1 ? paso1.charAt(0).toUpperCase() + paso1.slice(1) + '. ' : '') + quien + veces + ' veces' + peso + ' y toca ✓. Luego descansa ' + mmss(ajuste('descanso', 90)) + '.';
+}
+/* ----- Foto de TU máquina en el ejercicio (se queda en este celular) ----- */
+const fotoMaqDe = name => LS.get('gym_fotomaq', {})[name] || null;
+function guardarFotoMaq(name, url) {
+  const m = LS.get('gym_fotomaq', {});
+  if (url) m[name] = url; else delete m[name];
+  try { localStorage.setItem('gym_fotomaq', JSON.stringify(m)); return true; }
+  catch (e) { toast('No cupo la foto en el celular: quita fotos de otras máquinas'); return false; }
+}
+// La foto se guarda chica (560 px): se ve bien en la tarjeta y caben muchas
+function fotoChica(cv) {
+  const s = Math.min(1, 560 / Math.max(cv.width, cv.height)), c = document.createElement('canvas');
+  c.width = Math.round(cv.width * s); c.height = Math.round(cv.height * s);
+  c.getContext('2d').drawImage(cv, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.72);
+}
+let FOTO_EJ = null;
+function fotoParaEjercicio(name) {
+  FOTO_EJ = name;
+  let inp = $('fotoEj');
+  if (!inp) {
+    inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.id = 'fotoEj'; inp.style.display = 'none'; inp.setAttribute('capture', 'environment');
+    inp.addEventListener('change', async () => {
+      const f = inp.files && inp.files[0]; inp.value = '';
+      if (!f || !FOTO_EJ) return;
+      try { const r = await achicarFoto(f, 1280); if (guardarFotoMaq(FOTO_EJ, fotoChica(r.cv))) { hap('ok'); toast('Foto guardada ✓'); } }
+      catch (e) { toast(e.message); }
+      cerrarModal(); pintarEntrenar();
+    });
+    document.body.appendChild(inp);
+  }
+  inp.click();
+}
+function verFotoMaq(name, borrar) {
+  const n = jsq(name), ex = exDe(name);
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">' + esc(ex ? ex.ejercicio : 'Tu máquina') + '</div><button class="btn ghost sm" onclick="cerrarModal()">✕</button></div>' +
+    '<img class="maqfoto" style="max-height:60vh;object-fit:contain" src="' + fotoMaqDe(name) + '" alt="">' +
+    (borrar ? '<div class="muted" style="margin:4px 0 8px">¿Quitar esta foto? Solo se borra de este celular.</div><div class="acts"><button class="btn ghost" onclick="verFotoMaq(\'' + n + '\')">No</button>' +
+      '<button class="btn" onclick="guardarFotoMaq(\'' + n + '\', null);cerrarModal();pintarEntrenar();toast(\'Foto quitada\')">Sí, quitarla</button></div>'
+      : '<div class="acts"><button class="btn ghost" onclick="verFotoMaq(\'' + n + '\', true)">Quitar</button><button class="btn" onclick="fotoParaEjercicio(\'' + n + '\')">📷 Tomar otra</button></div>');
+  if (!$('modal').classList.contains('show')) abrirModal();
+}
 /* ----- Técnica y video del ejercicio (Catálogo: Q = link, R = técnica) ----- */
 function badgeMod(ex) { return ex && ex.modalidad ? '<span class="mod">' + esc(ex.modalidad) + '</span>' : ''; }
 function botonTecnica(ex) {
@@ -1991,6 +2108,9 @@ function menuEjercicio(k) {
   let h = '<div class="row between"><div class="t2">' + esc(ex.ejercicio) + (esPar(k) ? ' · ' + esc(PAR.nombre) : '') + '</div><button class="btn ghost sm" onclick="cerrarModal()">✕</button></div><div class="menu">';
   h += item('▶', 'Técnica y video', ex.tecnica ? 'Cómo se hace, punto por punto' : 'Agrega un video o GIF', "verTecnica('" + n + "')");
   if (!st.sets.some(s => s.t === 'C') && calientaConSeries(ex)) h += item('🔥', 'Agregar calentamiento', 'Series ligeras antes del peso de trabajo', "cerrarModal();agregarCalentamiento('" + n + "')");
+  const bf = jsq(baseDe(k));
+  h += fotoMaqDe(baseDe(k)) ? item('📷', 'Foto de tu máquina', 'Verla, cambiarla o quitarla', "verFotoMaq('" + bf + "')")
+    : item('📷', 'Tómale foto a la máquina', 'Te aparece en el ejercicio para reconocerla en el gym', "cerrarModal();fotoParaEjercicio('" + bf + "')");
   h += item('⚙️', ex.ajuste ? 'Editar ajuste de máquina' : 'Ajuste de máquina', ex.ajuste || 'Asiento, banco o agarre: te aparece siempre', "cerrarModal();editarAjuste('" + n + "')");
   h += item('⚖️', 'Paso del equipo: ' + pasoEj(ex, st) + ' ' + st.unit + (ex.pasoFijo ? '' : ' (supuesto)'), 'El cambio de peso más chico que permite; toca para cambiarlo', "menuPaso('" + n + "')");
   h += item('📝', st.notas ? 'Editar nota de hoy' : 'Nota de hoy', st.notas || 'Solo de esta sesión: «hombro cargado», «dormí mal»', "notaDeHoy('" + n + "')");
@@ -2056,15 +2176,18 @@ function tarjetaPareja(ex) {
   return h + '</div></div>';
 }
 function cuerpoEjercicio(ex, st) {
-  const n = jsq(ex.name);
+  const n = jsq(ex.name), facil = sencillo() && !esPar(ex.name), foto = fotoMaqDe(baseDe(ex.name));
   const vars = esPar(ex.name) ? [] : variantesDe(ex.name);
-  let h = '<div class="row between" style="margin-bottom:10px"><div class="muted">' + ex.min + '–' + ex.max + ' reps · ' + esc(ex.howTo) +
+  let h = foto ? '<img class="exfoto' + (facil ? ' grande' : '') + '" src="' + foto + '" alt="Tu máquina" onclick="verFotoMaq(\'' + jsq(baseDe(ex.name)) + '\')">'
+    : facil ? '<button class="exfoto-vacia" onclick="fotoParaEjercicio(\'' + jsq(baseDe(ex.name)) + '\')">📷 Tómale foto a tu máquina<small>Para reconocerla la próxima vez</small></button>' : '';
+  h += '<div class="row between" style="margin-bottom:10px"><div class="muted">' + ex.min + '–' + ex.max + ' reps · ' + esc(ex.howTo) +
     (vars.length ? ' <button class="equipo" onclick="elegirCambio(\'' + n + '\')">' + esc(ex.modalidad || 'Equipo') + ' ⇄</button>' : '') + '</div>' +
     '<div class="unit">' + ['lb', 'kg'].map(u => '<button class="' + (st.unit === u ? 'on' : '') + '" onclick="setUnit(\'' + n + '\',\'' + u + '\')">' + u + '</button>').join('') + '</div></div>';
   const trabAnt = ex.anterior.filter(a => a.t !== 'C');
   const pesoAnt = trabAnt.length ? Math.max.apply(null, trabAnt.map(a => Number(a.w) || 0)) : null;
   const meta = !esPar(ex.name) && planHoy() ? (planHoy().ej || {})[ex.name] : null;
-  if (meta) h += '<div class="tip plan">🎯 ' + esc(meta) + '</div>';
+  if (facil) h += '<div class="facil">' + esc(instruccionFacil(ex, st)) + '</div>';
+  else if (meta) h += '<div class="tip plan">🎯 ' + esc(meta) + '</div>';
   else if (ex.up && !FECHA && !esPar(ex.name) && descargaActiva()) h += '<div class="tip">Semana de descarga: estas series ya vienen con −10 % y la mitad. Sin llegar al fallo.</div>';
   else if (ex.up) h += '<div class="tip acc">' + ICO.up + esc(ex.hint) + '</div>';
   else if (ex.prog && ex.hint) h += '<div class="tip' + (ex.prog.accion === 'bajar' ? ' baja' : '') + '">' + (ex.prog.accion === 'bajar' ? '↓ ' : '') + esc(ex.hint) + '</div>';
@@ -2078,7 +2201,8 @@ function cuerpoEjercicio(ex, st) {
     '<button class="btn sm" onclick="guardarAjuste(\'' + n + '\')">Guardar</button></div>';
   else if (ex.ajuste) h += '<button class="nota" onclick="editarAjuste(\'' + n + '\')">⚙️ ' + esc(ex.ajuste) + '<span class="ed">Editar</span></button>';
   if (ex.notaUlt) h += '<div class="muted" style="margin:-4px 2px 10px;font-size:13px">La última vez anotaste: «' + esc(ex.notaUlt) + '»</div>';
-  h += '<div class="sets-h"><span>#</span><span>Anterior</span><span>' + st.unit + '</span><span>Reps</span><span></span></div>';
+  h += facil ? '<div class="sets-h"><span>#</span><span>Antes</span><span>Peso</span><span>Veces</span><span></span></div>'
+    : '<div class="sets-h"><span>#</span><span>Anterior</span><span>' + st.unit + '</span><span>Reps</span><span></span></div>';
   const kUlt = ultimaMarcada(st), kSig = st.sets.findIndex(x => !x.ok);
   let num = 0, nc = 0;
   const antC = ex.anterior.filter(a => a.t === 'C'), antT = ex.anterior.filter(a => a.t !== 'C');
@@ -2090,12 +2214,12 @@ function cuerpoEjercicio(ex, st) {
       '<button class="tipo ' + (s.t === 'T' ? '' : s.t) + '" onclick="cambiarTipo(\'' + n + '\',' + i + ')" aria-label="Tipo de serie">' + etiqueta + '</button>' +
       '<button class="ant num" onclick="copiarAnterior(\'' + n + '\',' + i + ')">' + (a ? a.w + '×' + a.r : '—') + '</button>' +
       '<button class="val num' + (vacio(s.w) ? ' vacio' : '') + '" onclick="teclado(\'' + n + '\',' + i + ',\'w\')">' + (vacio(s.w) ? 'peso' : s.w) + '</button>' +
-      '<button class="val num' + (vacio(s.r) ? ' vacio' : '') + '" onclick="teclado(\'' + n + '\',' + i + ',\'r\')">' + (vacio(s.r) ? 'reps' : s.r) + '</button>' +
+      '<button class="val num' + (vacio(s.r) ? ' vacio' : '') + '" onclick="teclado(\'' + n + '\',' + i + ',\'r\')">' + (vacio(s.r) ? (facil ? 'veces' : 'reps') : s.r) + '</button>' +
       '<button class="chk" onclick="marcar(\'' + n + '\',' + i + ')" aria-label="Serie hecha">' + ICO.check + (s.ok && s.e ? '<span class="e">' + ETQ_E[s.e] + '</span>' : '') + '</button></div>';
     if (i === kUlt) h += filaEsfuerzo(n, st, s) + tipIA(n, st);
   });
   const vistas = LS.get('gym_tipcount', 0);
-  if (vistas < 3) h += '<div class="muted" style="margin:-2px 0 8px;font-size:12px">Toca el # para cambiarla a calentamiento (C) o drop (D) · "Anterior" la copia · ⋮ arriba: calentamiento, ajuste, nota y superserie</div>';
+  if (vistas < 3 && !facil) h += '<div class="muted" style="margin:-2px 0 8px;font-size:12px">Toca el # para cambiarla a calentamiento (C) o drop (D) · "Anterior" la copia · ⋮ arriba: calentamiento, ajuste, nota y superserie</div>';
   // Si toca subir, "Igual que antes" te regresaría al peso viejo: no se muestra
   const igual = ex.anterior.length && !ex.up;
   h += '<div class="setacts" style="grid-template-columns:' + (igual ? '1.6fr 1fr 1fr' : '1fr 1fr') + '">' +
@@ -2832,6 +2956,45 @@ function abrirModal(clase) {
 }
 function cerrarModal() { $('modal').classList.remove('show'); document.documentElement.classList.remove('conmodal'); }
 
+/* ----- Tour de la primera vez: 4 burbujas sobre la pantalla real (se vuelve a ver en Ajustes) ----- */
+const TOUR = [
+  { el: () => document.querySelector('#vEntrenar .hoytoca li, #vEntrenar .mosaicos button'), t: 'Primero, pésate 🌅', d: 'En ayunas, después del baño. Toca aquí: ya te pongo tu último peso y solo le subes o bajas.' },
+  { el: () => document.querySelector('#vEntrenar .chips'), t: 'Elige qué entrenas', d: 'Cada botón es un día: pecho y hombro, espalda y bíceps, pierna… El del puntito es el que te toca hoy.' },
+  { el: () => document.querySelector('#vEntrenar .ex .ex-head'), t: 'Anota cada serie', d: 'Toca un ejercicio: escribe el peso y cuántas veces lo hiciste, y toca ✓ al terminar cada serie. Al final, «Guardar ejercicio».' },
+  { el: () => $('nComida'), t: 'Anota lo que comes', d: 'Escribe o dicta lo que comiste y la IA calcula la proteína. Lo de siempre lo agregas con un toque.' }
+];
+let TOUR_I = -1;
+function tourSiToca() {
+  if (LS.get('gym_tour', false) || TOUR_I >= 0 || TAB !== 'Entrenar' || FECHA || sesionActiva() || (DATA.perfil === false && !LS.get('gym_bienvenida', false))) return;
+  if ($('modal').classList.contains('show') || $('kp').classList.contains('show')) return;
+  iniciarTour();
+}
+function iniciarTour() {
+  cerrarModal(); cerrarTeclado();
+  if (TAB !== 'Entrenar') verTab('Entrenar');
+  TOUR_I = 0; pintarTour();
+}
+function pintarTour() {
+  let el = null;
+  while (TOUR_I < TOUR.length && !(el = TOUR[TOUR_I].el())) TOUR_I++;
+  quitarTour();
+  if (TOUR_I >= TOUR.length) return terminarTour(true);
+  if (!el.closest('.nav')) el.scrollIntoView({ block: 'center' });
+  document.documentElement.classList.add('conmodal');
+  const r = el.getBoundingClientRect(), paso = TOUR[TOUR_I], ultimo = TOUR_I === TOUR.length - 1, abajo = r.top + r.height / 2 < innerHeight / 2;
+  const t = document.createElement('div'); t.id = 'tour';
+  t.innerHTML = '<div class="tour-tapa"></div><div class="tour-luz" style="left:' + (r.left - 6) + 'px;top:' + (r.top - 6) + 'px;width:' + (r.width + 12) + 'px;height:' + (r.height + 12) + 'px"></div>' +
+    '<div class="tour-burbuja" style="' + (abajo ? 'top:' + Math.min(innerHeight - 220, r.bottom + 16) : 'bottom:' + Math.min(innerHeight - 220, innerHeight - r.top + 16)) + 'px">' +
+    '<div class="muted" style="font-size:13px">Paso ' + (TOUR_I + 1) + ' de ' + TOUR.length + '</div><div class="t2" style="margin:2px 0 4px">' + paso.t + '</div><div>' + paso.d + '</div>' +
+    '<div class="row between" style="margin-top:12px"><button class="link" onclick="terminarTour()">Saltar</button><button class="btn" onclick="TOUR_I++;pintarTour()">' + (ultimo ? '¡Listo!' : 'Siguiente') + '</button></div></div>';
+  document.body.appendChild(t);
+}
+function quitarTour() { const t = $('tour'); if (t) t.remove(); document.documentElement.classList.remove('conmodal'); }
+function terminarTour(completo) {
+  quitarTour(); TOUR_I = -1; LS.set('gym_tour', true);
+  window.scrollTo(0, 0);
+  toast(completo ? '¡Listo! Lo vuelves a ver en Ajustes' : 'Lo puedes ver cuando quieras en Ajustes');
+}
 /* ----- Gesto o botón "atrás" de Android ----- */
 // Siempre queda una entrada extra en el historial (la "guardia"): el gesto atrás la consume, la app cierra lo que esté
 // encima y la vuelve a poner. En la pantalla principal, dos veces seguidas mandan la app al fondo (APK) o salen (navegador).
@@ -2839,6 +3002,7 @@ function cerrarModal() { $('modal').classList.remove('show'); document.documentE
 let ATRAS_T = 0;
 function ponerGuardia() { if (!(history.state && history.state.guardia)) history.pushState({ guardia: 1 }, ''); }
 function cerrarLoDeArriba() {
+  if (TOUR_I >= 0) { terminarTour(); return true; }
   if ($('kp').classList.contains('show')) { cerrarTeclado(); return true; }
   if ($('modal').classList.contains('show')) { cerrarModal(); return true; }
   if (TAB !== 'Entrenar') { verTab('Entrenar'); return true; }
@@ -3396,6 +3560,7 @@ function pintarComida() {
     (falta <= 0 ? '<span class="pill ok">✓ Listo</span>' : '') + '</div>' +
     '<div class="consejo">💡 ' + (falta > 0 ? textoCompletar(falta) : 'Bien hecho hoy') + '</div>' + seguroNut(tarjetaMacros, 'macros') + '</div>';
   h += seguroNut(filaSiempre, 'de siempre');
+  h += botonRepetirAyer();
   if (!prot.length && tipico.length) h += '<button class="tipico" onclick="diaTipico()"><span class="ic">🍽️</span><span style="flex:1"><b>Mi día típico</b> <span class="pill ok">+' +
     protTotal(tipico) + ' g</span><small>' + esc(tipico.map(k => FOODS.some(f => f.k === k) ? k : tDe(k).split(' · ')[0]).join(' · ')) + '</small></span><span class="mas">＋</span></button>';
   if (top.length) h += '<div class="row between"><h2>Lo que más comes</h2><span class="muted" style="font-size:12px">Frecuentes</span></div><div class="foods tops">' + top.map(f => botonComida(f, true)).join('') + '</div>';
@@ -3444,6 +3609,22 @@ function addProt(k) {
   agregarAProt([k], [comidaActual()]); hap('tecla');
   const c = LS.get('gym_food_counts', {}); c[k] = (c[k] || 0) + 1; LS.set('gym_food_counts', c);
   cambiarProt();
+}
+// "Repetir lo de ayer": todo lo que anotaste ayer, en la misma comida (desayuno, comida, cena), con un toque
+function botonRepetirAyer() {
+  if (COMIDA_DIA || LS.get('gym_repetido_' + hoy(), false)) return '';
+  const l = cargarProt(sumarDias(hoy(), -1)) || [];
+  if (!l.length) return '';
+  return '<button class="tipico" onclick="repetirAyer()"><span class="ic">↺</span><span style="flex:1"><b>Repetir lo de ayer</b> <span class="pill ok">+' + protTotal(l) + ' g</span><small>' +
+    esc(l.slice(0, 5).map(k => tDe(k).split(' · ')[0]).join(' · ') + (l.length > 5 ? ' y ' + (l.length - 5) + ' más' : '')) + '</small></span><span class="mas">＋</span></button>';
+}
+function repetirAyer() {
+  const ayer = sumarDias(hoy(), -1), l = cargarProt(ayer) || [], t = etiquetas(ayer, l.length);
+  // Los registros con macros se copian (cada día tiene los suyos)
+  const claves = l.map(k => esReg(k) && regDe(k) ? nuevoRegistro(regDe(k)) : k);
+  agregarAProt(claves, t.map(x => x || comidaActual()));
+  LS.set('gym_repetido_' + hoy(), true);
+  hap('ok'); cambiarProt(); toast('+' + protTotal(l) + ' g: lo mismo que ayer ✓');
 }
 function diaTipico() { const l = diaTipicoLista(); agregarAProt(l, l.map(k => comidaHabitual(k, comidaActual()))); cambiarProt(); }
 // Editor del día típico: cuántas veces va cada comida (la misma puede ir 2 veces)
@@ -3535,8 +3716,15 @@ function tarjetaPasos() {
 // APK: hoy a las 6 pm con tus números; sábado y domingo que vienen, un recordatorio aunque no abras la app
 function programarAvisoProt() {
   if (!NATIVO || !DATA) return;
-  nativo('LocalNotifications', 'cancel', { notifications: [0, 1, 2, 3, 4, 5, 6].map(d => ({ id: AVISO_PROT + d })).concat([{ id: AVISO_CINTURA }]) }).then(() => {
+  nativo('LocalNotifications', 'cancel', { notifications: [0, 1, 2, 3, 4, 5, 6].map(d => ({ id: AVISO_PROT + d })).concat([0, 1, 2, 3, 4, 5, 6].map(d => ({ id: AVISO_PESO + d })), [{ id: AVISO_CINTURA }]) }).then(() => {
     const ahora = new Date(), lista = [];
+    // 7 am: ¿ya te pesaste? (al tocarla abre el teclado con tu último peso); hoy solo si aún no te pesas
+    if (ajuste('avisoPeso', true)) for (let d = 0; d < 7; d++) {
+      const f = new Date(); f.setDate(f.getDate() + d); f.setHours(7, 0, 0, 0);
+      if (f <= ahora || (d === 0 && pesoDe(hoy()) !== null)) continue;
+      lista.push({ id: AVISO_PESO + f.getDay(), channelId: 'proteina', schedule: { at: f, allowWhileIdle: true }, title: '⚖️ ¿Ya te pesaste?',
+                   body: 'En ayunas, después del baño. Toca aquí: ya trae tu último peso' + (DATA.ultimoPeso ? ' (' + DATA.ultimoPeso + ' kg)' : '') + ' y solo le subes o bajas.', extra: { accion: 'peso' } });
+    }
     // Domingo 8 am: medir la cintura con el protocolo (si ese domingo aún no la guardas)
     const dom = new Date(); dom.setDate(dom.getDate() + (7 - dom.getDay()) % 7); dom.setHours(8, 0, 0, 0);
     if (dom <= ahora || LS.get('gym_cint_' + claveDia(dom), null) !== null) dom.setDate(dom.getDate() + 7);
@@ -3557,7 +3745,7 @@ function programarAvisoProt() {
     return canalProt().then(() => nativo('LocalNotifications', 'schedule', { notifications: lista }));
   });
 }
-const AVISO_CINTURA = 90;
+const AVISO_CINTURA = 90, AVISO_PESO = 70;   // peso: ids 70 (dom) a 76 (sáb)
 const canalProt = () => nativo('LocalNotifications', 'createChannel', { id: 'proteina', name: 'Proteína y cintura', description: 'A las 6 pm: cuánto llevas de proteína. Domingo: medir la cintura', importance: 3, visibility: 1 });
 
 /* ----- Comida con IA: escribes lo que comiste y calcula la proteína ----- */
@@ -4237,7 +4425,7 @@ async function procesarMaquina(file) {
     const f = await achicarFoto(file, 1280);
     const cat = DATA.exercises.filter(e => !/^Otro ejercicio/.test(e.ejercicio)).map(e => ({ n: e.ejercicio, g: e.group }));
     const r = await conLimite(apiPost('maquinaIA', [f.b64, 'image/jpeg', { catalogo: cat, zonas: ZONAS }]), 45000);
-    MAQ = Object.assign(r, { foto: f.cv.toDataURL('image/jpeg', 0.6) });
+    MAQ = Object.assign(r, { foto: f.cv.toDataURL('image/jpeg', 0.6), chica: fotoChica(f.cv) });
     pintarMaquina();
   } catch (e) {
     cerrarModal();
@@ -4253,7 +4441,9 @@ function pintarMaquina() {
     h += '<div class="maqok">✓ Ya está en tu catálogo: <b>' + esc(ex.ejercicio) + '</b> · ' + esc(ex.group) + '<small>' +
       (ex.anterior.length ? 'Ya lo has hecho: la última vez (' + esc(ex.lastWhen) + ') ' + esc(resumenSets(ex.anterior)) + ' ' + ex.unit : 'Todavía no lo has hecho') + '</small></div>' +
       '<div class="acts"><button class="btn ghost" onclick="irAEjercicio(\'' + jsq(ex.name) + '\')">Ver cómo se hace</button>' +
-      (esExtra(ex.name) ? '' : '<button class="btn" onclick="anadirHoy(\'' + jsq(ex.name) + '\',' + seriesDe(ex) + ')">Añadir a hoy</button>') + '</div>';
+      (esExtra(ex.name) ? '' : '<button class="btn" onclick="anadirHoy(\'' + jsq(ex.name) + '\',' + seriesDe(ex) + ')">Añadir a hoy</button>') + '</div>' +
+      (fotoMaqDe(ex.name) === MAQ.chica ? '<div class="muted" style="margin-top:8px">📌 Foto guardada en el ejercicio</div>'
+        : '<button class="btn ghost block" style="margin-top:8px" onclick="if(guardarFotoMaq(\'' + jsq(ex.name) + '\',MAQ.chica)){toast(\'Foto guardada en el ejercicio ✓\');pintarMaquina()}">📌 Guardar esta foto en el ejercicio</button>');
   } else if (r.confianza !== 'baja') {
     h += '<div class="maqnuevo"><div class="muted" style="margin-bottom:6px">No está en tu catálogo. Esto es lo que te propongo:</div>' +
       '<b>' + esc(r.ejercicio) + '</b> · ' + esc(r.grupo) + '<br>' + esc(r.musculo) + (r.secundario ? ' (y ' + esc(r.secundario) + ')' : '') +
@@ -4271,9 +4461,10 @@ async function agregarMaquina() {
   if (!navigator.onLine) return toast('Necesitas señal para agregarlo a tu hoja');
   MAQ.guardando = true; pintarMaquina();
   try {
-    const r = await conLimite(apiPost('nuevoEjercicio', [Object.assign({}, MAQ, { foto: undefined, guardando: undefined })]), 30000);
+    const r = await conLimite(apiPost('nuevoEjercicio', [Object.assign({}, MAQ, { foto: undefined, chica: undefined, guardando: undefined })]), 30000);
     cerrarModal(); hap('ok');
     toast(r.ya ? 'Ya lo tenías: ' + r.ejercicio : 'Agregado a ' + r.grupo + ': ' + r.ejercicio);
+    guardarFotoMaq(r.grupo + ': ' + r.ejercicio, MAQ.chica);   // la foto que tomaste queda en su tarjeta
     await actualizar();
   } catch (e) {
     MAQ.guardando = false; pintarMaquina();
@@ -4452,7 +4643,7 @@ function textoRuta(r) {
   return que + ' Haz ' + (n === 1 ? 'este' : 'estos ' + n) + (r.quedan <= 1 ? ' y cierras ' + r.g + ' de la semana.' : '; lo que quede va en tu próximo ' + r.g + '.');
 }
 function tarjetaRuta() {
-  if (FECHA || !GRUPOS3.includes(GRUPO) || !ajuste('ruta', true) || !DATA.exercises.some(e => (e.zonas || []).length)) return '';
+  if (FECHA || !GRUPOS3.includes(GRUPO) || !ajuste('ruta', true) || sencillo() || !DATA.exercises.some(e => (e.zonas || []).length)) return '';
   const k = claveRuta(GRUPO), acep = rutaAceptada(GRUPO);
   if (acep) {
     const hechos = acep.filter(x => cardDone(x.name) || (state[x.name] && state[x.name].done)).length;
@@ -4736,6 +4927,9 @@ function abrirBienvenida() {
     '<label>3. ¿Tienes alguna carrera?</label><div class="pills" style="display:grid;grid-template-columns:repeat(4,1fr);margin:0">' +
     [[0, 'No'], [5, '5 km'], [10, '10 km'], [21, '21 km']].map(x => '<button class="' + (BV.km === x[0] ? 'on' : '') + '" onclick="BV.km=' + x[0] + ';abrirBienvenida()">' + x[1] + '</button>').join('') + '</div>' +
     (BV.km ? '<input type="date" id="bvFecha" min="' + hoy() + '" value="' + esc(BV.fecha) + '" onchange="BV.fecha=this.value">' : '') +
+    '<label>4. ¿Ya sabes usar las máquinas del gym?</label><div class="pills" style="display:grid;grid-template-columns:1fr 1fr;margin:0">' +
+    [[false, 'Sí, ya sé'], [true, 'Soy nuevo']].map(x => '<button class="' + (!!BV.sencillo === x[0] ? 'on' : '') + '" onclick="BV.sencillo=' + x[0] + ';abrirBienvenida()">' + x[1] + '</button>').join('') + '</div>' +
+    (BV.sencillo ? '<div class="muted" style="margin-top:6px">Te pongo el modo sencillo: te digo qué hacer paso a paso. Lo quitas en Ajustes.</div>' : '') +
     '<div class="acts"><button class="btn ghost" onclick="BV_POSPUESTA=true;cerrarModal()">Ahora no</button><button class="btn" onclick="guardarBienvenida()">Listo</button></div></div>';
   abrirModal();
 }
@@ -4753,10 +4947,11 @@ function guardarBienvenida() {
   cfg.carrera = BV.km ? { fecha: BV.fecha, km: BV.km, nombre: BV.km === 21 ? 'medio maratón' : BV.km + 'K' } : null;
   Object.assign(DATA, { metaProteina: cfg.metaProteina, dias: cfg.dias, perfil: true, carrera: cfg.carrera });
   LS.set('gym_data', DATA); LS.set('gym_bienvenida', true);
+  setAjuste('sencillo', !!BV.sencillo); aplicarSencillo();
   encolar('saveConfig', [cfg], 'cfg-bienvenida');
   cerrarModal(); hap('ok');
   toast('¡Listo! Meta de proteína: ' + cfg.metaProteina + ' g');
-  pintarTab();
+  pintarTab(); setTimeout(tourSiToca, 900);
   setTimeout(() => enviar().then(actualizar), 1500);
 }
 
@@ -4784,7 +4979,11 @@ function abrirAjustes() {
     '<button class="tog' + (ajuste(k, d) ? ' on' : '') + '" onclick="toggleAjuste(\'' + k + '\',' + d + ')" aria-label="' + esc(txt) + '"></button></div>';
   const def = ajuste('descanso', 90), c = DATA.carrera;
   const sec = (ic, color, txt) => '<div class="t1 asec"><span style="color:var(--' + color + ')">' + ic + '</span>' + txt + '</div>';
+  const fallas = LS.get('gym_jserr', []).length + LS.get('gym_errores', []).length;
   $('sheet').innerHTML = '<div class="row between ajhead"><div class="t2">Ajustes</div><button class="cerrar" onclick="cerrarModal()" aria-label="Cerrar">✕</button></div>' +
+    tog('sencillo', false, 'Modo sencillo', 'Para quien empieza: «Hoy te toca» en 3 pasos, una instrucción por serie y menos pestañas (sin Músculos ni Coach)', AIC.chispa, 'ok') +
+    '<div class="opt tarj"><span class="aic" style="--c:var(--pri)">' + AIC.flechas + '</span><div class="txt"><div class="t1" style="font-size:15px">Tour de la app</div><div class="muted">4 pasos: dónde pesarte, elegir el día, anotar series y la comida</div></div>' +
+    '<button class="btn ghost sm" onclick="iniciarTour()">Ver</button></div>' +
     tog('pantalla', true, 'Pantalla encendida en la sesión', 'Para que el descanso suene y no tengas que desbloquear', AIC.cel, 'cyan') +
     tog('reloj', NATIVO, 'Avisar al terminar el descanso', NATIVO ? 'Notificación con vibración aunque la pantalla esté bloqueada; llega a tu reloj' : 'Notificación al terminar (solo si la app está abierta; en el APK llega aunque bloquees)', AIC.campana, 'acc') +
     tog('autoDescanso', false, 'Iniciar el descanso solo', 'Si está apagado, solo te sugiere tiempos al marcar una serie', AIC.reloj, 'ok') +
@@ -4807,6 +5006,7 @@ function abrirAjustes() {
       '<div class="muted">¿Health Connect o un widget no responden? Revisa permisos, de qué apps llegan tus datos y qué widgets tienes</div></div>' +
       '<button class="btn ghost sm" onclick="abrirDiagnostico()">Revisar</button></div>' : '') +
     tog('ruta', true, 'Ruta de hoy', 'Te dice qué zona te falta en la semana y cuáles 2–4 ejercicios la cierran', AIC.flechas, 'ok') +
+    (NATIVO ? tog('avisoPeso', true, 'Aviso para pesarte a las 7 am', 'Solo si ese día aún no te pesas; al tocarlo abre el teclado con tu último peso', AIC.campana, 'cyan') : '') +
     tog('avisoProt', true, 'Aviso de proteína a las 6 pm', 'Cuánto llevas y qué de lo que comes la completa (sábado y domingo aunque no abras la app)', AIC.cubiertos, 'acc') +
     tog('calentamiento', true, 'Calentamiento automático', 'En los básicos, al abrirlos: barra sola × 10, 50 % × 8 y 75 % × 3, marcadas C (no cuentan para tu volumen)', AIC.flama, 'red') +
     '<div class="opt" style="display:block">' + sec(AIC.reloj, 'cyan', 'Descanso predeterminado') + '<div class="pills c-cyan" style="margin:0;display:grid;grid-template-columns:repeat(4,1fr)">' +
@@ -4828,11 +5028,26 @@ function abrirAjustes() {
     '<button onclick="guardarCarrera(0)">Ninguna</button></div></div>' +
     '<div class="opt tarj"><span class="aic" style="--c:var(--ok)">' + AIC.nube + '</span><div class="txt"><div class="t1" style="font-size:15px">Respaldo</div><div class="muted">Descarga lo que tiene la app en este celular</div></div>' +
     '<button class="btn sm verde" onclick="descargarRespaldo()">⬇ Descargar</button></div>' +
+    '<div class="opt tarj"><span class="aic" style="--c:var(--acc)">' + AIC.cerebro + '</span><div class="txt"><div class="t1" style="font-size:15px">Lo que falló</div><div class="muted">' +
+    (fallas ? fallas + ' aviso' + (fallas === 1 ? '' : 's') + ' guardado' + (fallas === 1 ? '' : 's') + ' en este celular' : 'Nada falló últimamente') + '</div></div>' +
+    (fallas ? '<button class="btn ghost sm" onclick="abrirFallas()">Ver</button>' : '') + '</div>' +
     '<a class="btn ghost block hoja" href="' + DATA.resumen.sheetUrl + '" target="_blank" rel="noopener">' + AIC.tabla + ' Abrir mi hoja de Google</a>' +
     (NATIVO ? '' : '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Pasar a la app nativa (APK)</div><div class="muted">Copia tu link y pégalo en la app la primera vez</div></div>' +
       '<button class="btn ghost sm" onclick="copiarLinkConfig()">Copiar</button></div>') +
     '<div class="muted" style="text-align:center;margin-top:14px;font-size:12px">Gym ' + VERSION_APP + (NATIVO ? ' (app)' : '') + ' · ' + esc(DATA.nombre || '') + '</div>';
   abrirModal('completa');
+}
+// Lo que falló: errores de la app y datos que la hoja no aceptó (los de la app también se mandan solos a tu hoja, pestaña Errores)
+function abrirFallas(borrar) {
+  const js = LS.get('gym_jserr', []).slice().reverse().map(x => ({ cuando: x.ts || x.dia, msg: x.msg, donde: x.donde }));
+  const hoja = LS.get('gym_errores', []).slice().reverse().map(x => ({ cuando: x.cuando, msg: (x.que ? x.que + ': ' : '') + x.msg, donde: 'La hoja no lo aceptó' }));
+  const l = hoja.concat(js).slice(0, 25), fecha = c => { const d = new Date(c); return isNaN(d) ? String(c || '') : ddmm(claveDia(d)) + (String(c).length > 10 ? ' ' + horaTexto(d) : ''); };
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">Lo que falló</div><button class="btn ghost sm" onclick="abrirAjustes()">←</button></div>' +
+    '<div class="muted" style="margin:4px 0 10px">Lo más reciente arriba. Los errores de la app también llegan a tu hoja (pestaña Errores); si algo se repite, mándale captura a tu coach.</div>' +
+    (l.length ? l.map(x => '<div class="falla"><b>' + esc(fecha(x.cuando)) + '</b> ' + esc(x.msg) + (x.donde ? '<small>' + esc(x.donde) + '</small>' : '') + '</div>').join('') : '<div class="muted">Nada por aquí.</div>') +
+    (l.length ? (borrar ? '<div class="muted" style="margin-top:10px">¿Borrar la lista de este celular? (lo de tu hoja se queda)</div><div class="acts"><button class="btn ghost" onclick="abrirFallas()">No</button>' +
+      '<button class="btn" onclick="LS.del(\'gym_jserr\');LS.del(\'gym_errores\');abrirAjustes();toast(\'Lista borrada\')">Sí, borrar</button></div>'
+      : '<div class="acts"><button class="btn ghost" onclick="abrirFallas(true)">Borrar la lista</button></div>') : '');
 }
 async function toggleAjuste(k, d) {
   const nuevo = !ajuste(k, d);
@@ -4845,10 +5060,11 @@ async function toggleAjuste(k, d) {
     const p = await Notification.requestPermission();
     if (p !== 'granted') return toast('Necesito permiso de notificaciones para avisarte');
   }
-  if ((k === 'avisoProt' || k === 'avisoPasos') && nuevo && NATIVO) await nativo('LocalNotifications', 'requestPermissions');
+  if ((k === 'avisoProt' || k === 'avisoPasos' || k === 'avisoPeso') && nuevo && NATIVO) await nativo('LocalNotifications', 'requestPermissions');
   if (k === 'salud' && nuevo && !(await conectarSalud())) return abrirAjustes();
   setAjuste(k, nuevo);
-  if (k === 'avisoProt') programarAvisoProt();
+  if (k === 'avisoProt' || k === 'avisoPeso') programarAvisoProt();
+  if (k === 'sencillo') { aplicarSencillo(); pintarTab(); }
   if (k === 'salud' && nuevo) leerSalud(true);
   if (k === 'salud' && !nuevo) { LS.del('gym_salud'); LS.del('gym_salud_firma'); actualizarWidgets(); }
   if (k === 'salud' || k === 'avisoPasos') configurarPasos();
