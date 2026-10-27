@@ -232,7 +232,9 @@ async function leerSalud(forzar) {
   }
   if (!r) r = await leerSaludCapgo(ini, new Date());
   if (!r) return;
-  const runs = (r.runs || []).map(x => ({ uid: x.uid, ts: x.ts, k: x.k, km: x.km, min: x.min, fuente: String(x.fuente || '').slice(0, 60) }));
+  // Más lento que 9:30/km es una caminata (Samsung las manda como "running"): no entra a Trotes
+  const runs = (r.runs || []).filter(x => !(Number(x.min) > 0 && Number(x.km) > 0 && Number(x.min) / Number(x.km) > 9.5))
+    .map(x => ({ uid: x.uid, ts: x.ts, k: x.k, km: x.km, min: x.min, fuente: String(x.fuente || '').slice(0, 60) }));
   LS.set('gym_salud', { ts: Date.now(), pasos: r.pasos || [], sueno: r.sueno || [], runs: runs, via: r.via, sesiones: r.sesiones || 0, sinDistancia: r.sinDistancia || 0,
     fuentes: { pasos: r.fuentesPasos || [], sueno: r.fuentesSueno || [], ejercicio: r.fuentesEjercicio || [] }, errores: (r.errores || []).slice(0, 5) });
   // A la hoja: un renglón por día en "Salud" y las carreras que falten en Trotes (el script evita duplicados)
@@ -1147,7 +1149,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v8.2.1';
+const VERSION_APP = 'v8.4';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1330,7 +1332,7 @@ function ladoVisible(base) {
 function verLado(base, lado) { QUIEN[base] = lado; ANIM_ABRE = base; hap('tecla'); pintarEntrenar(); }
 // Sugerencia al empezar cada ejercicio (subir, bajar o mantener, con números). El script 7.4 ya la manda calculada
 // con la misma función (motor.js → progresionInicio); con un script anterior, la calcula la app con tu última sesión.
-const SCRIPT_ESPERADO = '7.7';
+const SCRIPT_ESPERADO = '7.8';
 const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);
 const scriptAlDia = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum(SCRIPT_ESPERADO));
 // Un solo motor: si la hoja trae el mismo motor (misma huella que motor.js) se usa lo que calculó; si no, lo calcula la app
@@ -1937,6 +1939,8 @@ function elegirReady(k, v) {
 }
 function guardarReady(saltar) {
   LS.set('gym_ready_' + hoy(), saltar ? { saltado: true } : Object.assign({}, READY_TMP));
+  // v8.3: el check-in también va a la pestaña Salud de tu hoja (columnas E–G) para que tu coach lo vea en el reporte
+  if (!saltar) encolar('saveSalud', [{ dias: [], trotes: [], checkin: { k: hoy(), sueno: READY_TMP.sueno, energia: READY_TMP.energia, dolor: READY_TMP.dolor } }], 'ready');
   READY_TMP = {};
   const bajos = saltar ? 0 : ['Mal', 'Baja', 'Adolorido'].filter(v => Object.values(readyHoy()).includes(v)).length;
   if (!saltar) toast(bajos >= 2 ? 'Día conservador: tu coach baja la exigencia' : bajos ? 'Anotado: hoy sin subir de peso' : '¡A tope! Tu coach busca subir donde toca');

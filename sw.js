@@ -1,6 +1,6 @@
 // Guarda la app en el celular para que abra rápido y funcione sin señal.
 // Cuando subas una versión nueva de la app, cambia el número de VERSION.
-const VERSION = 'gym-v8.2.1';
+const VERSION = 'gym-v8.4';
 // Miniaturas de YouTube, GIF e imágenes de técnica: caché aparte que NO se borra al cambiar de versión
 const MEDIA = 'gym-media';
 const MEDIA_MAX = 150;
