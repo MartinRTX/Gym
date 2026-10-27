@@ -112,3 +112,9 @@ test('Todos los alimentos base tienen sus macros y porciones válidas', () => {
     if (a.k > 0) cerca(a.k, 4 * a.p + 4 * a.c + 9 * a.f, Math.max(25, a.k * 0.2), a.id);
   });
 });
+
+test('Buscar como escribes: plurales, "de", "con" y cantidades no estorban', () => {
+  assert.strictEqual(NUT.buscar(NUT.BASE, 'frijoles de la olla')[0].id, 'b:frijol-olla');
+  assert.ok(NUT.buscar(NUT.BASE, '2 tortillas de maíz').some(a => a.id === 'b:tort-maiz'));
+  assert.ok(NUT.buscar(NUT.BASE, 'huevos').length > 0, 'huevos → huevo');
+});

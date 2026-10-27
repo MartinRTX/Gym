@@ -26,6 +26,14 @@ function hoy() { return claveDia(new Date()); }
 function sumarDias(k, n) { const d = new Date(k + 'T12:00:00'); d.setDate(d.getDate() + n); return claveDia(d); }
 function difDias(a, b) { return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000); }
 function ddmm(k) { return k.slice(8, 10) + '/' + k.slice(5, 7); }
+// Días desde un dd/mm que manda el script (la fecha más cercana hacia atrás); null si no se entiende
+function diasDesdeDM(dm) {
+  const m = /^(\d{1,2})\/(\d{1,2})/.exec(dm || '');
+  if (!m) return null;
+  const h = new Date(hoy() + 'T12:00:00'), d = new Date(h.getFullYear(), m[2] - 1, Number(m[1]), 12);
+  if (d > h) d.setFullYear(d.getFullYear() - 1);
+  return Math.round((h - d) / 864e5);
+}
 const DSEM = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 function diaCorto(k) { return DSEM[new Date(k + 'T12:00:00').getDay()] + ' ' + ddmm(k); }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -920,6 +928,23 @@ const CSS_V8 = `
   .chip.on, .chip.r-Trote.on { background: var(--c); border-color: var(--c); color: var(--on-rut); box-shadow: none; }
   .plan5k { background: var(--card); }
 `;
+/* v8.5: nada se sale de la pantalla ni se arrastra de lado; mosaicos en dos filas; músculo en dos pasos */
+const CSS_V85 = `
+  html { overflow-x: hidden; overscroll-behavior: none; } body { overflow-x: clip; }
+  html.conmodal { overflow: hidden; }
+  .sheet { overflow-x: hidden; touch-action: pan-y; overflow-wrap: anywhere; }
+  .sheet .btn, .sheet .alt, .sheet .mchips button { max-width: 100%; white-space: normal; text-align: left; }
+  .sheet .btn.block { text-align: center; }
+  .mosaicos { flex-wrap: wrap; overflow: visible; margin: 0 0 12px; padding: 0; }
+  .mosaicos button { flex: 0 0 calc((100% - 16px) / 3); }
+  .volver { display: inline-flex; align-items: center; gap: 6px; border: 0; background: var(--card2); color: var(--text); border-radius: 99px; padding: 8px 14px; font-size: 14px; font-weight: 600; }
+  .accion .alt small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+  .hechos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .maqfoto { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: 16px; margin: 10px 0; }
+  .maqok, .maqnuevo { background: var(--card2); border-radius: 14px; padding: 12px 14px; font-size: 14.5px; }
+  .maqok small { display: block; color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .hechos span { background: color-mix(in srgb, var(--ok) 13%, transparent); color: var(--ok); border-radius: 99px; padding: 4px 10px; font-size: 12.5px; font-weight: 600; }
+`;
 /* v7.5: pasos de la tarde, ritmo de peso, proteína por comida, después de la carrera, diagnóstico */
 const CSS_V75 = `
   .pill.red { background: color-mix(in srgb, var(--red) 15%, transparent); color: var(--red); }
@@ -1083,7 +1108,7 @@ function avisoErrores() {
 
 /* ===================== Arranque ===================== */
 function arrancar() {
-  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72 + CSS_V75 + CSS_V8; document.head.appendChild(st);
+  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72 + CSS_V75 + CSS_V8 + CSS_V85; document.head.appendChild(st);
   // Link de configuración: ?api=…&k=… o #api=…&k=… (también acepta key=)
   const p = new URLSearchParams(location.search), ph = new URLSearchParams(location.hash.slice(1));
   const linkApi = (p.get('api') || ph.get('api') || '').trim(), linkKey = (p.get('k') || p.get('key') || ph.get('k') || ph.get('key') || '').trim();
@@ -1149,7 +1174,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v8.4';
+const VERSION_APP = 'v8.5';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1570,6 +1595,7 @@ function pintarEntrenar() {
     const q = BUSCA.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const res = DATA.exercises.filter(ex => (ex.ejercicio + ' ' + ex.musculo).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
     h += '<h2>' + res.length + ' resultado' + (res.length === 1 ? '' : 's') + '</h2>' + res.map(tarjetaEjercicio).join('');
+    if (DATA.ia) h += '<button class="musbtn" onclick="abrirMaquina()">📷 ¿No aparece? Tómale foto a la máquina <span>Te digo qué ejercicio es y lo agrego a tu catálogo</span></button>';
     return ponerEntrenar(h, corte);
   }
   const comp = parejaDisponible();
@@ -2459,9 +2485,13 @@ function kpListo(marcarSerie) {
 function cerrarTeclado() { $('kp').classList.remove('show'); }
 function tecladoPeso(dia) {
   PESO_DIA = dia || null;
-  KP = { peso: true, val: PESO_TMP === '' ? '' : String(PESO_TMP), nuevo: true, f: 'w' };
+  // Sin peso de hoy, arranca en el último: solo le subes o bajas (o tecleas encima, se borra al primer número)
+  const tmp = PESO_TMP === null || PESO_TMP === undefined ? '' : PESO_TMP, ult = DATA.ultimoPeso;
+  const base = tmp !== '' ? tmp : ult !== null && ult !== undefined ? ult : '';
+  KP = { peso: true, val: base === '' ? '' : String(base), nuevo: true, f: 'w' };
   $('kpSheet').innerHTML = '<div class="row between"><div class="t1">Peso en ayunas (kg)</div><button class="btn ghost sm" onclick="cerrarTeclado()">✕</button></div>' +
-    (DATA.ultimoPeso !== null ? '<div class="muted" style="text-align:center;margin-top:6px">Último: ' + DATA.ultimoPeso + ' kg · los ± parten de ahí</div>' : '') +
+    (tmp === '' && base !== '' ? '<div class="muted" style="text-align:center;margin-top:6px">Te puse el último (' + ult + ' kg): ajústalo con − / + o escribe el nuevo</div>'
+      : ult !== null && ult !== undefined ? '<div class="muted" style="text-align:center;margin-top:6px">Último: ' + ult + ' kg</div>' : '') +
     '<div class="disp num" id="kpDisp"></div><div class="quick" style="grid-template-columns:repeat(4,1fr)">' +
     [-0.5, -0.1, 0.1, 0.5].map(v => '<button onclick="kpSumar(' + v + ')">' + (v > 0 ? '+' : '−') + Math.abs(v) + '</button>').join('') + '</div>' + teclas() +
     '<div class="acts"><button class="btn ghost" onclick="kpPeso(false)">Listo</button><button class="btn" onclick="kpPeso(true)">Guardar peso</button></div>';
@@ -2798,8 +2828,9 @@ function abrirModal(clase) {
   $('sheet').className = 'sheet' + (clase ? ' ' + clase : '');
   $('modal').className = 'modal show' + (clase ? ' ' + clase : '');
   $('toast').className = 'toast';
+  document.documentElement.classList.add('conmodal');
 }
-function cerrarModal() { $('modal').classList.remove('show'); }
+function cerrarModal() { $('modal').classList.remove('show'); document.documentElement.classList.remove('conmodal'); }
 
 /* ----- Gesto o botón "atrás" de Android ----- */
 // Siempre queda una entrada extra en el historial (la "guardia"): el gesto atrás la consume, la app cierra lo que esté
@@ -3536,10 +3567,15 @@ function tarjetaComidaIA() {
   const c = COMIDA_IA || {};
   let h = '<div class="card iacard"><div class="row between" style="margin-bottom:8px"><div class="t1">✨ Registro Inteligente</div><span class="pill pri">IA asistida</span></div>' +
     '<textarea id="iaComida" maxlength="600" placeholder="Ej. 3 tacos de asada y una coca · o: la etiqueta dice 24 g por porción y me comí 2" oninput="(COMIDA_IA=COMIDA_IA||{}).texto=this.value">' + esc(c.texto || '') + '</textarea>' +
-    '<div class="fila-ia">' + botonMic('iaComida', 'calcularComida') + '<button class="btn"' + (c.cargando ? ' disabled' : '') + ' onclick="calcularComida()">' + (c.cargando ? 'Calculando…' : 'Calcular proteína') + '</button></div>';
+    '<div class="fila-ia">' + botonMic('iaComida', 'calcularComida') + '<button class="btn" onclick="calcularComida()">' + (c.cargando ? 'Preguntar de nuevo' : 'Calcular') + '</button></div>';
+  // Mientras piensa puedes corregir el texto y volver a preguntar: la respuesta vieja se ignora
+  if (c.cargando) h += '<div class="muted" style="margin-top:8px">⏳ Calculando… ¿te equivocaste? Corrige y toca «Preguntar de nuevo».</div>';
   if (c.error) h += '<div class="muted" style="margin-top:8px;color:var(--acc)">' + esc(c.error) + '</div>';
+  if (c.locales) h += '<div style="margin-top:8px">' + (c.locales.length ? '<div class="muted" style="font-size:13.5px;margin-bottom:4px">¿Es alguno de estos? (catálogo, funciona sin internet)</div>' +
+      c.locales.map(a => '<button class="bres" onclick="elegirNut(\'' + jsq(a.id) + '\')"><span class="nm">' + esc(a.n) + '<small>por 100 ' + a.u + ': <b>' + Math.round(a.p * 10) / 10 + ' g prot</b> · ' + Math.round(a.k) + ' kcal</small></span></button>').join('') : '') +
+      '<button class="link" style="margin:6px 2px" onclick="abrirBuscador({ q: COMIDA_IA.texto })">🔎 Buscar en el catálogo</button></div>';
   if (c.items && c.items.length) {
-    const tot = c.items.filter(x => x.on).reduce((a, x) => a + x.g, 0);
+    const tot = c.items.filter(x => x.on).reduce((a, x) => a + x.g, 0), kcal = c.items.filter(x => x.on).reduce((a, x) => a + (x.k || 0), 0);
     h += '<div style="margin-top:10px">' + c.items.map((x, i) => '<div class="iitem' + (x.on ? '' : ' off') + '">' +
       '<button class="mini' + (x.on ? ' on' : '') + '" onclick="COMIDA_IA.items[' + i + '].on=!COMIDA_IA.items[' + i + '].on;pintarComida()" aria-label="Incluir">✓</button>' +
       '<div class="nm">' + esc(x.nombre) + (x.nota ? '<small>' + esc(x.nota) + '</small>' : '') + '</div>' +
@@ -3548,7 +3584,7 @@ function tarjetaComidaIA() {
       '<button class="mini' + (x.fav ? ' on' : '') + '" onclick="guardarFav(' + i + ')" aria-label="Guardar en mis comidas">⭐</button></div>').join('') + '</div>';
     if (c.consejo) h += '<div class="muted" style="margin:8px 0 0;font-size:13.5px">💡 ' + esc(c.consejo) + '</div>';
     h += '<div class="acts"><button class="btn ghost" onclick="COMIDA_IA=null;pintarComida()">Descartar</button>' +
-      '<button class="btn"' + (tot ? '' : ' disabled') + ' onclick="agregarComidaIA()">Agregar +' + tot + ' g</button></div>';
+      '<button class="btn"' + (tot || kcal ? '' : ' disabled') + ' onclick="agregarComidaIA()">Agregar +' + tot + ' g' + (kcal ? ' · ' + kcal + ' kcal' : '') + '</button></div>';
   }
   return h + '</div>';
 }
@@ -3556,18 +3592,51 @@ async function calcularComida() {
   const c = COMIDA_IA = COMIDA_IA || {};
   c.texto = ($('iaComida') || {}).value || c.texto || '';
   if (!c.texto.trim()) return toast('Escribe qué comiste');
-  if (!navigator.onLine) return toast('Necesitas señal para calcular con la IA');
-  c.cargando = true; c.error = ''; c.items = null; pintarComida();
-  try {
-    const r = await conLimite(apiPost('comidaIA', [c.texto, { meta: metaProt(), llevas: protTotal(), comido: prot.map(tDe) }]), 30000);
-    c.items = r.items.map(x => Object.assign(x, { on: true })); c.consejo = r.consejo;
-  } catch (e) { c.error = 'No se pudo calcular: ' + (e.message === 'tiempo' ? 'tardó demasiado, intenta otra vez' : e.message); }
+  const id = ++COMIDA_SEQ, texto = c.texto;
+  c.error = ''; c.items = null; c.locales = null;
+  if (!navigator.onLine) { c.error = 'Sin señal no puedo preguntarle a la IA.'; c.locales = await sugerenciasCatalogo(texto); return repintarComidaIA(); }
+  c.cargando = true; repintarComidaIA();
+  let r = null, err = null;
+  try { r = await conLimite(apiPost('comidaIA', [texto, { meta: metaProt(), llevas: protTotal(), comido: prot.map(tDe) }]), 40000); } catch (e) { err = e; }
+  if (id !== COMIDA_SEQ || COMIDA_IA !== c) return;   // ya preguntaste otra cosa o la descartaste
   c.cargando = false;
-  if (TAB === 'Comida') pintarComida();
+  if (r && r.items && r.items.length) { c.items = r.items.map(x => Object.assign(x, { on: true })); c.consejo = r.consejo; }
+  else {
+    const msg = !err ? 'La IA no reconoció la comida' : err.message === 'tiempo' ? 'La IA tardó demasiado' : err.message;
+    c.error = 'No se pudo calcular: ' + msg + '. Prueba con otras palabras o elige del catálogo.';
+    registrarError('IA comida: ' + msg + ' · «' + texto.slice(0, 80) + '»', 'calcularComida');
+    c.locales = await sugerenciasCatalogo(texto);
+    if (id !== COMIDA_SEQ || COMIDA_IA !== c) return;
+  }
+  repintarComidaIA();
+}
+let COMIDA_SEQ = 0;
+// Repinta sin quitarte el teclado si sigues escribiendo
+function repintarComidaIA() {
+  if (TAB !== 'Comida') return;
+  const a = document.activeElement, enTexto = a && a.id === 'iaComida', pos = enTexto ? a.selectionStart : null;
+  pintarComida();
+  const t = enTexto && $('iaComida');
+  if (t) { t.focus(); t.setSelectionRange(pos, pos); }
+}
+// Si la IA no encuentra la comida: lo más parecido del catálogo, por cada cosa que escribiste ("tacos de asada, coca")
+async function sugerenciasCatalogo(texto) {
+  if (typeof listaBusqueda !== 'function') return [];
+  try { await conLimite(cargarCatalogo(), 8000); } catch (e) { /* sin catálogo grande: busca en lo básico y lo tuyo */ }
+  const lista = listaBusqueda(), out = [];
+  texto.toLowerCase().split(/[,.;+\n]|\by\b/).map(x => x.trim()).filter(x => x.length > 2).slice(0, 4)
+    .forEach(q => {
+      // Si con todas las palabras no hay nada (un error de dedo), palabra por palabra
+      let r = NUT.buscar(lista, q, 2);
+      if (!r.length) r = q.split(/\s+/).filter(w => w.length > 3).sort((a, b) => b.length - a.length).slice(0, 2).map(w => NUT.buscar(lista, w, 1)[0]).filter(Boolean);
+      r.forEach(a => { if (!out.some(x => x.id === a.id)) out.push(a); });
+    });
+  return out.slice(0, 6);
 }
 function ajustarItem(i, d) { const x = COMIDA_IA.items[i]; x.g = Math.max(0, x.g + d); pintarComida(); }
 function agregarComidaIA() {
-  const items = COMIDA_IA.items.filter(x => x.on && x.g > 0);
+  // También lo que casi no trae proteína (refresco, fruta, pan): suma calorías y carbohidratos
+  const items = COMIDA_IA.items.filter(x => x.on && (x.g > 0 || x.k > 0));
   const cuenta = LS.get('gym_food_counts', {});
   const claves = items.map(x => x.k !== undefined && x.k !== null
     ? nuevoRegistro({ n: x.nombre, q: x.gramos || null, u: x.gramos ? 'g' : '', src: COMIDA_IA.deFoto ? 'foto' : 'ia', p: x.g, c: x.c, f: x.f, k: x.k, fib: x.fib })
@@ -3576,7 +3645,8 @@ function agregarComidaIA() {
   agregarAProt(claves, claves.map(() => comidaActual()));
   LS.set('gym_food_counts', cuenta);
   const tot = items.reduce((a, x) => a + x.g, 0);
-  COMIDA_IA = null; hap('ok'); cambiarProt(); toast('+' + tot + ' g ✓');
+  const kcal = items.reduce((a, x) => a + (x.k || 0), 0);
+  COMIDA_IA = null; hap('ok'); cambiarProt(); toast('+' + tot + ' g' + (kcal ? ' · ' + kcal + ' kcal' : '') + ' ✓');
 }
 function guardarFav(i) {
   const x = COMIDA_IA.items[i];
@@ -4139,6 +4209,77 @@ function irAEjercicio(name) {
   if (TAB !== 'Entrenar') verTab('Entrenar'); else pintarEntrenar();
   irA(name);
 }
+/* ----- Foto de una máquina: la IA dice qué ejercicio es; si no está en tu Catálogo, lo agrega (script con Maquina.gs) ----- */
+let MAQ = null;
+function abrirMaquina() {
+  if (!DATA.ia) return toast('La IA no está activada en tu hoja');
+  MAQ = null;
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">¿Qué máquina es?</div><button class="btn ghost sm" onclick="cerrarModal()">✕</button></div>' +
+    '<div class="muted" style="margin:6px 0 12px">Tómale foto a la máquina (o a alguien usándola) y te digo qué ejercicio es, qué trabaja y si ya lo tienes.</div>' +
+    '<div class="camopts"><button onclick="fotoMaquina(false)"><span>📷</span><b>Tomar foto</b><small>Que se vea completa, con el asiento y los agarres</small></button>' +
+    '<button onclick="fotoMaquina(true)"><span>🖼️</span><b>Elegir de la galería</b><small>Una foto que ya tomaste</small></button></div>';
+  if (!$('modal').classList.contains('show')) abrirModal();
+}
+function fotoMaquina(galeria) {
+  let inp = $('fotoMaq');
+  if (!inp) {
+    inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.id = 'fotoMaq'; inp.style.display = 'none';
+    inp.addEventListener('change', () => { const f = inp.files && inp.files[0]; inp.value = ''; if (f) procesarMaquina(f); });
+    document.body.appendChild(inp);
+  }
+  if (galeria) inp.removeAttribute('capture'); else inp.setAttribute('capture', 'environment');
+  inp.click();
+}
+async function procesarMaquina(file) {
+  if (!navigator.onLine) return toast('Necesitas señal para que la IA vea la foto');
+  cargandoFoto('Viendo la máquina…');
+  try {
+    const f = await achicarFoto(file, 1280);
+    const cat = DATA.exercises.filter(e => !/^Otro ejercicio/.test(e.ejercicio)).map(e => ({ n: e.ejercicio, g: e.group }));
+    const r = await conLimite(apiPost('maquinaIA', [f.b64, 'image/jpeg', { catalogo: cat, zonas: ZONAS }]), 45000);
+    MAQ = Object.assign(r, { foto: f.cv.toDataURL('image/jpeg', 0.6) });
+    pintarMaquina();
+  } catch (e) {
+    cerrarModal();
+    toast(/desconocida/i.test(e.message) ? 'Tu script todavía no reconoce máquinas: agrégale Maquina.gs' : 'No pude ver la foto: ' + (e.message === 'tiempo' ? 'tardó demasiado' : e.message));
+  }
+}
+function pintarMaquina() {
+  const r = MAQ, ex = r.enCatalogo && DATA.exercises.find(e => e.ejercicio === r.enCatalogo);
+  let h = '<div class="row between"><div class="t2">' + esc(r.maquina || r.ejercicio || 'Máquina') + '</div><button class="btn ghost sm" onclick="cerrarModal()">✕</button></div>' +
+    '<img class="maqfoto" src="' + r.foto + '" alt="">';
+  if (r.confianza === 'baja') h += '<div class="aviso2">🤔 No estoy seguro. ' + esc(r.como || 'Tómale otra foto donde se vea completa.') + '</div>';
+  if (ex) {
+    h += '<div class="maqok">✓ Ya está en tu catálogo: <b>' + esc(ex.ejercicio) + '</b> · ' + esc(ex.group) + '<small>' +
+      (ex.anterior.length ? 'Ya lo has hecho: la última vez (' + esc(ex.lastWhen) + ') ' + esc(resumenSets(ex.anterior)) + ' ' + ex.unit : 'Todavía no lo has hecho') + '</small></div>' +
+      '<div class="acts"><button class="btn ghost" onclick="irAEjercicio(\'' + jsq(ex.name) + '\')">Ver cómo se hace</button>' +
+      (esExtra(ex.name) ? '' : '<button class="btn" onclick="anadirHoy(\'' + jsq(ex.name) + '\',' + seriesDe(ex) + ')">Añadir a hoy</button>') + '</div>';
+  } else if (r.confianza !== 'baja') {
+    h += '<div class="maqnuevo"><div class="muted" style="margin-bottom:6px">No está en tu catálogo. Esto es lo que te propongo:</div>' +
+      '<b>' + esc(r.ejercicio) + '</b> · ' + esc(r.grupo) + '<br>' + esc(r.musculo) + (r.secundario ? ' (y ' + esc(r.secundario) + ')' : '') +
+      '<br><span class="muted">' + r.series + ' series de ' + r.min + '–' + r.max + ' · anota: ' + esc(r.anotar) + '</span>' +
+      (r.como ? '<div class="muted" style="margin-top:6px;font-size:13.5px">💡 ' + esc(r.como) + '</div>' : '') + '</div>' +
+      '<button class="btn block" style="margin-top:12px" onclick="agregarMaquina()">' + (r.guardando ? 'Agregando…' : '➕ Agregarlo a mi catálogo') + '</button>' +
+      '<div class="muted" style="font-size:12.5px;margin-top:6px">Se agrega al final de ' + esc(r.grupo) + ' en tu hoja; no cambia tu rutina A/B ni borra nada.</div>';
+  }
+  if (r.otros && r.otros.length) h += '<div class="muted" style="font-size:13px;margin-top:10px">En esa máquina también se hace: ' + esc(r.otros.join(', ')) + '</div>';
+  h += '<button class="link" style="margin-top:10px" onclick="abrirMaquina()">📷 Otra foto</button>';
+  $('sheet').innerHTML = h;
+}
+async function agregarMaquina() {
+  if (!MAQ || MAQ.guardando) return;
+  if (!navigator.onLine) return toast('Necesitas señal para agregarlo a tu hoja');
+  MAQ.guardando = true; pintarMaquina();
+  try {
+    const r = await conLimite(apiPost('nuevoEjercicio', [Object.assign({}, MAQ, { foto: undefined, guardando: undefined })]), 30000);
+    cerrarModal(); hap('ok');
+    toast(r.ya ? 'Ya lo tenías: ' + r.ejercicio : 'Agregado a ' + r.grupo + ': ' + r.ejercicio);
+    await actualizar();
+  } catch (e) {
+    MAQ.guardando = false; pintarMaquina();
+    toast(/desconocida/i.test(e.message) ? 'Tu script todavía no puede agregar ejercicios: agrégale Maquina.gs' : 'No se pudo agregar: ' + e.message);
+  }
+}
 // Qué hacer para una zona: lo que ya tienes hoy y los mejores ejercicios para añadir
 function opcionesZona(m) {
   const z = zonasVivas(), hoyEx = (GRUPO && GRUPO !== 'Trote' ? recomendadosHoy(GRUPO) : []).map(e => e.name);
@@ -4152,7 +4293,8 @@ function opcionesZona(m) {
   const score = e => (e.anterior.length ? 3 : 0) + (e.group === GRUPO ? 2 : 0) + ((e.zonas || []).length <= 2 ? 1 : 0) +
     (e.bloque && e.bloque === DATA.bloquePara[e.group] ? 0.5 : 0) - (rojo(e) ? 2 : 0) - (esDeOtro(e) ? 3 : 0);
   const resto = cands.filter(e => !hoyEx.includes(e.name) && !(state[e.name] && state[e.name].done)).sort((a, b) => score(b) - score(a));
-  return { pendHoy: pendHoy, hechoHoy: hechoHoy, top: resto.slice(0, 3), peso: peso, rojo: rojo };
+  const semana = cands.filter(e => !hechoHoy.includes(e) && e.anterior.length && (diasDesdeDM(e.lastWhen) ?? 99) <= 6);
+  return { pendHoy: pendHoy, hechoHoy: hechoHoy, semana: semana, top: resto.slice(0, 3), peso: peso, rojo: rojo };
 }
 // Por qué te recomienda ese ejercicio, en pocas palabras
 function porQue(e, m, o) {
@@ -4182,7 +4324,8 @@ function panelZona(m, modal) {
     if (esExtra(e.name)) return '<button class="' + (grande ? 'btn block' : 'alt') + '" onclick="irAEjercicio(\'' + jsq(e.name) + '\')">✓ Ya está en tu sesión: ' + esc(e.ejercicio.split(' (')[0]) + ' → Ir</button>';
     return grande ? '<button class="btn block" onclick="anadirHoy(\'' + jsq(e.name) + '\',' + n + ')">➕ Añadir ' + esc(e.ejercicio.split(' (')[0]) + ' a hoy · ' + n + ' series</button>' +
       '<div class="muted porque">' + esc(porQue(e, m, o)) + '</div>'
-      : '<button class="alt" onclick="anadirHoy(\'' + jsq(e.name) + '\',' + n + ')">' + (o.pendHoy.length || est === 2 ? '➕ ' : 'o ') + esc(e.ejercicio.split(' (')[0]) + '</button>';
+      : '<button class="alt" onclick="anadirHoy(\'' + jsq(e.name) + '\',' + n + ')">' + (o.pendHoy.length || est === 2 ? '➕ ' : 'o ') + esc(e.ejercicio.split(' (')[0]) +
+        '<small>' + (e.anterior.length ? '✓ ya lo has hecho · ' + esc(e.lastWhen) : 'nuevo para ti') + '</small></button>';
   };
   h += '<div class="accion">';
   if (est === 3) h += '<div>Ya pasaste el tope esta semana: no le sumes más; dale descanso para que crezca.</div>';
@@ -4203,7 +4346,10 @@ function panelZona(m, modal) {
     }
     else if (!o.pendHoy.length) h += '<div class="muted">No hay otro ejercicio en tu catálogo que la trabaje directo.</div>';
   }
-  if (o.hechoHoy.length) h += '<div class="muted" style="font-size:12.5px;margin-top:6px">Hoy ya hiciste: ' + esc(o.hechoHoy.map(e => e.ejercicio.split(' (')[0]).join(', ')) + '.</div>';
+  // Lo que ya hiciste para esta zona (hoy y en la semana), para no repetir sin querer
+  const hechos = o.hechoHoy.map(e => [e, 'hoy']).concat(o.semana.map(e => [e, DSEM[new Date(sumarDias(hoy(), -diasDesdeDM(e.lastWhen)) + 'T12:00:00').getDay()]]));
+  if (hechos.length) h += '<div class="muted" style="font-size:12.5px;margin-top:10px">Esta semana ya hiciste:</div><div class="hechos">' +
+    hechos.map(x => '<span>✓ ' + esc(x[0].ejercicio.split(' (')[0]) + ' · ' + x[1] + '</span>').join('') + '</div>';
   return h + '</div></div>';
 }
 // Las zonas más atrasadas contra su meta (para "Lo que más te falta")
@@ -4217,15 +4363,21 @@ function zonasAtrasadas(n) {
 function elegirMusculo(m) {
   const z = zonasVivas(), col = ['var(--muted)', 'var(--acc)', 'var(--ok)', 'var(--bad)'];
   const atr = zonasAtrasadas(3);
+  if (m) {
+    $('sheet').innerHTML = '<div class="row between"><button class="volver" onclick="elegirMusculo()">← Otro músculo</button><button class="btn ghost sm" onclick="cerrarModal()">✕</button></div>' + panelZona(m, true);
+    if (!$('modal').classList.contains('show')) abrirModal();
+    $('sheet').scrollTop = 0;
+    return;
+  }
   let h = '<div class="row between"><div class="t2">¿Qué quieres trabajar?</div><button class="btn ghost sm" onclick="cerrarModal()">✕</button></div>';
-  if (!m && atr.length) h += '<div class="muted" style="margin:4px 0 6px">Lo que más te falta esta semana:</div><div class="mchips" style="margin-top:0">' +
+  if (atr.length) h += '<div class="muted" style="margin:4px 0 6px">Lo que más te falta esta semana:</div><div class="mchips" style="margin-top:0">' +
     atr.map(x => '<button onclick="elegirMusculo(\'' + jsq(x.m) + '\')"><i style="background:' + col[zonaZ(x.v, x.m)] + '"></i>' + esc(x.m) + ' <b class="num">' + fmtSer(x.v) + '/' + x.meta + '</b></button>').join('') + '</div>';
   h += '<div class="regiones">' + Object.keys(REGIONES).map(r => '<div><div class="muted">' + r + '</div><div class="mchips" style="margin-top:4px">' + REGIONES[r].map(x =>
     '<button class="' + (x === m ? 'on' : '') + '" onclick="elegirMusculo(\'' + jsq(x) + '\')"><i style="background:' + col[zonaZ(z[x] || 0, x)] + '"></i>' + esc(x) + '</button>').join('') + '</div></div>').join('') + '</div>';
-  if (m) h += panelZona(m, true);
+  if (DATA.ia) h += '<button class="musbtn" onclick="abrirMaquina()">📷 ¿Una máquina que no conoces? <span>Tómale foto y te digo qué trabaja</span></button>';
   $('sheet').innerHTML = h;
   if (!$('modal').classList.contains('show')) abrirModal();
-  if (m) setTimeout(() => { const el = document.querySelector('#sheet .msel'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 30);
+  $('sheet').scrollTop = 0;
 }
 /* ----- Ruta de hoy: qué te falta de la semana en este día y con cuáles ejercicios se cierra -----
    Máximo 4 ejercicios, mínimo 3 series cada uno, uno por familia (Catálogo V), prefiere la variante con historial

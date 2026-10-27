@@ -227,15 +227,19 @@ const NUT = (() => {
   const sinAcentos = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ');
   const ORDEN = { b: 0, p: 1, mx: 2, us: 3 };
   // lista: [{ id, n, en?, ... }]; regresa los mejores `max`
+  // Palabras que no ayudan a buscar ("tacos de asada", "2 huevos con jamón") y plural → singular ("frijoles" → "frijol")
+  const VACIAS = { de: 1, del: 1, la: 1, el: 1, los: 1, las: 1, con: 1, en: 1, al: 1, un: 1, una: 1, unos: 1, unas: 1, mi: 1, me: 1, para: 1 };
+  const raiz = w => w.length > 5 && /es$/.test(w) ? w.slice(0, -2) : w.length > 3 && /s$/.test(w) ? w.slice(0, -1) : w;
   function buscar(lista, q, max) {
-    const pal = sinAcentos(q).split(/\s+/).filter(w => w.length > 1);
+    const pal = sinAcentos(q).split(/\s+/).filter(w => w.length > 1 && !VACIAS[w] && !/^\d+$/.test(w));
     if (!pal.length) return [];
     const out = [];
     lista.forEach(a => {
       const es = ' ' + sinAcentos(a.n) + ' ', en = a.en ? ' ' + sinAcentos(a.en) + ' ' : '';
       let pts = 0;
-      for (const w of pal) {
-        const t = ES_EN[w], enEs = es.indexOf(' ' + w) > -1, enEn = en && (en.indexOf(' ' + w) > -1 || (t && en.indexOf(' ' + t) > -1));
+      for (const w0 of pal) {
+        const w = es.indexOf(' ' + w0) > -1 ? w0 : raiz(w0), t = ES_EN[w0] || ES_EN[w];
+        const enEs = es.indexOf(' ' + w) > -1, enEn = en && (en.indexOf(' ' + w) > -1 || (t && en.indexOf(' ' + t) > -1));
         if (!enEs && !enEn) return;
         pts += enEs ? (es.indexOf(' ' + w + ' ') > -1 ? 3 : 2) : 1;
       }
