@@ -3,6 +3,8 @@
 //  2. Los scripts de index.html juntos, en el orden en que los carga el navegador: así se detecta una variable
 //     declarada dos veces (const/let repetido), que en el celular deja la app en blanco; y funciones repetidas entre archivos.
 //  3. script/Progresion.gs al día con motor.js.
+//  4. La versión de la app (VERSION_APP en app.js) y la del service worker (VERSION en sw.js) son la misma:
+//     si no, los celulares no bajan la versión nueva (o la bajan a medias).
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -33,5 +35,10 @@ if (!errores) console.log('✓ sin funciones repetidas entre archivos');
 const { generar, DESTINO } = require('./generar-progresion.js');
 if (fs.readFileSync(DESTINO, 'utf8') !== generar()) { errores++; console.error('✗ script/Progresion.gs no está al día: corre node herramientas/generar-progresion.js'); }
 else console.log('✓ script/Progresion.gs al día con motor.js');
+
+const vApp = (fs.readFileSync(path.join(RAIZ, 'app.js'), 'utf8').match(/const VERSION_APP = 'v([\d.]+)'/) || [])[1];
+const vSw = (fs.readFileSync(path.join(RAIZ, 'sw.js'), 'utf8').match(/const VERSION = 'gym-v([\d.]+)'/) || [])[1];
+if (!vApp || vApp !== vSw) { errores++; console.error('✗ versiones distintas: app.js v' + vApp + ' y sw.js gym-v' + vSw + ' (cambia las dos)'); }
+else console.log('✓ app.js y sw.js en la misma versión (v' + vApp + ')');
 
 if (errores) process.exit(1);

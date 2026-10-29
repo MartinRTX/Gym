@@ -17,7 +17,7 @@ const LS = {
 // Lo de cada día (sesión, comida, peso, borradores…) lleva la fecha en la clave; lo de hace semanas ya está en tu hoja
 function limpiarDiasViejos(dias) {
   const corte = sumarDias(hoy(), -dias);
-  try { Object.keys(localStorage).forEach(k => { const m = /^gym_.+_(\d{4}-\d{2}-\d{2})$/.exec(k); if (m && m[1] < corte) localStorage.removeItem(k); }); } catch (e) {}
+  try { Object.keys(localStorage).forEach(k => { const m = /^gym_.+_(\d{4}-\d{2}-\d{2})(_.*)?$/.exec(k); if (m && m[1] < corte) localStorage.removeItem(k); }); } catch (e) {}
 }
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2, '0');
@@ -39,6 +39,8 @@ function diaCorto(k) { return DSEM[new Date(k + 'T12:00:00').getDay()] + ' ' + d
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 // Texto dentro de un string de JavaScript en onclick="…": sin comillas ni caracteres de HTML (un nombre con " no rompe el botón)
+// Links que vienen de la hoja (videos, fotos): solo http(s); un "javascript:" no llega a un href ni a un src
+const urlSegura = u => /^https?:\/\//i.test(String(u || '').trim()) ? String(u).trim() : '';
 function jsq(s) { return String(s).replace(/[\\'"<>&]/g, c => '\\x' + c.charCodeAt(0).toString(16).padStart(2, '0')); }
 function mmss(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + pad(s % 60); }
 function minutos(ms) { const m = Math.floor(ms / 60000); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + pad(m % 60) + ' min'; }
@@ -1150,7 +1152,7 @@ function avisoErrores() {
 /* ===================== Arranque ===================== */
 function arrancar() {
   const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72 + CSS_V75 + CSS_V8 + CSS_V85 + CSS_V86; document.head.appendChild(st);
-  aplicarSencillo();
+  aplicarSencillo(); cargarFotosMaq();
   // Link de configuración: ?api=…&k=… o #api=…&k=… (también acepta key=)
   const p = new URLSearchParams(location.search), ph = new URLSearchParams(location.hash.slice(1));
   const linkApi = (p.get('api') || ph.get('api') || '').trim(), linkKey = (p.get('k') || p.get('key') || ph.get('k') || ph.get('key') || '').trim();
@@ -1216,7 +1218,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v8.6';
+const VERSION_APP = 'v8.7';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1252,6 +1254,7 @@ async function actualizar(intento) {
   try {
     for (let i = 0; flushing && i < 60; i++) await new Promise(r => setTimeout(r, 250));
     const n0 = ENVIOS, d = await apiGet('data');
+    if (!d || typeof d !== 'object' || !Array.isArray(d.exercises)) throw new Error('La hoja mandó datos incompletos');
     if (ENVIOS !== n0 && (intento || 0) < 2) return actualizar((intento || 0) + 1);
     ULT_LECTURA = Date.now();
     const igual = DATA && JSON.stringify(d) === JSON.stringify(DATA);
@@ -1263,6 +1266,7 @@ async function actualizar(intento) {
     if (DATA.perfil === false && !LS.get('gym_bienvenida', false)) abrirBienvenida();
     else { revisarMedallas(); setTimeout(tourSiToca, 700); }
   } catch (e) {
+    if (/incompletos/.test(e.message)) registrarError(e.message, 'actualizar');
     if (!DATA) $('loading').textContent = /Clave/.test(e.message)
       ? 'La clave no coincide. Vuelve a abrir el link de configuración.'
       : 'Necesitas internet la primera vez que abres la app.';
@@ -1867,11 +1871,47 @@ function instruccionFacil(ex, st) {
   return (paso1 ? paso1.charAt(0).toUpperCase() + paso1.slice(1) + '. ' : '') + quien + veces + ' veces' + peso + ' y toca ✓. Luego descansa ' + mmss(ajuste('descanso', 90)) + '.';
 }
 /* ----- Foto de TU máquina en el ejercicio (se queda en este celular) ----- */
-const fotoMaqDe = name => LS.get('gym_fotomaq', {})[name] || null;
+// Van en IndexedDB (cientos de MB disponibles), no en localStorage (~5 MB para todo); en memoria para pintar al instante
+const IDB = (() => {
+  let db = null;
+  const abrir = () => db || (db = new Promise((ok, no) => {
+    const r = indexedDB.open('gym', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('fotos');
+    r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+  }));
+  const tx = (modo, f) => abrir().then(d => new Promise((ok, no) => { const t = d.transaction('fotos', modo); f(t.objectStore('fotos')); t.oncomplete = () => ok(); t.onerror = () => no(t.error); }));
+  return {
+    todas: () => abrir().then(d => new Promise((ok, no) => {
+      const out = {}, c = d.transaction('fotos').objectStore('fotos').openCursor();
+      c.onsuccess = () => { const x = c.result; if (x) { out[x.key] = x.value; x.continue(); } else ok(out); };
+      c.onerror = () => no(c.error);
+    })),
+    poner: (k, v) => tx('readwrite', st => st.put(v, k)),
+    quitar: k => tx('readwrite', st => st.delete(k))
+  };
+})();
+let FOTOS_MAQ = {}, FOTOS_IDB = false;
+const fotoMaqDe = name => FOTOS_MAQ[name] || null;
+// Al abrir: lee las fotos y pasa a IndexedDB las que la v8.6 guardó en localStorage
+function cargarFotosMaq() {
+  const viejas = LS.get('gym_fotomaq', null);
+  if (viejas) FOTOS_MAQ = Object.assign({}, viejas);
+  if (!window.indexedDB) return;
+  IDB.todas().then(m => {
+    FOTOS_IDB = true;
+    FOTOS_MAQ = Object.assign(m, FOTOS_MAQ);
+    if (!viejas) return Object.keys(m).length && DATA && pintarTab();
+    return Promise.all(Object.keys(viejas).map(k => IDB.poner(k, viejas[k]))).then(() => LS.del('gym_fotomaq'));
+  }).catch(e => registrarError('Fotos de máquina: ' + (e && e.message || e), 'cargarFotosMaq'));
+}
 function guardarFotoMaq(name, url) {
-  const m = LS.get('gym_fotomaq', {});
-  if (url) m[name] = url; else delete m[name];
-  try { localStorage.setItem('gym_fotomaq', JSON.stringify(m)); return true; }
+  if (url) FOTOS_MAQ[name] = url; else delete FOTOS_MAQ[name];
+  if (FOTOS_IDB) {
+    (url ? IDB.poner(name, url) : IDB.quitar(name)).catch(() => toast('No se pudo guardar la foto en el celular'));
+    return true;
+  }
+  // Sin IndexedDB (navegador muy viejo): como antes
+  try { localStorage.setItem('gym_fotomaq', JSON.stringify(FOTOS_MAQ)); return true; }
   catch (e) { toast('No cupo la foto en el celular: quita fotos de otras máquinas'); return false; }
 }
 // La foto se guarda chica (560 px): se ve bien en la tarjeta y caben muchas
@@ -1915,6 +1955,7 @@ function botonTecnica(ex) {
 }
 // YouTube (normal, Shorts o youtu.be) se incrusta; MP4/WebM se reproduce en bucle; GIF o imagen se muestra; lo demás, botón para abrir
 function reproductor(url) {
+  url = urlSegura(url);
   if (!url) return '';
   const esq = '<div class="esq"><div class="brillo"></div><span>Cargando…</span></div>';
   const yt = url.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/);
@@ -3722,7 +3763,7 @@ function programarAvisoProt() {
     if (ajuste('avisoPeso', true)) for (let d = 0; d < 7; d++) {
       const f = new Date(); f.setDate(f.getDate() + d); f.setHours(7, 0, 0, 0);
       if (f <= ahora || (d === 0 && pesoDe(hoy()) !== null)) continue;
-      lista.push({ id: AVISO_PESO + f.getDay(), channelId: 'proteina', schedule: { at: f, allowWhileIdle: true }, title: '⚖️ ¿Ya te pesaste?',
+      lista.push({ id: AVISO_PESO + f.getDay(), channelId: 'peso', schedule: { at: f, allowWhileIdle: true }, title: '⚖️ ¿Ya te pesaste?',
                    body: 'En ayunas, después del baño. Toca aquí: ya trae tu último peso' + (DATA.ultimoPeso ? ' (' + DATA.ultimoPeso + ' kg)' : '') + ' y solo le subes o bajas.', extra: { accion: 'peso' } });
     }
     // Domingo 8 am: medir la cintura con el protocolo (si ese domingo aún no la guardas)
@@ -3746,7 +3787,8 @@ function programarAvisoProt() {
   });
 }
 const AVISO_CINTURA = 90, AVISO_PESO = 70;   // peso: ids 70 (dom) a 76 (sáb)
-const canalProt = () => nativo('LocalNotifications', 'createChannel', { id: 'proteina', name: 'Proteína y cintura', description: 'A las 6 pm: cuánto llevas de proteína. Domingo: medir la cintura', importance: 3, visibility: 1 });
+const canalPeso = () => nativo('LocalNotifications', 'createChannel', { id: 'peso', name: 'Pesarte en la mañana', description: 'A las 7 am, si ese día aún no te pesas', importance: 3, visibility: 1 });
+const canalProt = () => canalPeso().then(() => nativo('LocalNotifications', 'createChannel', { id: 'proteina', name: 'Proteína y cintura', description: 'A las 6 pm: cuánto llevas de proteína. Domingo: medir la cintura', importance: 3, visibility: 1 }));
 
 /* ----- Comida con IA: escribes lo que comiste y calcula la proteína ----- */
 let COMIDA_IA = null, QUITAR_FAV = false, RING_FALTA = false;
@@ -4075,7 +4117,7 @@ function progresoSemana() {
       ? kpi(DATA.plan.sesiones.filter(x => x.hecho).length + '/' + DATA.plan.sesiones.length, 'Trotes del plan', 'Semana ' + DATA.plan.semana + ' de ' + DATA.plan.total, DATA.plan.sesiones.every(x => x.hecho))
       : kpi(fmt(r.km7), 'Km trotados (7 días)', '', false)) +
     kpi(r.protProm7 !== null ? r.protProm7 + ' g' : '—', 'Proteína promedio', 'Meta: ' + metaProt() + ' g', r.protProm7 !== null && r.protProm7 >= metaProt()) + kpisSalud() + '</div>';
-  h += '<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none;margin-top:6px" href="' + r.sheetUrl + '" target="_blank" rel="noopener">Abrir dashboard completo</a>';
+  h += '<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none;margin-top:6px" href="' + esc(urlSegura(r.sheetUrl)) + '" target="_blank" rel="noopener">Abrir dashboard completo</a>';
   const boton = '<button class="btn block reporte" onclick="copiarReporte()">📋 COPIAR REPORTE DEL DOMINGO</button>';
   return new Date().getDay() === 0 ? boton + h : h + boton;
 }
@@ -4885,7 +4927,7 @@ function tarjetaFotos() {
     h += '<div class="comp"><div>' + img(a) + '<div class="muted" style="text-align:center;margin-top:4px">' + ddmm(a.d) + (a.cintura ? ' · ' + a.cintura + ' cm' : '') + '</div></div>' +
       '<div>' + img(b) + '<div class="muted" style="text-align:center;margin-top:4px">' + ddmm(b.d) + (b.cintura ? ' · ' + b.cintura + ' cm' : '') + '</div></div></div>';
   }
-  if (fotos.length === 1 || fotos.length > 2) h += '<div class="fotos">' + fotos.slice().reverse().map(f => '<a ' + (f.url ? 'href="' + esc(f.url) + '" target="_blank" rel="noopener"' : '') + ' style="text-decoration:none">' + img(f) + '<div>' + ddmm(f.d) + (f.pend ? ' · sin subir' : '') + '</div></a>').join('') + '</div>';
+  if (fotos.length === 1 || fotos.length > 2) h += '<div class="fotos">' + fotos.slice().reverse().map(f => '<a ' + (urlSegura(f.url) ? 'href="' + esc(urlSegura(f.url)) + '" target="_blank" rel="noopener"' : '') + ' style="text-decoration:none">' + img(f) + '<div>' + ddmm(f.d) + (f.pend ? ' · sin subir' : '') + '</div></a>').join('') + '</div>';
   h += '<label class="btn ' + (toca ? '' : 'ghost ') + 'block" style="display:block;text-align:center;margin-top:10px">' + ICO.camara.replace('class="icon"', 'class="icon" style="vertical-align:-4px;margin-right:6px"') + 'Tomar foto' +
     '<input type="file" accept="image/*" capture="environment" style="display:none" onchange="procesarFoto(this)"></label>' +
     '<div class="muted" style="margin-top:8px;font-size:12.5px">La foto completa se guarda en tu Google Drive; aquí solo ves una miniatura.</div></div>';
@@ -5031,7 +5073,7 @@ function abrirAjustes() {
     '<div class="opt tarj"><span class="aic" style="--c:var(--acc)">' + AIC.cerebro + '</span><div class="txt"><div class="t1" style="font-size:15px">Lo que falló</div><div class="muted">' +
     (fallas ? fallas + ' aviso' + (fallas === 1 ? '' : 's') + ' guardado' + (fallas === 1 ? '' : 's') + ' en este celular' : 'Nada falló últimamente') + '</div></div>' +
     (fallas ? '<button class="btn ghost sm" onclick="abrirFallas()">Ver</button>' : '') + '</div>' +
-    '<a class="btn ghost block hoja" href="' + DATA.resumen.sheetUrl + '" target="_blank" rel="noopener">' + AIC.tabla + ' Abrir mi hoja de Google</a>' +
+    '<a class="btn ghost block hoja" href="' + esc(urlSegura(DATA.resumen.sheetUrl)) + '" target="_blank" rel="noopener">' + AIC.tabla + ' Abrir mi hoja de Google</a>' +
     (NATIVO ? '' : '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Pasar a la app nativa (APK)</div><div class="muted">Copia tu link y pégalo en la app la primera vez</div></div>' +
       '<button class="btn ghost sm" onclick="copiarLinkConfig()">Copiar</button></div>') +
     '<div class="muted" style="text-align:center;margin-top:14px;font-size:12px">Gym ' + VERSION_APP + (NATIVO ? ' (app)' : '') + ' · ' + esc(DATA.nombre || '') + '</div>';
