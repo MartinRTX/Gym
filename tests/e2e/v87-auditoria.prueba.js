@@ -1,0 +1,47 @@
+const BASE = process.env.E2E_URL || 'http://localhost:8770/';
+const TMP = require('os').tmpdir();
+const IMAGEN = require('path').join(__dirname, '..', '..', 'icon-512.png');
+const { chromium } = require('playwright');
+const DATA = JSON.parse(JSON.stringify(require('./datos.js'))); DATA.ia = true;
+const res = []; const ok = (n, c, x) => res.push((c ? '✓ ' : '✗ ') + n + (x !== undefined ? ' · ' + JSON.stringify(x).slice(0, 160) : ''));
+(async () => {
+  const b = await chromium.launch();
+  const ej = DATA.exercises.find(e => e.group === 'Pull' && e.anterior.length);
+  const malo = JSON.parse(JSON.stringify(DATA)); malo.exercises.find(e => e.name === ej.name).media = 'javascript:alert(1)';
+  malo.resumen.sheetUrl = 'javascript:alert(2)';
+  let modo = 'ok';
+  const ctx = await b.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
+  await ctx.addInitScript(([d, foto, name]) => {
+    if (sessionStorage.getItem('ya')) return; sessionStorage.setItem('ya', 1);
+    localStorage.setItem('gym_api', JSON.stringify('https://script.google.com/macros/s/MOCK/exec')); localStorage.setItem('gym_key', '"demo"');
+    localStorage.setItem('gym_data', JSON.stringify(d)); localStorage.setItem('gym_bienvenida', 'true'); localStorage.setItem('gym_tour', 'true');
+    localStorage.setItem('gym_fotomaq', JSON.stringify({ [name]: foto }));
+    localStorage.setItem('gym_ruta_2026-01-01_Pull', '[]'); localStorage.setItem('gym_ruta_2026-10-28_Pull', '[]');
+  }, [malo, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', ej.name]);
+  await ctx.route('https://script.google.com/**', r => { let a = ''; try { a = JSON.parse(r.request().postData() || '{}').action; } catch (e) {}
+    return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, result: a === 'data' ? (modo === 'malo' ? { hola: 1 } : malo) : [] }) }); });
+  const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.clock.install({ time: new Date('2026-10-29T09:00:00') });
+  await p.goto(BASE); await p.waitForTimeout(1800);
+  ok('Migró la foto a IndexedDB y quitó la de localStorage', await p.evaluate(() => localStorage.getItem('gym_fotomaq') === null && FOTOS_IDB));
+  await p.evaluate(n => irAEjercicio(n), ej.name); await p.waitForTimeout(400);
+  ok('La foto se ve en la tarjeta', await p.locator('.ex.open img.exfoto').count() === 1);
+  await p.reload(); await p.waitForTimeout(1800);
+  await p.evaluate(n => irAEjercicio(n), ej.name); await p.waitForTimeout(400);
+  ok('Sigue ahí al volver a abrir la app', await p.locator('.ex.open img.exfoto').count() === 1);
+  await p.evaluate(n => guardarFotoMaq(n, null), ej.name); await p.waitForTimeout(300);
+  const quedan = await p.evaluate(() => IDB.todas().then(m => Object.keys(m).length));
+  ok('Quitar la borra de IndexedDB', quedan === 0, quedan);
+  await p.evaluate(n => verTecnica(n), ej.name); await p.waitForTimeout(300);
+  ok('Video con javascript: no se vuelve link', await p.evaluate(() => ![...document.querySelectorAll('#sheet a')].some(a => /^javascript:/i.test(a.getAttribute('href') || ''))));
+  await p.evaluate(() => { cerrarModal(); abrirAjustes(); }); await p.waitForTimeout(300);
+  ok('Link de la hoja con javascript: queda vacío', await p.evaluate(() => (document.querySelector('a.hoja').getAttribute('href') || '') === ''));
+  ok('Limpieza borra rutas viejas y deja la de hoy', await p.evaluate(() => { limpiarDiasViejos(60); return localStorage.getItem('gym_ruta_2026-01-01_Pull') === null && localStorage.getItem('gym_ruta_2026-10-28_Pull') !== null; }));
+  modo = 'malo';
+  await p.evaluate(() => { cerrarModal(); return actualizar(); }); await p.waitForTimeout(400);
+  ok('Datos incompletos del script no borran los tuyos', await p.evaluate(() => Array.isArray(DATA.exercises) && DATA.exercises.length > 0 && !!document.querySelector('#vEntrenar .ex')));
+  ok('…y queda en Lo que falló', await p.evaluate(() => LS.get('gym_jserr', []).some(x => /incompletos/.test(x.msg))));
+  ok('Sin errores de página', !errs.length, errs);
+  await b.close();
+  console.log(res.join('\n'));
+})();

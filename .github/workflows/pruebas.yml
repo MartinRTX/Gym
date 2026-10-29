@@ -2,6 +2,7 @@
 #  - sintaxis de la app, y motor.js + app.js juntos como los carga index.html (variables repetidas)
 #  - script/Progresion.gs generado con el motor.js actual (un solo motor para la app y la hoja)
 #  - pruebas del motor: siguiente serie, progresión al empezar, calentamiento, y app = hoja con los mismos casos
+#  - pruebas de pantalla (tests/e2e): la app en Chromium con la hoja simulada y datos ficticios (~2 min)
 name: Pruebas
 
 on:
@@ -24,3 +25,17 @@ jobs:
         run: node herramientas/revisar.js
       - name: Pruebas del motor (app y hoja)
         run: node --test tests/*.test.js
+
+  pantalla:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Instalar Playwright y Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Pruebas de pantalla
+        run: node tests/e2e/correr.js
