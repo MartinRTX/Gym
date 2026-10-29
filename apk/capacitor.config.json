@@ -8,5 +8,6 @@
   },
   "android": {
     "backgroundColor": "#0E0C14"
-  }
+  },
+  "zoomEnabled": true
 }

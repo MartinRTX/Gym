@@ -939,7 +939,9 @@ const CSS_V8 = `
 const CSS_V85 = `
   html { overflow-x: hidden; overscroll-behavior: none; } body { overflow-x: clip; }
   html.conmodal { overflow: hidden; }
-  .sheet { overflow-x: hidden; touch-action: pan-y; overflow-wrap: anywhere; }
+  .sheet { overflow-x: hidden; touch-action: pan-y pinch-zoom; overflow-wrap: anywhere; }
+  /* Zoom con dos dedos permitido (accesibilidad); el doble toque no hace zoom: los botones de + y − se tocan rápido */
+  html { touch-action: manipulation; }
   .sheet .btn, .sheet .alt, .sheet .mchips button { max-width: 100%; white-space: normal; text-align: left; }
   .sheet .btn.block { text-align: center; }
   .mosaicos { flex-wrap: wrap; overflow: visible; margin: 0 0 12px; padding: 0; }
