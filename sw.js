@@ -1,6 +1,6 @@
 // Guarda la app en el celular para que abra rápido y funcione sin señal.
 // Cuando subas una versión nueva de la app, cambia el número de VERSION.
-const VERSION = 'gym-v8.7';
+const VERSION = 'gym-v8.8';
 // Miniaturas de YouTube, GIF e imágenes de técnica: caché aparte que NO se borra al cambiar de versión
 const MEDIA = 'gym-media';
 const MEDIA_MAX = 150;
@@ -8,7 +8,7 @@ const MEDIA_MAX = 150;
 // (la app lo pide con ?v=N: si el catálogo cambia, sube N y se baja el nuevo)
 const DATOS = 'gym-datos';
 const ARCHIVOS = [
-  './', './index.html', './motor.js', './nutricion.js', './comida.js', './app.js', './manifest.webmanifest', './fonts/archivo.woff2',
+  './', './index.html', './seguridad.js', './motor.js', './nutricion.js', './comida.js', './app.js', './manifest.webmanifest', './fonts/archivo.woff2',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'
 ];
 

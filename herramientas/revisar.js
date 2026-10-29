@@ -3,6 +3,7 @@
 //  2. Los scripts de index.html juntos, en el orden en que los carga el navegador: así se detecta una variable
 //     declarada dos veces (const/let repetido), que en el celular deja la app en blanco; y funciones repetidas entre archivos.
 //  3. script/Progresion.gs al día con motor.js.
+//  5. Ningún on*="…" en el HTML: los botones usan on('accion', …) (data-click) y la política de seguridad bloquea el JS en línea.
 //  4. La versión de la app (VERSION_APP en app.js) y la del service worker (VERSION en sw.js) son la misma:
 //     si no, los celulares no bajan la versión nueva (o la bajan a medias).
 const fs = require('fs');
@@ -40,5 +41,9 @@ const vApp = (fs.readFileSync(path.join(RAIZ, 'app.js'), 'utf8').match(/const VE
 const vSw = (fs.readFileSync(path.join(RAIZ, 'sw.js'), 'utf8').match(/const VERSION = 'gym-v([\d.]+)'/) || [])[1];
 if (!vApp || vApp !== vSw) { errores++; console.error('✗ versiones distintas: app.js v' + vApp + ' y sw.js gym-v' + vSw + ' (cambia las dos)'); }
 else console.log('✓ app.js y sw.js en la misma versión (v' + vApp + ')');
+
+const conCodigo = scripts.concat(['index.html']).filter(f => /\son[a-z]+=\\?["']/.test(fs.readFileSync(path.join(RAIZ, f), 'utf8')));
+if (conCodigo.length) { errores++; console.error('✗ código en el HTML (on…="…") en ' + conCodigo.join(', ') + ': usa on(\'accion\', …) o ev(\'input\', …)'); }
+else console.log('✓ sin on…="…" en el HTML');
 
 if (errores) process.exit(1);

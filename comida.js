@@ -186,7 +186,7 @@ function tarjetaMacros() {
     return '<div class="mm ' + cls + (v > meta * 1.05 ? ' pasa' : '') + '"><span class="et">' + nom + '</span><b class="num">' + v.toLocaleString('es-MX') +
       '<small>/' + meta.toLocaleString('es-MX') + (u ? ' ' + u : '') + '</small></b><i style="--p:' + pct + '%"></i></div>';
   };
-  return '<button class="macros" onclick="abrirMetas()" aria-label="Ver metas de calorías y macros">' +
+  return '<button class="macros" ' + on('abrirMetas') + ' aria-label="Ver metas de calorías y macros">' +
     barra('Calorías', t.k, mt.k, '', 'kc') + barra('Carbohidratos', t.c, mt.c, 'g', 'ca') + barra('Grasa', t.f, mt.f, 'g', 'gr') + '</button>' +
     (t.sinDatos ? '<div class="muted sindatos">' + t.sinDatos + ' cosa' + (t.sinDatos > 1 ? 's' : '') + ' de hoy solo tiene' + (t.sinDatos > 1 ? 'n' : '') + ' proteína (de antes)</div>' : '');
 }
@@ -195,14 +195,14 @@ function tarjetaMacros() {
 function filaSiempre() {
   const lic = totReceta('licuado'), h = totReceta('cena-harina'), m = totReceta('cena-maiz');
   const usosTup = Object.values(nutCfg().tuppers || {}).sort((a, b) => b.n - a.n)[0];
-  const b = (ico, nom, sub, fn, extra) => '<button class="siempre" onclick="' + fn + '"><span class="ic">' + ico + '</span><span class="tx"><b>' + nom + '</b><small>' + sub + '</small></span>' + (extra || '') + '</button>';
+  const b = (ico, nom, sub, accion, extra) => '<button class="siempre" ' + accion + '><span class="ic">' + ico + '</span><span class="tx"><b>' + nom + '</b><small>' + sub + '</small></span>' + (extra || '') + '</button>';
   return '<div class="siempre3">' +
-    b('🥤', 'Mi licuado', lic ? '<b class="num">' + Math.round(lic.p) + ' g</b> · ' + lic.k + ' kcal' : '', 'abrirReceta(\'licuado\')') +
-    b('🍱', 'Tupper', usosTup ? '<b class="num">' + usosTup.p + ' g</b> · ' + esc(usosTup.nombre.replace(/^Tupper: /, '').split(/[ ,]/)[0]) : 'En 3 toques', 'abrirTupper()') +
-    b('🌮', 'Cena', h && m ? 'Harina o maíz: ' + Math.round(h.p) + ' / ' + Math.round(m.p) + ' g' : '', 'abrirCenas()') +
+    b('🥤', 'Mi licuado', lic ? '<b class="num">' + Math.round(lic.p) + ' g</b> · ' + lic.k + ' kcal' : '', on('abrirReceta', 'licuado')) +
+    b('🍱', 'Tupper', usosTup ? '<b class="num">' + usosTup.p + ' g</b> · ' + esc(usosTup.nombre.replace(/^Tupper: /, '').split(/[ ,]/)[0]) : 'En 3 toques', on('abrirTupper')) +
+    b('🌮', 'Cena', h && m ? 'Harina o maíz: ' + Math.round(h.p) + ' / ' + Math.round(m.p) + ' g' : '', on('abrirCenas')) +
     '</div><div class="herr">' +
-    '<button onclick="abrirBuscador()"><span>🔍</span>Buscar alimento</button>' +
-    '<button onclick="abrirCamara()"><span>📷</span>Foto o código</button></div>';
+    '<button ' + on('abrirBuscador') + '><span>🔍</span>Buscar alimento</button>' +
+    '<button ' + on('abrirCamara') + '><span>📷</span>Foto o código</button></div>';
 }
 
 /* ----- Editor de receta (cantidades editables; tu licuado viene con cantidades estándar hasta que las midas) ----- */
@@ -217,22 +217,22 @@ function abrirReceta(id, deCena) {
 function pintarReceta() {
   const e = REC_ED, t = NUT.receta({ items: e.items }, resolver);
   const rolTxt = { leche: 'tu leche', proteina: 'tu proteína' };
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">' + esc(e.n) + '</div><button class="cerrar" onclick="cerrarReceta()" aria-label="Cerrar">✕</button></div>' +
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">' + esc(e.n) + '</div><button class="cerrar" ' + on('cerrarReceta') + ' aria-label="Cerrar">✕</button></div>' +
     '<div class="muted" style="margin:2px 0 10px">Toca una cantidad para cambiarla. ' + (e.id === 'licuado' ? 'Vienen cantidades estándar: cuando midas las tuyas, ponlas aquí.' : '') + '</div>' +
     '<div class="rec">' + t.items.map((it, i) => {
       const al = it.al, m = it.m || {}, u = al ? al.u : 'g';
       return '<div class="ri"><div class="nm"><b>' + esc(al ? al.n : 'Alimento que ya no está') + (it.rol ? ' <span class="rol">' + rolTxt[it.rol] + '</span>' : '') + '</b></div>' +
         '<div class="mac2">' + (al ? '<b>' + NUT.r1(m.p) + ' g</b> prot · ' + Math.round(m.k || 0) + ' kcal' : '') + '</div><div class="ctl">' +
-        '<button class="mini" onclick="recCant(' + i + ',-1)" aria-label="Menos">−</button>' +
-        '<input class="cant num" inputmode="decimal" value="' + it.q + '" onchange="recSet(' + i + ',this.value)" aria-label="Cantidad"><span class="u">' + u + '</span>' +
-        '<button class="mini" onclick="recCant(' + i + ',1)" aria-label="Más">+</button>' +
-        '<button class="mini" onclick="recCambiar(' + i + ')" aria-label="Cambiar ingrediente">⇄</button>' +
-        '<button class="mini" onclick="recQuitar(' + i + ')" aria-label="Quitar">✕</button></div></div>';
+        '<button class="mini" ' + on('recCant', i, -1) + ' aria-label="Menos">−</button>' +
+        '<input class="cant num" inputmode="decimal" value="' + it.q + '" ' + ev('change', 'recSet', i, VALOR) + ' aria-label="Cantidad"><span class="u">' + u + '</span>' +
+        '<button class="mini" ' + on('recCant', i, 1) + ' aria-label="Más">+</button>' +
+        '<button class="mini" ' + on('recCambiar', i) + ' aria-label="Cambiar ingrediente">⇄</button>' +
+        '<button class="mini" ' + on('recQuitar', i) + ' aria-label="Quitar">✕</button></div></div>';
     }).join('') + '</div>' +
-    '<button class="link" onclick="recAgregar()">＋ Agregar ingrediente</button>' +
+    '<button class="link" ' + on('recAgregar') + '>＋ Agregar ingrediente</button>' +
     '<div class="rectot"><b class="num">' + Math.round(t.tot.p) + ' g</b> proteína<span>' + fmtM(t.tot, true) + '</span></div>' +
-    '<div class="acts">' + (e.cambio ? '<button class="btn ghost" onclick="guardarReceta()">Guardar cambios</button>' : '') +
-    '<button class="btn" onclick="agregarRecetaHoy()">Agregar a ' + esc(nombreDeComida(comidaActual()).toLowerCase()) + '</button></div>';
+    '<div class="acts">' + (e.cambio ? '<button class="btn ghost" ' + on('guardarReceta') + '>Guardar cambios</button>' : '') +
+    '<button class="btn" ' + on('agregarRecetaHoy') + '>Agregar a ' + esc(nombreDeComida(comidaActual()).toLowerCase()) + '</button></div>';
 }
 // "12 g carbs · 5 g grasa · 230 kcal" (con proteína si se pide)
 function fmtM(m, sinP) {
@@ -272,13 +272,13 @@ function abrirCenas() {
     return '<div class="cf"><span>' + nom + '</span><b class="num">' + NUT.r1(ta[k]) + '</b><b class="num">' + NUT.r1(tb[k]) + '</b>' +
       '<em class="' + (Math.abs(dif) < 0.5 ? '' : mejor ? 'bien' : 'mal') + '">' + (dif > 0 ? '+' : '') + (k === 'k' ? Math.round(dif) : NUT.r1(dif)) + (u ? ' ' + u : '') + '</em></div>';
   };
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Tu cena</div><button class="cerrar" onclick="cerrarModal()" aria-label="Cerrar">✕</button></div>' +
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">Tu cena</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
     '<div class="muted" style="margin:2px 0 12px">Lo que cambia si pasas de harina a maíz con soya en el frijol.</div>' +
     '<div class="cenas"><div class="cf cab"><span></span><b>🌮 Harina</b><b>🌽 Maíz + soya</b><em>Cambio</em></div>' +
     fila('Proteína', 'p', 'g', false) + fila('Calorías', 'k', '', true) + fila('Carbohidratos', 'c', 'g', true) + fila('Grasa', 'f', 'g', true) + fila('Fibra', 'fib', 'g', false) + '</div>' +
     '<div class="tip" style="margin:12px 0 0">' + esc(resumenCena(d)) + '</div>' +
-    '<div class="acts"><button class="btn ghost" onclick="REC_ED=null;abrirReceta(\'cena-harina\',true)">Editar harina</button><button class="btn ghost" onclick="REC_ED=null;abrirReceta(\'cena-maiz\',true)">Editar maíz</button></div>' +
-    '<div class="acts" style="margin-top:8px"><button class="btn ghost" onclick="cenaHoy(\'cena-harina\')">Cené harina</button><button class="btn" onclick="cenaHoy(\'cena-maiz\')">Cené maíz</button></div>';
+    '<div class="acts"><button class="btn ghost" ' + on('editarCena', 'cena-harina') + '>Editar harina</button><button class="btn ghost" ' + on('editarCena', 'cena-maiz') + '>Editar maíz</button></div>' +
+    '<div class="acts" style="margin-top:8px"><button class="btn ghost" ' + on('cenaHoy', 'cena-harina') + '>Cené harina</button><button class="btn" ' + on('cenaHoy', 'cena-maiz') + '>Cené maíz</button></div>';
   if (!$('modal').classList.contains('show')) abrirModal();
 }
 function resumenCena(d) {
@@ -305,16 +305,16 @@ function abrirTupper() {
 function pintarTupper() {
   const T = NUT.TUPPER, t = NUT.receta({ items: NUT.tupper(TUP) }, resolver).tot;
   const mios = Object.values(nutCfg().tuppers || {}).sort((a, b) => b.n - a.n || b.ts - a.ts).slice(0, 4);
-  const chip = (on, txt, fn) => '<button class="tch' + (on ? ' on' : '') + '" onclick="' + fn + '">' + txt + '</button>';
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Tupper de mamá</div><button class="cerrar" onclick="cerrarModal()" aria-label="Cerrar">✕</button></div>' +
-    (mios.length ? '<div class="tmios">' + mios.map(x => '<button onclick="tupperDeSiempre(\'' + jsq(x.clave) + '\')"><b>' + esc(x.nombre.replace(/^Tupper: /, '')) + '</b><small>' + x.p + ' g · ' + x.k + ' kcal · ' + x.n + '×</small></button>').join('') + '</div>' : '') +
-    '<div class="tpaso">1. ¿Qué trae?</div><div class="tchips">' + T.proteinas.map(p => chip(TUP.prot === p[0], p[2] + ' ' + p[1], 'TUP.prot=\'' + p[0] + '\';pintarTupper()')).join('') + '</div>' +
-    '<div class="tpaso">2. ¿Con qué viene?</div><div class="tchips">' + T.lados.map(l => chip(TUP.lados.includes(l[0]), l[2] + ' ' + l[1], 'tupLado(\'' + l[0] + '\')')).join('') +
-      '<span class="ttort">🫓 Tortillas <button class="mini" onclick="TUP.tort=Math.max(0,TUP.tort-1);pintarTupper()" aria-label="Menos">−</button><b class="num">' + TUP.tort + '</b><button class="mini" onclick="TUP.tort=Math.min(8,TUP.tort+1);pintarTupper()" aria-label="Más">+</button></span></div>' +
-    '<div class="tpaso">3. ¿Qué tan lleno?</div><div class="tchips">' + T.tamanos.map(x => chip(TUP.tam === x[0], x[1], 'TUP.tam=\'' + x[0] + '\';pintarTupper()')).join('') + '</div>' +
+  const chip = (activo, txt, accion) => '<button class="tch' + (activo ? ' on' : '') + '" ' + accion + '>' + txt + '</button>';
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">Tupper de mamá</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
+    (mios.length ? '<div class="tmios">' + mios.map(x => '<button ' + on('tupperDeSiempre', x.clave) + '><b>' + esc(x.nombre.replace(/^Tupper: /, '')) + '</b><small>' + x.p + ' g · ' + x.k + ' kcal · ' + x.n + '×</small></button>').join('') + '</div>' : '') +
+    '<div class="tpaso">1. ¿Qué trae?</div><div class="tchips">' + T.proteinas.map(p => chip(TUP.prot === p[0], p[2] + ' ' + p[1], on('tupProt', p[0]))).join('') + '</div>' +
+    '<div class="tpaso">2. ¿Con qué viene?</div><div class="tchips">' + T.lados.map(l => chip(TUP.lados.includes(l[0]), l[2] + ' ' + l[1], on('tupLado', l[0]))).join('') +
+      '<span class="ttort">🫓 Tortillas <button class="mini" ' + on('tupTortillas', -1) + ' aria-label="Menos">−</button><b class="num">' + TUP.tort + '</b><button class="mini" ' + on('tupTortillas', 1) + ' aria-label="Más">+</button></span></div>' +
+    '<div class="tpaso">3. ¿Qué tan lleno?</div><div class="tchips">' + T.tamanos.map(x => chip(TUP.tam === x[0], x[1], on('tupTam', x[0]))).join('') + '</div>' +
     '<div class="rectot"><b class="num">' + Math.round(t.p) + ' g</b> proteína<span>' + fmtM(t, true) + '</span></div>' +
     '<div class="muted" style="font-size:12.5px">Incluye el aceite del guisado (~1½ cucharaditas). Valores: tabla mexicana (INCMNSZ) y USDA.</div>' +
-    '<div class="acts"><button class="btn ghost" onclick="abrirCamara(\'tupper\')">📷 Mejor foto</button><button class="btn" onclick="agregarTupper()">Agregar a comida</button></div>';
+    '<div class="acts"><button class="btn ghost" ' + on('abrirCamara', 'tupper') + '>📷 Mejor foto</button><button class="btn" ' + on('agregarTupper') + '>Agregar a comida</button></div>';
 }
 function tupLado(l) { const i = TUP.lados.indexOf(l); if (i > -1) TUP.lados.splice(i, 1); else TUP.lados.push(l); hap('tecla'); pintarTupper(); }
 function tupperDeSiempre(clave) { const x = (nutCfg().tuppers || {})[clave]; if (!x) return; TUP = JSON.parse(JSON.stringify(x.sel)); agregarTupper(); }
@@ -354,15 +354,15 @@ function abrirBuscador(o) {
 }
 function pintarBuscador() {
   const b = BUS, res = b.q ? NUT.buscar(listaBusqueda(), b.q, 40) : nutCfg().productos.concat(Object.values(LS.get('gym_alim_usados', {}))).slice(-12).reverse();
-  const fila = a => '<button class="bres" onclick="elegirNut(\'' + jsq(a.id) + '\')"><span class="nm">' + esc(a.n) + (a.marca ? ' · ' + esc(a.marca) : '') +
+  const fila = a => '<button class="bres" ' + on('elegirNut', a.id) + '><span class="nm">' + esc(a.n) + (a.marca ? ' · ' + esc(a.marca) : '') +
     '<small>' + fuenteTxt(a) + ' · por 100 ' + (a.u || 'g') + ': <b>' + NUT.r1(a.p) + ' g prot</b> · ' + Math.round(a.k) + ' kcal' + (a.crudo ? ' · crudo' : '') + '</small></span></button>';
-  const offRes = b.off ? (b.off.length ? b.off.map(a => '<button class="bres" onclick="elegirOFF(\'' + jsq(a.code) + '\')"><span class="nm">' + esc(a.n) + (a.marca ? ' · ' + esc(a.marca) : '') +
+  const offRes = b.off ? (b.off.length ? b.off.map(a => '<button class="bres" ' + on('elegirOFF', a.code) + '><span class="nm">' + esc(a.n) + (a.marca ? ' · ' + esc(a.marca) : '') +
     '<small>Open Food Facts · por 100 ' + a.u + ': <b>' + NUT.r1(a.p) + ' g prot</b> · ' + Math.round(a.k || 0) + ' kcal</small></span></button>').join('') : '<div class="muted" style="margin:8px 2px">No encontré productos con ese nombre.</div>') : '';
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">' + (b.elegir ? 'Elige el ingrediente' : 'Buscar alimento') + '</div><button class="cerrar" onclick="cerrarBuscador()" aria-label="Cerrar">✕</button></div>' +
-    '<input id="busNut" class="buscar" type="search" placeholder="Ej. tortilla de maíz, queso panela, avena…" value="' + esc(b.q) + '" oninput="buscarNut(this.value)">' +
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">' + (b.elegir ? 'Elige el ingrediente' : 'Buscar alimento') + '</div><button class="cerrar" ' + on('cerrarBuscador') + ' aria-label="Cerrar">✕</button></div>' +
+    '<input id="busNut" class="buscar" type="search" placeholder="Ej. tortilla de maíz, queso panela, avena…" value="' + esc(b.q) + '" ' + ev('input', 'buscarNut', VALOR) + '>' +
     '<div class="bfuentes">' + (CATALOGO ? (CATALOGO.length + NUT.BASE.length).toLocaleString('es-MX') + ' alimentos: tabla mexicana (INCMNSZ), USDA y los tuyos' : 'Cargando el catálogo…') + '</div>' +
     '<div class="blista" id="busRes">' + (res.length ? res.map(fila).join('') : b.q ? '<div class="muted" style="margin:8px 2px">Nada en el catálogo con «' + esc(b.q) + '».</div>' : '<div class="muted" style="margin:8px 2px">Escribe qué comiste. Lo que uses queda aquí para la próxima.</div>') +
-      (b.q ? '<button class="link" style="margin:8px 2px" onclick="buscarOFF()">' + (b.cargando ? 'Buscando en Open Food Facts…' : '🛒 Buscar productos de marca (Open Food Facts)') + '</button>' + offRes : '') + '</div>';
+      (b.q ? '<button class="link" style="margin:8px 2px" ' + on('buscarOFF') + '>' + (b.cargando ? 'Buscando en Open Food Facts…' : '🛒 Buscar productos de marca (Open Food Facts)') + '</button>' + offRes : '') + '</div>';
 }
 function fuenteTxt(a) { const s = a.src || String(a.id).split(':')[0]; return { b: 'Básico', usda: 'USDA', mx: 'Tabla mexicana', us: 'USDA', p: 'Tuyo', etiqueta: 'Tu etiqueta', off: 'Open Food Facts', calc: 'Calculado' }[s] || 'Catálogo'; }
 let BUS_T = null;
@@ -428,14 +428,14 @@ function pedirCantidad(al) {
 }
 function pintarCantidad() {
   const c = CANT, al = c.al, m = NUT.macros(al, c.q);
-  $('sheet').innerHTML = '<div class="row between"><div class="t2" style="padding-right:8px">' + esc(al.n) + '</div><button class="cerrar" onclick="cerrarCantidad()" aria-label="Volver">✕</button></div>' +
+  $('sheet').innerHTML = '<div class="row between"><div class="t2" style="padding-right:8px">' + esc(al.n) + '</div><button class="cerrar" ' + on('cerrarCantidad') + ' aria-label="Volver">✕</button></div>' +
     '<div class="muted" style="margin:2px 0 10px">' + fuenteTxt(al) + (al.crudo ? ' · valores del alimento crudo: pésalo antes de cocinar' : '') + (al.nota ? ' · ' + esc(al.nota) : '') + '</div>' +
-    (al.por && al.por.length ? '<div class="tchips">' + al.por.map(p => '<button class="tch' + (c.q === p[1] ? ' on' : '') + '" onclick="CANT.q=' + p[1] + ';pintarCantidad()">' + esc(p[0]) + ' · ' + p[1] + ' ' + (al.u || 'g') + '</button>').join('') + '</div>' : '') +
-    '<div class="cantfila"><button class="mini" onclick="CANT.q=Math.max(0,CANT.q-(CANT.q>100?25:10));pintarCantidad()" aria-label="Menos">−</button>' +
-    '<input class="cant num" inputmode="decimal" value="' + c.q + '" onchange="CANT.q=Math.max(0,Number(String(this.value).replace(\',\',\'.\'))||0);pintarCantidad()" aria-label="Cantidad"><span class="u">' + (al.u || 'g') + '</span>' +
-    '<button class="mini" onclick="CANT.q+=(CANT.q>=100?25:10);pintarCantidad()" aria-label="Más">+</button></div>' +
+    (al.por && al.por.length ? '<div class="tchips">' + al.por.map(p => '<button class="tch' + (c.q === p[1] ? ' on' : '') + '" ' + on('cantFija', p[1]) + '>' + esc(p[0]) + ' · ' + p[1] + ' ' + (al.u || 'g') + '</button>').join('') + '</div>' : '') +
+    '<div class="cantfila"><button class="mini" ' + on('cantPaso', -1) + ' aria-label="Menos">−</button>' +
+    '<input class="cant num" inputmode="decimal" value="' + c.q + '" ' + ev('change', 'cantEscrita', VALOR) + ' aria-label="Cantidad"><span class="u">' + (al.u || 'g') + '</span>' +
+    '<button class="mini" ' + on('cantPaso', 1) + ' aria-label="Más">+</button></div>' +
     '<div class="rectot"><b class="num">' + NUT.r1(m.p) + ' g</b> proteína<span>' + fmtM(m, true) + '</span></div>' +
-    '<div class="acts"><button class="btn" onclick="usarCantidad()">' + (c.elegir ? 'Usar en la receta' : 'Agregar a ' + esc(nombreDeComida(comidaActual()).toLowerCase())) + '</button></div>';
+    '<div class="acts"><button class="btn" ' + on('usarCantidad') + '>' + (c.elegir ? 'Usar en la receta' : 'Agregar a ' + esc(nombreDeComida(comidaActual()).toLowerCase())) + '</button></div>';
 }
 function cerrarCantidad() { const b = CANT && CANT.bus; CANT = null; if (b) { BUS = b; pintarBuscador(); } else cerrarModal(); }
 function usarCantidad() {
@@ -452,14 +452,14 @@ let FOTO = null, FOTO_GALERIA = false;
 function abrirCamara(tipo) {
   FOTO = { tipo: tipo || null };
   if (tipo) return pedirFoto(tipo);
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Foto o código</div><button class="cerrar" onclick="cerrarModal()" aria-label="Cerrar">✕</button></div>' +
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">Foto o código</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
     '<div class="camopts">' +
-    '<button onclick="pedirFoto(\'etiqueta\')"><span>🏷️</span><b>Tabla nutricional</b><small>Leche, proteína o cualquier empaque: lee los macros solo</small></button>' +
-    '<button onclick="pedirFoto(\'tupper\')"><span>🍱</span><b>Mi comida o el tupper</b><small>Cuando no sabes qué guisado es ni cuánto pesa</small></button>' +
-    '<button onclick="pedirFoto(\'codigo\')"><span>🔢</span><b>Código de barras</b><small>Lo busca en Open Food Facts</small></button></div>' +
-    '<label class="galeria"><input type="checkbox" id="deGaleria"' + (FOTO_GALERIA ? ' checked' : '') + ' onchange="FOTO_GALERIA=this.checked"> Elegir una foto que ya tomé (galería)</label>' +
+    '<button ' + on('pedirFoto', 'etiqueta') + '><span>🏷️</span><b>Tabla nutricional</b><small>Leche, proteína o cualquier empaque: lee los macros solo</small></button>' +
+    '<button ' + on('pedirFoto', 'tupper') + '><span>🍱</span><b>Mi comida o el tupper</b><small>Cuando no sabes qué guisado es ni cuánto pesa</small></button>' +
+    '<button ' + on('pedirFoto', 'codigo') + '><span>🔢</span><b>Código de barras</b><small>Lo busca en Open Food Facts</small></button></div>' +
+    '<label class="galeria"><input type="checkbox" id="deGaleria"' + (FOTO_GALERIA ? ' checked' : '') + ' ' + ev('change', 'fotoDeGaleria', MARCADO) + '> Elegir una foto que ya tomé (galería)</label>' +
     '<div class="row" style="gap:8px;margin-top:10px"><input id="codManual" class="campo" style="margin:0;flex:1" inputmode="numeric" placeholder="O escribe el número del código">' +
-    '<button class="btn" onclick="codigoManual()">Buscar</button></div>';
+    '<button class="btn" ' + on('codigoManual') + '>Buscar</button></div>';
   if (!$('modal').classList.contains('show')) abrirModal();
 }
 function pedirFoto(tipo) {
@@ -545,20 +545,20 @@ function confirmarProducto(al, avisos, crudo) {
 }
 function pintarProducto() {
   const a = PROD.al, u = a.u || 'g', por = a.por && a.por[0];
-  const campo = (k, nom) => '<label class="pc"><span>' + nom + '</span><input class="num" inputmode="decimal" value="' + (a[k] === null || a[k] === undefined ? '' : a[k]) + '" onchange="PROD.al.' + k + '=Number(String(this.value).replace(\',\',\'.\'))||0;pintarProducto()"></label>';
+  const campo = (k, nom) => '<label class="pc"><span>' + nom + '</span><input class="num" inputmode="decimal" value="' + (a[k] === null || a[k] === undefined ? '' : a[k]) + '" ' + ev('change', 'prodNumero', k, VALOR) + '></label>';
   const pm = por ? NUT.macros(a, por[1]) : null;
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Revisa el producto</div><button class="cerrar" onclick="cerrarModal()" aria-label="Cerrar">✕</button></div>' +
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">Revisa el producto</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
     (PROD.avisos.length ? '<div class="tip acc" style="margin:8px 0">⚠️ ' + PROD.avisos.map(esc).join('<br>⚠️ ') + '</div>' : '') +
-    '<input class="campo" value="' + esc(a.n) + '" onchange="PROD.al.n=this.value.slice(0,60)" aria-label="Nombre">' +
-    '<input class="campo" value="' + esc(a.marca || '') + '" placeholder="Marca" onchange="PROD.al.marca=this.value.slice(0,40)" aria-label="Marca">' +
+    '<input class="campo" value="' + esc(a.n) + '" ' + ev('change', 'prodTexto', 'n', VALOR) + ' aria-label="Nombre">' +
+    '<input class="campo" value="' + esc(a.marca || '') + '" placeholder="Marca" ' + ev('change', 'prodTexto', 'marca', VALOR) + ' aria-label="Marca">' +
     '<div class="muted" style="margin:2px 0 6px">Por 100 ' + u + ' (si la etiqueta solo traía la porción, ya se convirtió):</div>' +
     '<div class="pcs">' + campo('p', 'Proteína') + campo('c', 'Carbos') + campo('f', 'Grasa') + campo('k', 'kcal') + campo('fib', 'Fibra') + '</div>' +
     '<div class="row" style="gap:8px;align-items:center;margin:10px 0"><span class="muted">1 porción =</span><input class="cant num" style="width:80px" inputmode="decimal" value="' + (por ? por[1] : '') + '" placeholder="—" ' +
-      'onchange="const v=Number(String(this.value).replace(\',\',\'.\'));PROD.al.por=v>0?[[PROD.porcionTxt||\'1 porción\',v]]:[];pintarProducto()"><span class="muted">' + u + (pm ? ' → <b style="color:var(--text)">' + NUT.r1(pm.p) + ' g prot</b> · ' + Math.round(pm.k) + ' kcal' : '') + '</span></div>' +
+      ev('change', 'prodPorcion', VALOR) + '><span class="muted">' + u + (pm ? ' → <b style="color:var(--text)">' + NUT.r1(pm.p) + ' g prot</b> · ' + Math.round(pm.k) + ' kcal' : '') + '</span></div>' +
     '<div class="tpaso">¿Es de tu licuado?</div><div class="tchips">' +
-      [['leche', '🥛 Mi leche de siempre'], ['proteina', '💪 Mi proteína de siempre'], ['', 'No']].map(r => '<button class="tch' + (a.rol === r[0] ? ' on' : '') + '" onclick="PROD.al.rol=\'' + r[0] + '\';pintarProducto()">' + r[1] + '</button>').join('') + '</div>' +
+      [['leche', '🥛 Mi leche de siempre'], ['proteina', '💪 Mi proteína de siempre'], ['', 'No']].map(r => '<button class="tch' + (a.rol === r[0] ? ' on' : '') + '" ' + on('prodRol', r[0]) + '>' + r[1] + '</button>').join('') + '</div>' +
     (a.rol === 'proteina' && !por ? '<div class="muted" style="font-size:12.5px">Pon cuánto pesa 1 scoop para que tu licuado use uno.</div>' : '') +
-    '<div class="acts"><button class="btn ghost" onclick="guardarProducto(false)">Guardar</button><button class="btn" onclick="guardarProducto(true)">Guardar y agregar' + (por ? ' 1 porción' : '') + '</button></div>';
+    '<div class="acts"><button class="btn ghost" ' + on('guardarProducto', false) + '>Guardar</button><button class="btn" ' + on('guardarProducto', true) + '>Guardar y agregar' + (por ? ' 1 porción' : '') + '</button></div>';
 }
 function guardarProducto(agregar) {
   const a = PROD.al, c = nutCfg();
@@ -584,7 +584,7 @@ function pedirCantidadDirecta(al, q) { CANT = { al: al, q: q, elegir: null, bus:
 function abrirMetas() {
   const m = metasHoy(), t = totalMacros();
   const fila = (nom, v, meta, u) => '<div class="mt"><span>' + nom + '</span><b class="num">' + v.toLocaleString('es-MX') + '</b><span class="muted">de ' + meta.toLocaleString('es-MX') + ' ' + u + '</span></div>';
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Tus metas de hoy</div><button class="cerrar" onclick="cerrarModal()" aria-label="Cerrar">✕</button></div>' +
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">Tus metas de hoy</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
     '<div class="metas">' + fila('Proteína', t.p, m.p, 'g') + fila('Calorías', t.k, m.k, 'kcal') + fila('Carbohidratos', t.c, m.c, 'g') + fila('Grasa', t.f, m.f, 'g') + fila('Fibra', t.fib, m.fib, 'g') + '</div>' +
     (m.auto ? '<div class="tip" style="margin:12px 0 0">Calculadas con tus datos: ' + m.kg + ' kg, ' + (DATA.dias || []).length + ' días de gym y tus km de trote. Mantenimiento ~' + m.mant.toLocaleString('es-MX') +
       ' kcal; −' + m.deficit + ' kcal para bajar grasa sin perder músculo' + (m.ajuste ? ' y ' + (m.ajuste > 0 ? '+' : '') + m.ajuste + ' porque ' + esc(m.porque) : '') +
@@ -592,7 +592,7 @@ function abrirMetas() {
       : '<div class="tip" style="margin:12px 0 0">Son las que pusiste tú. La proteína sigue siendo tu meta de siempre.</div>') +
     '<div class="tpaso">¿Quieres poner las tuyas?</div><div class="pcs">' +
       ['k', 'c', 'f'].map(k => '<label class="pc"><span>' + { k: 'kcal', c: 'Carbos', f: 'Grasa' }[k] + '</span><input id="mt_' + k + '" class="num" inputmode="numeric" value="' + m[k] + '"></label>').join('') + '</div>' +
-    '<div class="acts">' + (m.auto ? '' : '<button class="btn ghost" onclick="metasAuto()">Volver a las calculadas</button>') + '<button class="btn" onclick="guardarMetas()">Usar estas</button></div>';
+    '<div class="acts">' + (m.auto ? '' : '<button class="btn ghost" ' + on('metasAuto') + '>Volver a las calculadas</button>') + '<button class="btn" ' + on('guardarMetas') + '>Usar estas</button></div>';
   abrirModal();
 }
 function guardarMetas() {
@@ -677,3 +677,18 @@ document.head.insertAdjacentHTML('beforeend', `<style>
   .campo { width: 100%; border: 1px solid var(--line); border-radius: 12px; background: var(--card2); color: var(--text); padding: 11px 12px; font-size: 16px; margin-bottom: 8px; }
   .eaten .mac { display: block; font-size: 11.5px; color: var(--muted); font-weight: 500; }
 </style>`);
+
+/* ----- Acciones de botones de Comida (antes eran código dentro del HTML) ----- */
+function editarCena(id) { REC_ED = null; abrirReceta(id, true); }
+function tupProt(p) { TUP.prot = p; pintarTupper(); }
+function tupTam(t) { TUP.tam = t; pintarTupper(); }
+function tupTortillas(d) { TUP.tort = Math.max(0, Math.min(8, TUP.tort + d)); pintarTupper(); }
+function cantFija(q) { CANT.q = q; pintarCantidad(); }
+function cantPaso(d) { CANT.q = d < 0 ? Math.max(0, CANT.q - (CANT.q > 100 ? 25 : 10)) : CANT.q + (CANT.q >= 100 ? 25 : 10); pintarCantidad(); }
+const numeroEscrito = v => Number(String(v).replace(',', '.'));
+function cantEscrita(v) { CANT.q = Math.max(0, numeroEscrito(v) || 0); pintarCantidad(); }
+function fotoDeGaleria(v) { FOTO_GALERIA = !!v; }
+function prodNumero(k, v) { if (['p', 'c', 'f', 'k', 'fib'].includes(k)) { PROD.al[k] = numeroEscrito(v) || 0; pintarProducto(); } }
+function prodTexto(k, v) { if (k === 'n') PROD.al.n = String(v).slice(0, 60); else if (k === 'marca') PROD.al.marca = String(v).slice(0, 40); }
+function prodPorcion(v) { const n = numeroEscrito(v); PROD.al.por = n > 0 ? [[PROD.porcionTxt || '1 porción', n]] : []; pintarProducto(); }
+function prodRol(r) { PROD.al.rol = r; pintarProducto(); }
