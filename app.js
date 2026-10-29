@@ -1025,6 +1025,19 @@ const CSS_V86 = `
   .falla { background: var(--card2); border-radius: 12px; padding: 9px 12px; margin-bottom: 6px; font-size: 13.5px; }
   .falla small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
 `;
+/* v8.9: animación de cada ejercicio (colores del tema: tú en morado, el músculo en naranja, el equipo en gris) */
+const CSS_V89 = `
+  .anim-ej { --persona: var(--pri); --persona2: var(--pri-2, var(--pri)); --musculo: var(--acc); --maq: color-mix(in srgb, var(--muted) 70%, var(--card));
+    --maq2: color-mix(in srgb, var(--muted) 32%, var(--card)); --peso: color-mix(in srgb, var(--text) 62%, var(--card)); --piso: var(--line); --guia: var(--muted);
+    background: var(--card2); border-radius: 14px; padding: 4px 6px 6px; min-height: 120px; }
+  .anim-ej svg { display: block; width: 100%; height: 130px; }
+  .anim-ej.grande svg { height: 210px; }
+  .anim-ej .anim-fase { text-align: center; font-size: 12.5px; color: var(--muted); min-height: 17px; }
+  .exvis { margin-bottom: 10px; } .exvis.dos { display: grid; grid-template-columns: 1fr 1.25fr; gap: 8px; align-items: stretch; }
+  .exvis.dos .exfoto { height: 100%; min-height: 120px; margin: 0; }
+  .sheet .anim-ej.grande { margin: 8px 0 4px; }
+  .anim-tempo { font-size: 13px; margin: 0 2px 8px; }
+`;
 /* v7.5: pasos de la tarde, ritmo de peso, proteína por comida, después de la carrera, diagnóstico */
 const CSS_V75 = `
   .pill.red { background: color-mix(in srgb, var(--red) 15%, transparent); color: var(--red); }
@@ -1192,7 +1205,7 @@ function avisoErrores() {
 
 /* ===================== Arranque ===================== */
 function arrancar() {
-  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72 + CSS_V75 + CSS_V8 + CSS_V85 + CSS_V86; document.head.appendChild(st);
+  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72 + CSS_V75 + CSS_V8 + CSS_V85 + CSS_V86 + CSS_V89; document.head.appendChild(st);
   aplicarSencillo(); cargarFotosMaq();
   // Link de configuración: ?api=…&k=… o #api=…&k=… (también acepta key=)
   const p = new URLSearchParams(location.search), ph = new URLSearchParams(location.hash.slice(1));
@@ -1259,7 +1272,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v8.8';
+const VERSION_APP = 'v8.9';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1444,7 +1457,7 @@ function ladoVisible(base) {
 function verLado(base, lado) { QUIEN[base] = lado; ANIM_ABRE = base; hap('tecla'); pintarEntrenar(); }
 // Sugerencia al empezar cada ejercicio (subir, bajar o mantener, con números). El script 7.4 ya la manda calculada
 // con la misma función (motor.js → progresionInicio); con un script anterior, la calcula la app con tu última sesión.
-const SCRIPT_ESPERADO = '7.8';
+const SCRIPT_ESPERADO = '7.9';
 const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);
 const scriptAlDia = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum(SCRIPT_ESPERADO));
 // Un solo motor: si la hoja trae el mismo motor (misma huella que motor.js) se usa lo que calculó; si no, lo calcula la app
@@ -1988,6 +2001,30 @@ function verFotoMaq(name, borrar) {
       : '<div class="acts"><button class="btn ghost" ' + on('verFotoMaq', name, true) + '>Quitar</button><button class="btn" ' + on('fotoParaEjercicio', name) + '>📷 Tomar otra</button></div>');
   if (!$('modal').classList.contains('show')) abrirModal();
 }
+/* ----- Animación del movimiento (animaciones.js): se dibuja sola, sin video ni internet ----- */
+// Lugar para la animación: se monta sola en cuanto aparece en pantalla (ver montarAnimaciones)
+function placaAnimacion(ex, st, grande) {
+  if (!window.ANIM || !ajuste('animaciones', true) || !ex) return '';
+  const sig = st && st.sets ? st.sets.find(x => !x.ok && x.t !== 'C') : null;
+  return '<div class="anim-ej' + (grande ? ' grande' : '') + '" data-ej="' + esc(ex.name) + '" data-reps="' + (sig && Number(sig.r) > 0 ? Number(sig.r) : 0) + '"></div>';
+}
+function montarAnimaciones() {
+  if (!window.ANIM) return;
+  document.querySelectorAll('.anim-ej:not([data-lista])').forEach(el => {
+    const ex = exDe(el.getAttribute('data-ej'));
+    el.setAttribute('data-lista', '1');
+    if (!ex) return;
+    try {
+      const fase = document.createElement('div'); fase.className = 'anim-fase';
+      ANIM.montar(el, ex, { reps: Number(el.getAttribute('data-reps')) || 0, textoFase: fase });
+      el.appendChild(fase);
+    } catch (e) { el.remove(); registrarError('Animación de ' + ex.ejercicio + ': ' + e.message, 'montarAnimaciones', e.stack); }
+  });
+}
+// Cualquier pantalla que pinte un lugar para animación lo recibe dibujado (las tarjetas se repintan seguido)
+let ANIM_PEND = false;
+new MutationObserver(() => { if (ANIM_PEND) return; ANIM_PEND = true; requestAnimationFrame(() => { ANIM_PEND = false; montarAnimaciones(); }); })
+  .observe(document.documentElement, { childList: true, subtree: true });
 /* ----- Técnica y video del ejercicio (Catálogo: Q = link, R = técnica) ----- */
 function badgeMod(ex) { return ex && ex.modalidad ? '<span class="mod">' + esc(ex.modalidad) + '</span>' : ''; }
 function botonTecnica(ex) {
@@ -2052,6 +2089,8 @@ function verTecnica(name) {
   const puntos = (ex.tecnica || '').split(/\s*·\s*/).filter(Boolean);
   const buscar = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(ex.ejercicio + ' técnica correcta');
   $('sheet').innerHTML = '<div class="row between"><div class="t2" style="padding-right:8px">' + esc(ex.ejercicio) + '</div><button class="btn ghost sm" ' + on('cerrarModal') + '>✕</button></div>' +
+    placaAnimacion(ex, state[name] || null, true) +
+    (window.ANIM && ajuste('animaciones', true) ? '<div class="muted anim-tempo">⏱ ' + esc(ANIM.tempoTexto(ex.tempo)) + (ex.tempo ? '' : ' · tempo de hipertrofia; cámbialo en el Catálogo (columna W, ej. 3-1-1-0)') + '</div>' : '') +
     reproductor(ex.media) +
     (puntos.length ? '<ol class="tecnica">' + puntos.map(p => '<li>' + esc(p.charAt(0).toUpperCase() + p.slice(1)) + '</li>').join('') + '</ol>' : '<div class="muted" style="margin:10px 0">Sin técnica escrita: agrégala en la columna R del Catálogo.</div>') +
     '<div class="muted" style="font-size:13.5px;margin:4px 0 2px"><b style="color:var(--text)">Cómo anotar el peso:</b> ' + esc(ex.howTo || '—') + ' · ' + ex.min + '–' + ex.max + ' reps</div>' +
@@ -2260,8 +2299,11 @@ function tarjetaPareja(ex) {
 function cuerpoEjercicio(ex, st) {
   const n = jsq(ex.name), facil = sencillo() && !esPar(ex.name), foto = fotoMaqDe(baseDe(ex.name));
   const vars = esPar(ex.name) ? [] : variantesDe(ex.name);
-  let h = foto ? '<img class="exfoto' + (facil ? ' grande' : '') + '" src="' + foto + '" alt="Tu máquina" ' + on('verFotoMaq', baseDe(ex.name)) + '>'
-    : facil ? '<button class="exfoto-vacia" ' + on('fotoParaEjercicio', baseDe(ex.name)) + '>📷 Tómale foto a tu máquina<small>Para reconocerla la próxima vez</small></button>' : '';
+  // Arriba: la foto de tu máquina (si la tomaste) y la animación del movimiento, lado a lado
+  const fotoH = foto ? '<img class="exfoto' + (facil ? ' grande' : '') + '" src="' + foto + '" alt="Tu máquina" ' + on('verFotoMaq', baseDe(ex.name)) + '>' : '';
+  const animH = placaAnimacion(ex, st, facil);
+  let h = fotoH || animH ? '<div class="exvis' + (fotoH && animH ? ' dos' : '') + '">' + fotoH + animH + '</div>' : '';
+  if (!foto && facil) h += '<button class="exfoto-vacia" ' + on('fotoParaEjercicio', baseDe(ex.name)) + '>📷 Tómale foto a tu máquina<small>Para reconocerla la próxima vez</small></button>';
   h += '<div class="row between" style="margin-bottom:10px"><div class="muted">' + ex.min + '–' + ex.max + ' reps · ' + esc(ex.howTo) +
     (vars.length ? ' <button class="equipo" ' + on('elegirCambio', ex.name) + '>' + esc(ex.modalidad || 'Equipo') + ' ⇄</button>' : '') + '</div>' +
     '<div class="unit">' + ['lb', 'kg'].map(u => '<button class="' + (st.unit === u ? 'on' : '') + '" ' + on('setUnit', ex.name, String(u)) + '>' + u + '</button>').join('') + '</div></div>';
@@ -5064,6 +5106,7 @@ function abrirAjustes() {
   const sec = (ic, color, txt) => '<div class="t1 asec"><span style="color:var(--' + color + ')">' + ic + '</span>' + txt + '</div>';
   const fallas = LS.get('gym_jserr', []).length + LS.get('gym_errores', []).length;
   $('sheet').innerHTML = '<div class="row between ajhead"><div class="t2">Ajustes</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
+    tog('animaciones', true, 'Animación de cada ejercicio', 'Una figura hace el movimiento con su equipo y su tempo; el músculo que trabaja en naranja', AIC.flechas, 'pri') +
     tog('sencillo', false, 'Modo sencillo', 'Para quien empieza: «Hoy te toca» en 3 pasos, una instrucción por serie y menos pestañas (sin Músculos ni Coach)', AIC.chispa, 'ok') +
     '<div class="opt tarj"><span class="aic" style="--c:var(--pri)">' + AIC.flechas + '</span><div class="txt"><div class="t1" style="font-size:15px">Tour de la app</div><div class="muted">4 pasos: dónde pesarte, elegir el día, anotar series y la comida</div></div>' +
     '<button class="btn ghost sm" ' + on('iniciarTour') + '>Ver</button></div>' +
@@ -5147,7 +5190,7 @@ async function toggleAjuste(k, d) {
   if (k === 'salud' && nuevo && !(await conectarSalud())) return abrirAjustes();
   setAjuste(k, nuevo);
   if (k === 'avisoProt' || k === 'avisoPeso') programarAvisoProt();
-  if (k === 'sencillo') { aplicarSencillo(); pintarTab(); }
+  if (k === 'sencillo' || k === 'animaciones') { aplicarSencillo(); pintarTab(); }
   if (k === 'salud' && nuevo) leerSalud(true);
   if (k === 'salud' && !nuevo) { LS.del('gym_salud'); LS.del('gym_salud_firma'); actualizarWidgets(); }
   if (k === 'salud' || k === 'avisoPasos') configurarPasos();
