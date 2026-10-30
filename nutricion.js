@@ -87,7 +87,15 @@ const NUT = (() => {
     B('burrito', 'Burrito de carne y frijol', 11.5, 19.5, 7.5, 191, 3.0, [['1 burrito', 200]]),
     B('enchilada', 'Enchilada de queso', 11.2, 15.5, 18.5, 273, 1.9, [['1 enchilada', 100]]),
     B('hamburguesa', 'Hamburguesa sencilla', 15.7, 22.1, 11.6, 256, 1.1, [['1 hamburguesa', 220]]),
-    B('pizza', 'Pizza de queso', 10.4, 29.0, 12.3, 268, 2.2, [['1 rebanada', 107]])
+    B('pizza', 'Pizza de queso', 10.4, 29.0, 12.3, 268, 2.2, [['1 rebanada', 107]]),
+    // Platillos que más se buscan y no estaban: estimados con los ingredientes base (tortilla, carne, queso…)
+    B('chilaquiles', 'Chilaquiles (rojos o verdes, con queso y crema)', 5.5, 18.0, 9.0, 175, 2.2, [['1 plato', 300], ['1/2 plato', 150]], { src: 'calc' }),
+    B('carne-asada', 'Carne asada (res, ya cocida)', 27.0, 0, 10.0, 198, 0, [['1 porción', 120], ['La de 1 taco', 40]], { src: 'calc' }),
+    B('taco-asada', 'Taco de carne asada (tortilla de maíz)', 15.0, 17.5, 6.0, 185, 2.0, [['1 taco', 80], ['3 tacos', 240]], { src: 'calc' }),
+    B('dogo', 'Dogo sonorense (salchicha con tocino)', 9.0, 18.0, 13.0, 225, 1.0, [['1 dogo', 200]], { src: 'calc' }),
+    B('pollo-asado', 'Pollo asado (con piel)', 27.0, 0, 13.5, 230, 0, [['1/4 de pollo sin hueso', 200], ['1 pierna con muslo', 150]], { src: 'calc' }),
+    B('quesadilla', 'Quesadilla de harina con queso', 13.9, 31.4, 14.6, 313, 1.2, [['1 quesadilla', 70], ['2 quesadillas', 140]], { src: 'calc' }),
+    B('cereal', 'Cereal de caja (Cheerios, Corn Flakes…)', 8.0, 80.0, 3.5, 380, 7.0, [['1 taza', 30], ['1 plato hondo', 45]], { src: 'calc' })
   ];
   const BASE_POR_ID = {};
   BASE.forEach(a => { BASE_POR_ID[a.id] = a; });
@@ -226,24 +234,90 @@ const NUT = (() => {
     hamburguesa: 'hamburger', pizza: 'pizza', cocido: 'cooked', crudo: 'raw', frito: 'fried', asado: 'roasted', hervido: 'boiled' };
   const sinAcentos = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ');
   const ORDEN = { b: 0, p: 1, mx: 2, us: 3 };
-  // lista: [{ id, n, en?, ... }]; regresa los mejores `max`
-  // Palabras que no ayudan a buscar ("tacos de asada", "2 huevos con jamón") y plural → singular ("frijoles" → "frijol")
-  const VACIAS = { de: 1, del: 1, la: 1, el: 1, los: 1, las: 1, con: 1, en: 1, al: 1, un: 1, una: 1, unos: 1, unas: 1, mi: 1, me: 1, para: 1 };
+  // lista: [{ id, n, en?, ... }]; regresa los mejores `max`.
+  // Tolerante: no exige todas las palabras (con 2 basta una, con 3 o más puede faltar una), ignora las porciones
+  // ("rebanada de pizza", "un scoop", "dos tacos"), entiende sinónimos ("coca" → refresco de cola) y corrige errores de dedo ("cherios").
+  const VACIAS = { de: 1, del: 1, la: 1, el: 1, los: 1, las: 1, con: 1, en: 1, al: 1, un: 1, una: 1, unos: 1, unas: 1, mi: 1, me: 1, para: 1, y: 1, o: 1, a: 1,
+    // Porciones y cantidades: dicen cuánto, no qué
+    rebanada: 1, rebanadas: 1, pieza: 1, piezas: 1, pza: 1, pzas: 1, plato: 1, platos: 1, taza: 1, tazas: 1, vaso: 1, vasos: 1, cucharada: 1, cucharadas: 1,
+    cucharadita: 1, cucharaditas: 1, porcion: 1, porciones: 1, orden: 1, ordenes: 1, medio: 1, media: 1, mitad: 1, grande: 1, grandes: 1, chico: 1, chica: 1,
+    chicos: 1, chicas: 1, mediano: 1, mediana: 1, g: 1, gr: 1, grs: 1, gramos: 1, ml: 1, kg: 1, lata: 1, latas: 1, bolsa: 1, bolsita: 1, puno: 1, punado: 1,
+    uno: 1, dos: 1, tres: 1, cuatro: 1, cinco: 1, seis: 1, siete: 1, ocho: 1, nueve: 1, diez: 1, docena: 1, comi: 1, tome: 1, desayune: 1, cene: 1, algo: 1, poco: 1 };
+  // Cómo lo dices tú → cómo viene en el catálogo (sin acentos)
+  const SINONIMOS = { scoop: ['proteina'], whey: ['proteina'], coca: ['cola', 'refresco'], cocacola: ['cola', 'refresco'], soda: ['refresco'], pepsi: ['cola', 'refresco'],
+    dogo: ['dogo', 'salchicha'], hotdog: ['dogo', 'salchicha'], papitas: ['papa'], sabritas: ['papa'], bistec: ['res', 'bistec'], bisteck: ['res', 'bistec'],
+    puerco: ['cerdo', 'porcinos'], cerdo: ['porcinos'], res: ['bovinos'], tomate: ['jitomate'], yogur: ['yogurt'], yoghurt: ['yogurt'], licuado: ['licuado', 'leche'],
+    bimbo: ['pan'], hotcakes: ['hotcake', 'pancakes'], cheerios: ['cheerios', 'cereal'], corn: ['cereal'], flakes: ['cereal'], zucaritas: ['cereal'],
+    asada: ['asada', 'asado', 'res'], tacos: ['taco'], quesadillas: ['quesadilla'], tortillas: ['tortilla'], frijol: ['frijol', 'frijoles'] };
   const raiz = w => w.length > 5 && /es$/.test(w) ? w.slice(0, -2) : w.length > 3 && /s$/.test(w) ? w.slice(0, -1) : w;
-  function buscar(lista, q, max) {
-    const pal = sinAcentos(q).split(/\s+/).filter(w => w.length > 1 && !VACIAS[w] && !/^\d+$/.test(w));
-    if (!pal.length) return [];
-    const out = [];
-    lista.forEach(a => {
-      const es = ' ' + sinAcentos(a.n) + ' ', en = a.en ? ' ' + sinAcentos(a.en) + ' ' : '';
-      let pts = 0;
-      for (const w0 of pal) {
-        const w = es.indexOf(' ' + w0) > -1 ? w0 : raiz(w0), t = ES_EN[w0] || ES_EN[w];
-        const enEs = es.indexOf(' ' + w) > -1, enEn = en && (en.indexOf(' ' + w) > -1 || (t && en.indexOf(' ' + t) > -1));
-        if (!enEs && !enEn) return;
-        pts += enEs ? (es.indexOf(' ' + w + ' ') > -1 ? 3 : 2) : 1;
+  // Cada alimento se normaliza una sola vez; el vocabulario (para corregir errores de dedo) se arma una vez por lista
+  const NORM = new WeakMap();
+  const norm = a => { let x = NORM.get(a); if (!x) { x = { es: ' ' + sinAcentos(a.n) + ' ', en: a.en ? ' ' + sinAcentos(a.en) + ' ' : '' }; NORM.set(a, x); } return x; };
+  let VOC = null, VOC_DE = '';
+  function vocabulario(lista) {
+    const llave = lista.length + ':' + (lista[0] && lista[0].id) + ':' + (lista[lista.length - 1] && lista[lista.length - 1].id);
+    if (VOC && VOC_DE === llave) return VOC;
+    const v = new Map();
+    lista.forEach(a => { const x = norm(a); (x.es + x.en).split(' ').forEach(t => { if (t.length > 3) v.set(t, (v.get(t) || 0) + 1); }); });
+    VOC = v; VOC_DE = llave;
+    return v;
+  }
+  // Distancia de edición con tope (más rápido: se corta en cuanto se pasa)
+  function distancia(a, b, tope) {
+    if (Math.abs(a.length - b.length) > tope) return tope + 1;
+    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i]; let min = i;
+      for (let j = 1; j <= b.length; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (cur[j] < min) min = cur[j];
       }
-      if (es.trim().indexOf(pal[0]) === 0) pts += 3;
+      if (min > tope) return tope + 1;
+      prev = cur;
+    }
+    return prev[b.length];
+  }
+  // La palabra más parecida del catálogo cuando la tuya no aparece en ningún lado ("cherios" → "cheerios")
+  function corregir(w, voc) {
+    if (w.length < 4) return [];
+    for (const t of voc.keys()) if (t.indexOf(w) === 0) return [];
+    const tope = w.length >= 7 ? 2 : 1, cand = [];
+    voc.forEach((n, t) => {
+      const d = Math.min(distancia(w, t, tope), t.length > w.length ? distancia(w, t.slice(0, w.length), tope) + 0.5 : tope + 1);
+      if (d <= tope) cand.push({ t: t, d: d, n: n });
+    });
+    return cand.sort((x, y) => x.d - y.d || y.n - x.n).slice(0, 2).map(x => x.t);
+  }
+  // Palabras de la búsqueda, cada una con sus formas aceptadas (y cuánto vale encontrar cada forma)
+  function palabras(q, voc) {
+    const vistas = {};
+    return sinAcentos(q).split(/\s+/).filter(w => w.length > 1 && !VACIAS[w] && !/^\d+$/.test(w) && !vistas[w] && (vistas[w] = true)).map(w => {
+      const f = [[w, 1]], mas = (t, v) => { if (t && !f.some(x => x[0] === t)) f.push([t, v]); };
+      mas(raiz(w), 1);
+      (SINONIMOS[w] || SINONIMOS[raiz(w)] || []).forEach(t => mas(t, 0.9));
+      if (voc && !f.some(x => x[0] !== w && x[1] === 1 && voc.has(x[0]))) corregir(w, voc).forEach(t => mas(t, 0.8));
+      return f;
+    }).filter(f => f.length);
+  }
+  function buscar(lista, q, max) {
+    const pal = palabras(q, lista.length > 200 ? vocabulario(lista) : null);
+    if (!pal.length) return [];
+    const n = pal.length, minimo = n <= 2 ? 1 : n - 1, out = [];
+    lista.forEach(a => {
+      const x = norm(a), es = x.es, en = x.en;
+      let pts = 0, hay = 0;
+      for (const formas of pal) {
+        let mejor = 0;
+        for (const [w, v] of formas) {
+          const t = ES_EN[w];
+          const p = es.indexOf(' ' + w + ' ') > -1 ? 3 : es.indexOf(' ' + w) > -1 ? 2 : en && (en.indexOf(' ' + w) > -1 || (t && en.indexOf(' ' + t) > -1)) ? 1 : 0;
+          if (p * v > mejor) mejor = p * v;
+        }
+        if (mejor) { hay++; pts += mejor; }
+      }
+      if (hay < minimo) return;
+      pts += hay === n ? 4 : -3 * (n - hay);
+      if (pal[0].some(f => f[1] === 1 && es.trim().indexOf(f[0]) === 0)) pts += 3;
       pts -= (ORDEN[String(a.id).split(':')[0]] || 0) * 1.2 + Math.min(3, a.n.length / 40);
       out.push({ a: a, pts: pts });
     });

@@ -1272,7 +1272,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v8.9';
+const VERSION_APP = 'v9.0';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1457,7 +1457,7 @@ function ladoVisible(base) {
 function verLado(base, lado) { QUIEN[base] = lado; ANIM_ABRE = base; hap('tecla'); pintarEntrenar(); }
 // Sugerencia al empezar cada ejercicio (subir, bajar o mantener, con números). El script 7.4 ya la manda calculada
 // con la misma función (motor.js → progresionInicio); con un script anterior, la calcula la app con tu última sesión.
-const SCRIPT_ESPERADO = '7.9';
+const SCRIPT_ESPERADO = '8.0';
 const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);
 const scriptAlDia = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum(SCRIPT_ESPERADO));
 // Un solo motor: si la hoja trae el mismo motor (misma huella que motor.js) se usa lo que calculó; si no, lo calcula la app
@@ -3882,9 +3882,9 @@ function tarjetaComidaIA() {
     '<textarea id="iaComida" maxlength="600" placeholder="Ej. 3 tacos de asada y una coca · o: la etiqueta dice 24 g por porción y me comí 2" ' + ev('input', 'textoComidaIA', VALOR) + '>' + esc(c.texto || '') + '</textarea>' +
     '<div class="fila-ia">' + botonMic('iaComida', 'calcularComida') + '<button class="btn" ' + on('calcularComida') + '>' + (c.cargando ? 'Preguntar de nuevo' : 'Calcular') + '</button></div>';
   // Mientras piensa puedes corregir el texto y volver a preguntar: la respuesta vieja se ignora
-  if (c.cargando) h += '<div class="muted" style="margin-top:8px">⏳ Calculando… ¿te equivocaste? Corrige y toca «Preguntar de nuevo».</div>';
+  if (c.cargando) h += '<div class="muted" style="margin-top:8px">⏳ Calculando… <span id="iaSeg" class="num">' + Math.round((Date.now() - (c.desde || Date.now())) / 1000) + ' s</span> · ¿te equivocaste? Corrige y toca «Preguntar de nuevo».</div>';
   if (c.error) h += '<div class="muted" style="margin-top:8px;color:var(--acc)">' + esc(c.error) + '</div>';
-  if (c.locales) h += '<div style="margin-top:8px">' + (c.locales.length ? '<div class="muted" style="font-size:13.5px;margin-bottom:4px">¿Es alguno de estos? (catálogo, funciona sin internet)</div>' +
+  if (c.locales) h += '<div style="margin-top:8px">' + (c.locales.length ? '<div class="muted" style="font-size:13.5px;margin-bottom:4px">' + (c.cargando ? 'Mientras: ¿es alguno de estos? Tócalo y no esperas a la IA' : '¿Es alguno de estos? (catálogo, funciona sin internet)') + '</div>' +
       c.locales.map(a => '<button class="bres" ' + on('elegirNut', a.id) + '><span class="nm">' + esc(a.n) + '<small>por 100 ' + a.u + ': <b>' + Math.round(a.p * 10) / 10 + ' g prot</b> · ' + Math.round(a.k) + ' kcal</small></span></button>').join('') : '') +
       '<button class="link" style="margin:6px 2px" ' + on('buscarTextoIA') + '>🔎 Buscar en el catálogo</button></div>';
   if (c.items && c.items.length) {
@@ -3905,25 +3905,48 @@ async function calcularComida() {
   const c = COMIDA_IA = COMIDA_IA || {};
   c.texto = ($('iaComida') || {}).value || c.texto || '';
   if (!c.texto.trim()) return toast('Escribe qué comiste');
-  const id = ++COMIDA_SEQ, texto = c.texto;
+  const id = ++COMIDA_SEQ, texto = c.texto, vigente = () => id === COMIDA_SEQ && COMIDA_IA === c;
   c.error = ''; c.items = null; c.locales = null;
   if (!navigator.onLine) { c.error = 'Sin señal no puedo preguntarle a la IA.'; c.locales = await sugerenciasCatalogo(texto); return repintarComidaIA(); }
-  c.cargando = true; repintarComidaIA();
+  c.cargando = true; c.desde = Date.now(); repintarComidaIA(); relojIA(c);
+  // Mientras la IA piensa: lo más parecido del catálogo, para que no tengas que esperarla
+  sugerenciasCatalogo(texto).then(l => { if (vigente() && c.cargando && l.length) { c.locales = l; repintarComidaIA(); } }).catch(() => {});
+  const pr = apiPost('comidaIA', [texto, { meta: metaProt(), llevas: protTotal(), comido: prot.map(tDe) }]);
   let r = null, err = null;
-  try { r = await conLimite(apiPost('comidaIA', [texto, { meta: metaProt(), llevas: protTotal(), comido: prot.map(tDe) }]), 40000); } catch (e) { err = e; }
-  if (id !== COMIDA_SEQ || COMIDA_IA !== c) return;   // ya preguntaste otra cosa o la descartaste
+  try { r = await conLimite(pr, LIMITE_IA_COMIDA); } catch (e) { err = e; }
+  if (!vigente()) return;   // ya preguntaste otra cosa o la descartaste
   c.cargando = false;
-  if (r && r.items && r.items.length) { c.items = r.items.map(x => Object.assign(x, { on: true })); c.consejo = r.consejo; }
+  if (r && r.items && r.items.length) ponerRespuestaIA(c, r);
   else {
     const msg = !err ? 'La IA no reconoció la comida' : err.message === 'tiempo' ? 'La IA tardó demasiado' : err.message;
-    c.error = 'No se pudo calcular: ' + msg + '. Prueba con otras palabras o elige del catálogo.';
+    c.error = err && err.message === 'tiempo' ? 'La IA está tardando. Elige del catálogo o espera aquí: si contesta, aparece sola.'
+      : 'No se pudo calcular: ' + msg + '. Prueba con otras palabras o elige del catálogo.';
     registrarError('IA comida: ' + msg + ' · «' + texto.slice(0, 80) + '»', 'calcularComida');
-    c.locales = await sugerenciasCatalogo(texto);
-    if (id !== COMIDA_SEQ || COMIDA_IA !== c) return;
+    // Si contesta tarde (hasta un minuto más) y no has preguntado otra cosa, se muestra
+    if (err && err.message === 'tiempo') conLimite(pr, 60000).then(r2 => {
+      if (!vigente() || c.items || !r2 || !r2.items || !r2.items.length) return;
+      ponerRespuestaIA(c, r2); c.error = ''; repintarComidaIA(); hap('ok'); toast('Ya llegó la respuesta de la IA');
+    }).catch(() => {});
+    if (!c.locales) c.locales = await sugerenciasCatalogo(texto);
+    if (!vigente()) return;
   }
   repintarComidaIA();
 }
-let COMIDA_SEQ = 0;
+function ponerRespuestaIA(c, r) {
+  c.items = r.items.map(x => Object.assign(x, { on: true })); c.consejo = r.consejo; c.locales = null;
+  // Para saber si sigue lenta: se anota cuando tarda más de 15 s (con el modelo que contestó)
+  const s = Math.round((Date.now() - (c.desde || Date.now())) / 1000);
+  if (s > 15) registrarError('Aviso: la IA de comida tardó ' + s + ' s (' + (r.modelo || '?') + ')', 'calcularComida');
+}
+// Segundos que lleva pensando (solo cambia ese texto, no repinta la pantalla)
+function relojIA(c) {
+  const t = setInterval(() => {
+    const el = $('iaSeg');
+    if (COMIDA_IA !== c || !c.cargando) return clearInterval(t);
+    if (el) el.textContent = Math.round((Date.now() - c.desde) / 1000) + ' s';
+  }, 1000);
+}
+let COMIDA_SEQ = 0, LIMITE_IA_COMIDA = 30000;
 // Repinta sin quitarte el teclado si sigues escribiendo
 function repintarComidaIA() {
   if (TAB !== 'Comida') return;

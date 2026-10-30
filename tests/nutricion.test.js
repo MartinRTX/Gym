@@ -118,3 +118,18 @@ test('Buscar como escribes: plurales, "de", "con" y cantidades no estorban', () 
   assert.ok(NUT.buscar(NUT.BASE, '2 tortillas de maíz').some(a => a.id === 'b:tort-maiz'));
   assert.ok(NUT.buscar(NUT.BASE, 'huevos').length > 0, 'huevos → huevo');
 });
+
+test('buscar es tolerante: porciones, sinónimos, errores de dedo y palabras que faltan', () => {
+  const B = NUT.BASE, primero = q => (NUT.buscar(B, q)[0] || {}).id;
+  assert.strictEqual(primero('rebanada de pizza'), 'b:pizza', 'las porciones no cuentan');
+  assert.strictEqual(primero('un scoop de proteína'), 'b:whey');
+  assert.strictEqual(primero('coca cola'), 'b:refresco', 'sinónimo');
+  assert.strictEqual(primero('tacos de asada'), 'b:taco-asada', 'con dos palabras basta una si no hay más');
+  assert.strictEqual(primero('chilaquiles verdes'), 'b:chilaquiles');
+  assert.strictEqual(primero('dogo'), 'b:dogo');
+  // Errores de dedo: se corrigen con el vocabulario de la lista (solo en listas grandes, como el catálogo)
+  const grande = B.concat(Array.from({ length: 250 }, (_, i) => ({ id: 'mx:' + i, n: 'Relleno ' + i, p: 1, c: 1, f: 1, k: 10 })));
+  assert.strictEqual((NUT.buscar(grande, 'torilla de harina')[0] || {}).id, 'b:tort-harina');
+  assert.strictEqual((NUT.buscar(grande, 'pechga de pollo')[0] || {}).id, 'b:pollo');
+  assert.deepStrictEqual(NUT.buscar(B, 'dos rebanadas'), [], 'solo porciones: nada que buscar');
+});

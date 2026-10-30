@@ -20,8 +20,22 @@ function nuevoRegistro(o) {
   m[id] = { ts: Date.now(), n: String(o.n || 'Comida').slice(0, 60), q: o.q || null, u: o.u || '', src: o.src || '', ref: o.ref || '',
             p: NUT.r1(o.p), c: o.c === null || o.c === undefined ? null : NUT.r1(o.c), f: o.f === null || o.f === undefined ? null : NUT.r1(o.f),
             k: o.k === null || o.k === undefined ? null : Math.round(o.k), fib: o.fib === null || o.fib === undefined ? null : NUT.r1(o.fib) };
+  if (o.partes && o.partes.length) m[id].partes = o.partes;
   regGuardar();
   return '#' + id;
+}
+// Los ingredientes de una receta o un tupper (para la hoja: un renglón por ingrediente)
+function partesDe(t) {
+  const n = v => v === null || v === undefined ? null : NUT.r1(v);
+  return (t.items || []).filter(x => x.al && x.m && x.q > 0).map(x => ({ n: String(x.al.n).slice(0, 60), q: NUT.r1(x.q), u: x.al.u || 'g',
+    p: NUT.r1(x.m.p), c: n(x.m.c), f: n(x.m.f), k: x.m.k === null || x.m.k === undefined ? null : Math.round(x.m.k), fib: n(x.m.fib) }));
+}
+// Recetas registradas antes de la v9.0 (sin ingredientes guardados): si la receta no ha cambiado, se sacan de ahí
+function partesSiNoCambio(r) {
+  const rec = r.src === 'receta' && recetaDe(r.ref);
+  if (!rec) return null;
+  const t = NUT.receta(rec, resolver);
+  return Math.abs(t.tot.k - (r.k || 0)) <= 2 && Math.abs(t.tot.p - (r.p || 0)) <= 0.5 ? partesDe(t) : null;
 }
 const esReg = k => typeof k === 'string' && k[0] === '#';
 const esRec = k => typeof k === 'string' && k[0] === '@';
@@ -65,7 +79,7 @@ function expandirClave(k) {
     const rec = recetaDe(k.slice(1));
     if (!rec) return k;
     const t = NUT.receta(rec, resolver);
-    return nuevoRegistro(Object.assign({ n: rec.n, src: 'receta', ref: rec.id }, t.tot));
+    return nuevoRegistro(Object.assign({ n: rec.n, src: 'receta', ref: rec.id, partes: partesDe(t) }, t.tot));
   }
   const f = FOODS.find(x => x.k === k);
   if (f) return nuevoRegistro(Object.assign({ n: f.t, src: 'boton', ref: k }, NUT.LEGADO[k] || { p: f.g }));
@@ -75,15 +89,20 @@ function expandirClave(k) {
 }
 // Lo que va a la hoja: la proteína y el detalle de siempre (Peso diario) y, con el script 7.7, cada cosa con sus macros (pestaña Comidas)
 function detalleTexto(lista) { return lista.map(k => esReg(k) ? clavePropia(tDe(k), gDe(k)) : k).join(', '); }
+const scriptPartes = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum('8.0'));
 const scriptNut = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum('7.7'));
 function sincronizarDia(dia, lista) {
   encolar('saveProteina', [protTotal(lista), detalleTexto(lista), dia], 'prot-' + dia);
   if (!scriptNut()) return;
-  const t = etiquetas(dia, lista.length);
-  const items = lista.map((k, i) => {
+  const t = etiquetas(dia, lista.length), porParte = scriptPartes(), items = [];
+  lista.forEach((k, i) => {
     const r = regDe(k), m = macrosDe(k);
-    return { id: esReg(k) ? k.slice(1) : '', h: r ? horaHHMM(r.ts) : '', m: t[i] || '', n: tDe(k), q: r ? r.q : null, u: r ? r.u : '',
-             p: m.p || 0, c: m.c, f: m.f, k: m.k, fib: m.fib, src: r ? r.src : 'boton', ref: r ? r.ref : k };
+    const base = { id: esReg(k) ? k.slice(1) : '', h: r ? horaHHMM(r.ts) : '', m: t[i] || '', src: r ? r.src : 'boton', ref: r ? r.ref : k };
+    // Script 8.0: una receta o un tupper va ingrediente por ingrediente, con "Parte de" = su nombre (la hoja los vuelve a juntar)
+    const partes = r && (r.partes || partesSiNoCambio(r));
+    if (porParte && partes && partes.length && base.id)
+      partes.forEach((x, j) => items.push(Object.assign({}, base, { id: base.id + '.' + j, n: x.n, q: x.q, u: x.u, p: x.p || 0, c: x.c, f: x.f, k: x.k, fib: x.fib, de: r.n })));
+    else items.push(Object.assign(base, { n: tDe(k), q: r ? r.q : null, u: r ? r.u : '', p: m.p || 0, c: m.c, f: m.f, k: m.k, fib: m.fib }));
   });
   encolar('saveComidas', [dia, items], 'cmd-' + dia);
 }
@@ -104,6 +123,7 @@ function listaDesdeHoja(dia) {
   d.forEach(x => {
     const id = x.id || uid();
     if (!m[id]) m[id] = { ts: Date.now(), n: x.n, q: x.q, u: x.u, src: x.src, ref: x.ref, p: x.p, c: x.c, f: x.f, k: x.k, fib: x.fib };
+    if (Array.isArray(x.partes) && x.partes.length && !m[id].partes) m[id].partes = x.partes;
     lista.push('#' + id); t.push(x.m || null);
   });
   regGuardar(); LS.set('gym_protmeal_' + dia, t);
@@ -255,7 +275,7 @@ function cerrarReceta() { const v = REC_ED && REC_ED.deCena; REC_ED = null; if (
 function agregarRecetaHoy() {
   const e = REC_ED, t = NUT.receta({ items: e.items }, resolver);
   if (e.cambio) { const c = nutCfg(); c.recetas.find(x => x.id === e.id).items = e.items; guardarNut(c); }
-  const k = nuevoRegistro(Object.assign({ n: e.n, src: 'receta', ref: e.id }, t.tot));
+  const k = nuevoRegistro(Object.assign({ n: e.n, src: 'receta', ref: e.id, partes: partesDe(t) }, t.tot));
   contarUso('@' + e.id);
   REC_ED = null; cerrarModal();
   const rec = recetaDe(e.id), aMano = COMIDA_SEL && Date.now() - COMIDA_SEL_T < 2 * 3600e3;
@@ -290,8 +310,8 @@ function resumenCena(d) {
     : 'Casi lo mismo: ajusta las cantidades para ver la diferencia.';
 }
 function cenaHoy(id) {
-  const rec = recetaDe(id), t = NUT.receta(rec, resolver).tot;
-  agregarAProt([nuevoRegistro(Object.assign({ n: rec.n, src: 'receta', ref: id }, t))], ['n']);
+  const rec = recetaDe(id), todo = NUT.receta(rec, resolver), t = todo.tot;
+  agregarAProt([nuevoRegistro(Object.assign({ n: rec.n, src: 'receta', ref: id, partes: partesDe(todo) }, t))], ['n']);
   contarUso('@' + id); cerrarModal(); hap('ok'); cambiarProt(); toast('Cena: +' + Math.round(t.p) + ' g · ' + t.k + ' kcal ✓');
 }
 
@@ -319,7 +339,7 @@ function pintarTupper() {
 function tupLado(l) { const i = TUP.lados.indexOf(l); if (i > -1) TUP.lados.splice(i, 1); else TUP.lados.push(l); hap('tecla'); pintarTupper(); }
 function tupperDeSiempre(clave) { const x = (nutCfg().tuppers || {})[clave]; if (!x) return; TUP = JSON.parse(JSON.stringify(x.sel)); agregarTupper(); }
 function agregarTupper() {
-  const t = NUT.receta({ items: NUT.tupper(TUP) }, resolver).tot, nombre = NUT.nombreTupper(TUP), clave = NUT.claveTupper(TUP);
+  const todo = NUT.receta({ items: NUT.tupper(TUP) }, resolver), t = todo.tot, nombre = NUT.nombreTupper(TUP), clave = NUT.claveTupper(TUP);
   const c = nutCfg(); c.tuppers = c.tuppers || {};
   const prev = c.tuppers[clave];
   c.tuppers[clave] = { clave: clave, sel: JSON.parse(JSON.stringify(TUP)), nombre: nombre, n: (prev ? prev.n : 0) + 1, ts: Date.now(), p: Math.round(t.p), k: t.k };
@@ -327,7 +347,7 @@ function agregarTupper() {
   const ks = Object.keys(c.tuppers).sort((a, b) => c.tuppers[b].n - c.tuppers[a].n || c.tuppers[b].ts - c.tuppers[a].ts);
   ks.slice(12).forEach(k => delete c.tuppers[k]);
   guardarNut(c);
-  agregarAProt([nuevoRegistro(Object.assign({ n: nombre, src: 'tupper', ref: clave }, t))], ['c']);
+  agregarAProt([nuevoRegistro(Object.assign({ n: nombre, src: 'tupper', ref: clave, partes: partesDe(todo) }, t))], ['c']);
   cerrarModal(); hap('ok'); cambiarProt(); toast('+' + Math.round(t.p) + ' g · ' + t.k + ' kcal ✓');
 }
 
@@ -376,7 +396,15 @@ function buscarNut(q) {
   }, 120);
 }
 function cerrarBuscador() { const o = BUS; BUS = null; if (o && o.volver) o.volver(); else cerrarModal(); }
-function elegirNut(id) { const al = listaBusqueda().find(a => a.id === id); if (al) pedirCantidad(al); }
+function elegirNut(id) {
+  const al = listaBusqueda().find(a => a.id === id);
+  if (!al) return;
+  // Desde la tarjeta de la IA no hay hoja abierta: se abre (antes se pintaba escondida y parecía que no hacía nada)
+  const desdeIA = !$('modal').classList.contains('show');
+  if (desdeIA) BUS = null;
+  pedirCantidad(al);
+  if (desdeIA) { CANT.deIA = true; abrirModal(); }
+}
 
 /* ----- Open Food Facts: búsqueda por nombre y por código de barras (productos de marca) ----- */
 const OFF = 'https://world.openfoodfacts.org';
@@ -444,6 +472,8 @@ function usarCantidad() {
   recordarAlimento(c.al);
   const m = NUT.macros(c.al, c.q), n = c.al.n + ' · ' + NUT.r1(c.q) + ' ' + (c.al.u || 'g');
   agregarAProt([nuevoRegistro(Object.assign({ n: n.slice(0, 60), q: c.q, u: c.al.u || 'g', src: c.al.src || String(c.al.id).split(':')[0], ref: c.al.id }, m))], [comidaActual()]);
+  // Si lo elegiste mientras la IA pensaba: ya no hace falta su respuesta
+  if (c.deIA) { COMIDA_IA = null; COMIDA_SEQ++; }
   contarUso(c.al.id); BUS = null; cerrarModal(); hap('ok'); cambiarProt(); toast('+' + NUT.r1(m.p) + ' g · ' + Math.round(m.k) + ' kcal ✓');
 }
 
