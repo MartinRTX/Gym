@@ -95,7 +95,10 @@ const NUT = (() => {
     B('dogo', 'Dogo sonorense (salchicha con tocino)', 9.0, 18.0, 13.0, 225, 1.0, [['1 dogo', 200]], { src: 'calc' }),
     B('pollo-asado', 'Pollo asado (con piel)', 27.0, 0, 13.5, 230, 0, [['1/4 de pollo sin hueso', 200], ['1 pierna con muslo', 150]], { src: 'calc' }),
     B('quesadilla', 'Quesadilla de harina con queso', 13.9, 31.4, 14.6, 313, 1.2, [['1 quesadilla', 70], ['2 quesadillas', 140]], { src: 'calc' }),
-    B('cereal', 'Cereal de caja (Cheerios, Corn Flakes…)', 8.0, 80.0, 3.5, 380, 7.0, [['1 taza', 30], ['1 plato hondo', 45]], { src: 'calc' })
+    B('cereal', 'Cereal de caja (Cheerios, Corn Flakes…)', 8.0, 80.0, 3.5, 380, 7.0, [['1 taza', 30], ['1 plato hondo', 45]], { src: 'calc' }),
+    // Botanas: se pueden contar por pieza ("6 doritos" = 6 × 2.5 g)
+    B('doritos', 'Doritos Nacho (totopos de maíz)', 7.1, 64.0, 28.6, 540, 3.6, [['1 pieza', 2.5], ['Bolsa chica', 45], ['Bolsa mediana', 62]], { src: 'calc' }),
+    B('sabritas', 'Sabritas (papas fritas de bolsa)', 6.5, 53.0, 35.0, 553, 4.4, [['1 papita', 1.8], ['Bolsa chica', 45], ['Bolsa mediana', 60]], { src: 'calc' })
   ];
   const BASE_POR_ID = {};
   BASE.forEach(a => { BASE_POR_ID[a.id] = a; });
@@ -336,7 +339,9 @@ const NUT = (() => {
     const por = (al && al.por) || [];
     // La porción que nombraste ("rebanada", "taza", "scoop", "taco"…): se compara por raíz para que "rebanadas" sea "rebanada"
     const nombrada = por.find(x => sinAcentos(x[0]).split(/\s+/).some(pw => pw.length > 2 && !NUMEROS[pw] && !/^\d/.test(pw) && pal.some(w => w.length > 2 && raiz(w) === raiz(pw))));
-    const base = nombrada || (n !== null ? por[0] : null);
+    // Sin porción nombrada ("6 doritos"): la de una pieza; si no hay, la primera, pero nunca un envase (6 bolsas no)
+    const pieza = por.find(x => /\b(pieza|papita|unidad|totopo|galleta)\b/i.test(x[0])), envase = x => /\b(bolsa|paquete|lata|botella|caja|frasco|sobre|envase)\b/i.test(sinAcentos(x[0]));
+    const base = nombrada || (n !== null ? pieza || (por[0] && !envase(por[0]) ? por[0] : null) : null);
     if (!base || !(base[1] > 0)) return null;
     // "media taza" con una porción de "1/2 taza" es esa porción una vez, no la mitad
     let veces = n === null ? 1 : n;

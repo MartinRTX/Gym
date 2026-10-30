@@ -622,19 +622,29 @@ function abrirMetas() {
     '<div class="metas">' + fila('Proteína', t.p, m.p, 'g') + fila('Calorías', t.k, m.k, 'kcal') + fila('Carbohidratos', t.c, m.c, 'g') + fila('Grasa', t.f, m.f, 'g') + fila('Fibra', t.fib, m.fib, 'g') + '</div>' +
     (m.auto ? '<div class="tip" style="margin:12px 0 0">Calculadas con tus datos: ' + m.kg + ' kg, ' + (DATA.dias || []).length + ' días de gym y tus km de trote. Mantenimiento ~' + m.mant.toLocaleString('es-MX') +
       ' kcal; −' + m.deficit + ' kcal para bajar grasa sin perder músculo' + (m.ajuste ? ' y ' + (m.ajuste > 0 ? '+' : '') + m.ajuste + ' porque ' + esc(m.porque) : '') +
-      '. Proteína: tu meta. Grasa: 0.8 g por kg. Carbohidratos: lo que queda. Se recalculan solas con tu peso y tu ritmo.</div>'
+      '. Proteína: tu meta. Grasa: 0.8 g por kg. Carbohidratos: lo que queda. Se recalculan solas con tu peso y tu ritmo. Panel muestra estas mismas.</div>'
       : '<div class="tip" style="margin:12px 0 0">Son las que pusiste tú. La proteína sigue siendo tu meta de siempre.</div>') +
     '<div class="tpaso">¿Quieres poner las tuyas?</div><div class="pcs">' +
       ['k', 'c', 'f'].map(k => '<label class="pc"><span>' + { k: 'kcal', c: 'Carbos', f: 'Grasa' }[k] + '</span><input id="mt_' + k + '" class="num" inputmode="numeric" value="' + m[k] + '"></label>').join('') + '</div>' +
     '<div class="acts">' + (m.auto ? '' : '<button class="btn ghost" ' + on('metasAuto') + '>Volver a las calculadas</button>') + '<button class="btn" ' + on('guardarMetas') + '>Usar estas</button></div>';
   abrirModal();
 }
+// Panel muestra las metas de Gym (opción A: Gym las calcula con tu peso y tu ritmo). Se mandan solo cuando cambian
+// (o una vez al día, para que Panel sepa que siguen vigentes)
+function mandarMetasGym() {
+  if (!DATA || !DATA.scriptVersion || versionNum(DATA.scriptVersion) < versionNum('8.1')) return;
+  const m = metasHoy(), env = { k: m.k, p: m.p, c: m.c, f: m.f, fib: m.fib, auto: !!m.auto, mant: m.mant || null, porque: m.auto ? m.porque || '' : 'las pusiste en Gym' };
+  const ya = LS.get('gym_metas_env', null), firma = [env.k, env.p, env.c, env.f, env.fib, env.auto].join('|');
+  if (ya && ya.firma === firma && ya.dia === hoy()) return;
+  encolar('saveConfig', [{ metasGym: env }], 'metas-gym');
+  LS.set('gym_metas_env', { firma: firma, dia: hoy() });
+}
 function guardarMetas() {
   const v = k => Math.round(Number(($('mt_' + k) || {}).value) || 0), c = nutCfg();
   if (v('k') < 1000 || v('k') > 5000) return toast('Revisa las calorías');
-  c.metas = { k: v('k'), c: v('c'), f: v('f') }; guardarNut(c); cerrarModal(); hap('ok'); pintarComida();
+  c.metas = { k: v('k'), c: v('c'), f: v('f') }; guardarNut(c); cerrarModal(); hap('ok'); pintarComida(); mandarMetasGym();
 }
-function metasAuto() { const c = nutCfg(); c.metas = null; guardarNut(c); cerrarModal(); pintarComida(); }
+function metasAuto() { const c = nutCfg(); c.metas = null; guardarNut(c); cerrarModal(); pintarComida(); mandarMetasGym(); }
 
 /* ----- Estilos ----- */
 document.head.insertAdjacentHTML('beforeend', `<style>

@@ -30,8 +30,13 @@ const filasHoja = p => p.evaluate(() => { const op = cola().filter(o => o.action
 
 (async () => {
   const b = await chromium.launch();
-  let p = await abrir(b, '8.0');
+  let p = await abrir(b, '8.1');
   try {
+    // Script 8.1: las metas que calcula Gym se mandan para que Panel las muestre (una sola vez si no cambian)
+    const metas = await p.evaluate(() => { const ops = cola().filter(o => o.action === 'saveConfig' && o.args[0] && o.args[0].metasGym); return { n: ops.length, m: ops[0] && ops[0].args[0].metasGym }; });
+    ok('Las metas de Gym se mandan para Panel', metas.n === 1 && metas.m.k > 1000 && metas.m.p > 0 && metas.m.auto === true, metas);
+    await p.evaluate(() => mandarMetasGym());
+    ok('Si no cambiaron, no se vuelven a mandar', await p.evaluate(() => cola().filter(o => o.tag === 'metas-gym').length === 1));
     // Buscador: porciones, errores de dedo, sinónimos y platillos
     await p.evaluate(() => { verTab('Comida'); abrirBuscador(); }); await p.waitForTimeout(300);
     await p.evaluate(() => cargarCatalogo()); await p.waitForTimeout(300);
@@ -42,6 +47,9 @@ const filasHoja = p => p.evaluate(() => { const op = cola().filter(o => o.action
     r = await busca('coca cola'); ok('«coca cola» encuentra el refresco de cola', /refresco de cola/i.test(r[0] || ''), r);
     r = await busca('tacos de asada'); ok('«tacos de asada» encuentra el taco', /taco de carne asada/i.test(r[0] || ''), r);
     r = await busca('chilaquiles'); ok('Platillos nuevos: chilaquiles', /chilaquiles/i.test(r[0] || ''), r);
+    await busca('6 doritos nachos'); await p.locator('#busRes .bres').first().click(); await p.waitForTimeout(250);
+    ok('«6 doritos nachos» → 6 piezas = 15 g', await p.evaluate(() => /Doritos/.test(CANT.al.n) && CANT.q === 15));
+    await p.evaluate(() => cerrarCantidad()); await p.waitForTimeout(150);
     // La cantidad sale de lo que escribiste: 4 rebanadas = 4 × 107 g
     await busca('4 rebanadas de pizza'); await p.locator('#busRes .bres').first().click(); await p.waitForTimeout(250);
     const cant = await p.evaluate(() => ({ q: CANT.q, tip: (document.querySelector('#sheet .tip') || {}).textContent || '' }));

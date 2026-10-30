@@ -1272,7 +1272,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v9.0';
+const VERSION_APP = 'v9.1';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1316,6 +1316,7 @@ async function actualizar(intento) {
     if (!igual || DIA_PINTADO !== hoy()) pintarTodo();   // si no cambió nada, no se borra lo que estés escribiendo
     if (!NATIVO_LISTO) iniciarNativo();                   // primera vez en este celular (sin datos guardados)
     seguroNut(primerSyncNut, 'primer envío');           // script 7.7 recién puesto: sube hoy y ayer a la pestaña Comidas
+    seguroNut(mandarMetasGym, 'metas para Panel');      // script 8.1: Panel muestra las metas que calcula Gym
     precargarMedia();
     if (DATA.perfil === false && !LS.get('gym_bienvenida', false)) abrirBienvenida();
     else { revisarMedallas(); setTimeout(tourSiToca, 700); }
@@ -1457,7 +1458,7 @@ function ladoVisible(base) {
 function verLado(base, lado) { QUIEN[base] = lado; ANIM_ABRE = base; hap('tecla'); pintarEntrenar(); }
 // Sugerencia al empezar cada ejercicio (subir, bajar o mantener, con números). El script 7.4 ya la manda calculada
 // con la misma función (motor.js → progresionInicio); con un script anterior, la calcula la app con tu última sesión.
-const SCRIPT_ESPERADO = '8.0';
+const SCRIPT_ESPERADO = '8.1';
 const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);
 const scriptAlDia = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum(SCRIPT_ESPERADO));
 // Un solo motor: si la hoja trae el mismo motor (misma huella que motor.js) se usa lo que calculó; si no, lo calcula la app

@@ -146,3 +146,12 @@ test('cantidadDeTexto: lo que escribiste se vuelve gramos (4 rebanadas = 4 × re
   assert.strictEqual(q('dos tortillas de maíz', 'tort-maiz'), 60);
   assert.strictEqual(NUT.cantidadDeTexto('pizza', b('pizza')), null, 'sin cantidad: se queda la porción de siempre');
 });
+
+test('botanas por pieza: "6 doritos" son 6 piezas, no 6 bolsas', () => {
+  const b = id => NUT.BASE.find(a => a.id === 'b:' + id);
+  assert.strictEqual(NUT.buscar(NUT.BASE, '6 doritos nachos')[0].id, 'b:doritos');
+  assert.strictEqual(NUT.cantidadDeTexto('6 doritos nachos', b('doritos')).q, 15);
+  assert.strictEqual(NUT.cantidadDeTexto('10 sabritas', b('sabritas')).q, 18);
+  assert.strictEqual(NUT.cantidadDeTexto('una bolsa de sabritas', b('sabritas')).q, 45);
+  assert.strictEqual(NUT.cantidadDeTexto('2 cocas', { n: 'Coca', por: [['1 lata', 355]] }), null, 'un número solo no multiplica envases');
+});
