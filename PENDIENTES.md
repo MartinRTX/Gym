@@ -6,10 +6,10 @@ Actualizado: 30/10/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | v9.1 publicada (`main` = rama de trabajo) |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | v9.2 publicada (`main` = rama de trabajo) |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
-| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | 8.1 publicado (se publica solo con clasp al subir a `main`) |
+| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | 8.2 publicado (se publica solo con clasp al subir a `main`) |
 | Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | 1.4: lee Gym y Finanzas (solo lectura); comidas y metas vienen de Gym; plan semanal en "Comidas 2026" |
 
 Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` (`herramientas/revisar.js` falla si no).
@@ -52,7 +52,7 @@ App y script van juntos: al publicar, adelantar `main` de Gym **y** pasar la ram
   al mandarlos a la app (`juntarPartes_`). Recetas de antes sin ingredientes: si la receta no cambió, se sacan de ahí.
 - Pendiente después de publicar: revisar en Errores los "Aviso: la IA de comida tardó…" para ver si sigue lenta y con qué modelo.
 
-## v9.2 / script 8.2 (en ramas, falta "publica": Gym `claude/fitness-app-visual-design-x9iz7n`, script `claude/etiqueta-82`)
+## v9.2 / script 8.2 (publicado 30/10/2026)
 
 - Etiqueta + nota: la IA (`etiquetaIA_`, `fotoIA_`) solo copia la tabla (declarada por 100 g / porción / ambas, porción en g y piezas,
   porciones por envase, columna "por envase", contenido neto) y lo que dijiste (`consumo`); **todas las cuentas en la app**
