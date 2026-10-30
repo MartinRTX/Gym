@@ -52,6 +52,14 @@ App y script van juntos: al publicar, adelantar `main` de Gym **y** pasar la ram
   al mandarlos a la app (`juntarPartes_`). Recetas de antes sin ingredientes: si la receta no cambió, se sacan de ahí.
 - Pendiente después de publicar: revisar en Errores los "Aviso: la IA de comida tardó…" para ver si sigue lenta y con qué modelo.
 
+## v9.2 / script 8.2 (en ramas, falta "publica": Gym `claude/fitness-app-visual-design-x9iz7n`, script `claude/etiqueta-82`)
+
+- Etiqueta + nota: la IA (`etiquetaIA_`, `fotoIA_`) solo copia la tabla (declarada por 100 g / porción / ambas, porción en g y piezas,
+  porciones por envase, columna "por envase", contenido neto) y lo que dijiste (`consumo`); **todas las cuentas en la app**
+  (`NUT.leerEtiqueta`, `gramosDeConsumo`, `gramosDe`). Si falta el envase y pides todo/la mitad, la vista previa lo pide.
+- Vista previa (`abrirEtiqueta`): cantidad en g/ml, piezas, porciones o parte del envase con macros al instante; actualiza el
+  producto si ya lo tienes (`NUT.mismoProducto`); 📷 en el Registro inteligente (foto + lo escrito) y texto de tabla pegado.
+
 ## Pendientes de la app (refactor y auditoría)
 
 1. Partir `app.js` (~5,300 líneas) en ~10 archivos y juntar los `CSS_V53…CSS_V89` en un `app.css`.

@@ -201,6 +201,62 @@ const NUT = (() => {
     return { al: al, avisos: avisos };
   }
 
+  /* ----- Etiqueta completa (script 8.2): la IA solo copia la tabla y lo que dijiste; aquí se hacen TODAS las cuentas.
+     Regresa el alimento por 100 g/ml (con porciones: 1 porción, 1 pieza, el envase) y lo que hace falta para la cantidad. ----- */
+  function leerEtiqueta(r) {
+    const e = normalizarEtiqueta(r);
+    if (e.error) return e;
+    const al = e.al, por = r.porcion && Number(r.porcion.cant) > 0 ? r.porcion : null;
+    const porcionG = por ? Number(por.cant) : null, piezas = por && Number(por.piezas) > 0 ? Number(por.piezas) : null;
+    const pieza = porcionG && piezas ? r1(porcionG / piezas) : null;
+    // El envase: contenido neto → porciones por envase × porción → la columna "por envase" (su cantidad o, si no, por sus kcal)
+    let envase = null, envaseDe = null;
+    const env = r.envase || null;
+    if (Number(r.contenido_neto) > 0) { envase = Number(r.contenido_neto); envaseDe = 'neto'; }
+    else if (Number(r.porciones_envase) > 0 && porcionG) { envase = r1(Number(r.porciones_envase) * porcionG); envaseDe = 'porciones'; }
+    else if (env && Number(env.cant) > 0) { envase = Number(env.cant); envaseDe = 'columna'; }
+    else if (env && Number(env.k) > 0 && al.k > 0) { envase = Math.round(Number(env.k) / al.k * 100); envaseDe = 'kcal'; }
+    const u = al.u;
+    al.por = [];
+    if (porcionG) al.por.push(['1 porción' + (por.texto && !/^1 porci/i.test(por.texto) ? ' (' + String(por.texto).slice(0, 20) + ')' : ''), porcionG]);
+    // La pieza se llama como en la etiqueta ("3 galletas" → "1 galleta"), para que "4 galletas" se entienda al buscar
+    const sust = por ? String(por.texto || '').replace(/^[\d.,½¼\s]+/, '').trim().split(/\s+/)[0] || '' : '';
+    if (pieza) al.por.push(['1 ' + (sust && !/^porci/i.test(sust) ? raiz(sust.toLowerCase()) : 'pieza'), pieza]);
+    if (envase) al.por.push(['Todo el envase', envase]);
+    const declarada = r.declarada || (r.por100 && por ? 'ambas' : por ? 'porcion' : '100');
+    return { al: al, avisos: e.avisos, info: { u: u, porcionG: porcionG, piezas: piezas, pieza: pieza, envase: envase, envaseDe: envaseDe, declarada: declarada,
+             porcionTexto: por ? String(por.texto || '') : '' } };
+  }
+  // Lo que dijiste que comiste → gramos (o ml). falta: el dato que hay que pedirte (el tamaño del envase o el de una pieza)
+  function gramosDeConsumo(consumo, info) {
+    const c = consumo || {}, v = Number(c.valor), pg = info.porcionG;
+    if (c.tipo === 'cantidad' && v > 0) return { q: r1(v), modo: 'g', valor: r1(v) };
+    if (c.tipo === 'porciones' && v > 0 && pg) return { q: r1(v * pg), modo: 'porciones', valor: v };
+    if (c.tipo === 'piezas' && v > 0) return info.pieza ? { q: r1(v * info.pieza), modo: 'piezas', valor: v } : { q: pg || 100, modo: 'g', valor: pg || 100, falta: 'pieza' };
+    if (c.tipo === 'todo' || (c.tipo === 'fraccion' && v > 0)) {
+      const f = c.tipo === 'todo' ? 1 : v;
+      return info.envase ? { q: r1(f * info.envase), modo: 'envase', valor: f } : { q: null, modo: 'envase', valor: f, falta: 'envase' };
+    }
+    return pg ? { q: pg, modo: 'porciones', valor: 1 } : { q: 100, modo: 'g', valor: 100 };
+  }
+  // Gramos según cómo lo cuentas: g/ml, piezas, porciones o fracción del envase
+  function gramosDe(modo, valor, info) {
+    const v = Number(valor) || 0;
+    if (modo === 'piezas') return info.pieza ? r1(v * info.pieza) : null;
+    if (modo === 'porciones') return info.porcionG ? r1(v * info.porcionG) : null;
+    if (modo === 'envase') return info.envase ? r1(v * info.envase) : null;
+    return r1(v);
+  }
+  // ¿Es el mismo producto que ya tienes? (mismo código, o casi las mismas palabras en el nombre y la marca)
+  function mismoProducto(a, b) {
+    if (a.code && b.code && String(a.code) === String(b.code)) return true;
+    const pal = x => new Set(sinAcentos((x.n || '') + ' ' + (x.marca || '')).split(/\s+/).filter(w => w.length > 2 && !VACIAS[w]).map(raiz));
+    const pa = pal(a), pb = pal(b);
+    if (!pa.size || !pb.size) return false;
+    let comunes = 0; pa.forEach(w => { if (pb.has(w)) comunes++; });
+    return comunes / Math.min(pa.size, pb.size) >= 0.75 && comunes >= Math.min(2, pa.size, pb.size);
+  }
+
   /* ----- Metas del día. Proteína: la tuya (manda). Calorías: mantenimiento por peso y actividad, −15 % para bajar grasa sin perder músculo,
      y se ajustan con tu ritmo de peso real. Grasa 0.8 g/kg; fibra 14 g por cada 1000 kcal; carbohidratos, lo que queda ----- */
   function metas(o) {
@@ -338,7 +394,7 @@ const NUT = (() => {
     if (n === null) for (const w of pal) if (NUMEROS[w] !== undefined) { n = NUMEROS[w]; break; }
     const por = (al && al.por) || [];
     // La porción que nombraste ("rebanada", "taza", "scoop", "taco"…): se compara por raíz para que "rebanadas" sea "rebanada"
-    const nombrada = por.find(x => sinAcentos(x[0]).split(/\s+/).some(pw => pw.length > 2 && !NUMEROS[pw] && !/^\d/.test(pw) && pal.some(w => w.length > 2 && raiz(w) === raiz(pw))));
+    const nombrada = por.find(x => sinAcentos(x[0].replace(/\(.*\)/, '')).split(/\s+/).some(pw => pw.length > 2 && !NUMEROS[pw] && !/^\d/.test(pw) && pal.some(w => w.length > 2 && raiz(w) === raiz(pw))));
     // Sin porción nombrada ("6 doritos"): la de una pieza; si no hay, la primera, pero nunca un envase (6 bolsas no)
     const pieza = por.find(x => /\b(pieza|papita|unidad|totopo|galleta)\b/i.test(x[0])), envase = x => /\b(bolsa|paquete|lata|botella|caja|frasco|sobre|envase)\b/i.test(sinAcentos(x[0]));
     const base = nombrada || (n !== null ? pieza || (por[0] && !envase(por[0]) ? por[0] : null) : null);
@@ -367,6 +423,6 @@ const NUT = (() => {
   };
 
   return { MAC, BASE, BASE_POR_ID, RECETAS, TUPPER, LEGADO, ES_EN, r1, macros, sumar, receta, diferencia, cambiarRol, tupper, nombreTupper, claveTupper,
-           normalizarEtiqueta, metas, buscar, cantidadDeTexto, desempacar, sinAcentos };
+           normalizarEtiqueta, leerEtiqueta, gramosDeConsumo, gramosDe, mismoProducto, metas, buscar, cantidadDeTexto, desempacar, sinAcentos };
 })();
 if (typeof module !== 'undefined') module.exports = NUT;

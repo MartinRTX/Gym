@@ -462,7 +462,7 @@ function pintarCantidad() {
   $('sheet').innerHTML = '<div class="row between"><div class="t2" style="padding-right:8px">' + esc(al.n) + '</div><button class="cerrar" ' + on('cerrarCantidad') + ' aria-label="Volver">✕</button></div>' +
     '<div class="muted" style="margin:2px 0 10px">' + fuenteTxt(al) + (al.crudo ? ' · valores del alimento crudo: pésalo antes de cocinar' : '') + (al.nota ? ' · ' + esc(al.nota) : '') + '</div>' +
     (c.dijo && c.q === c.dijo.q ? '<div class="tip" style="margin:0 0 10px">Escribiste ' + esc(c.dijo.texto) + ' = <b class="num">' + NUT.r1(c.q) + ' ' + (al.u || 'g') + '</b>. Si fue otra cantidad, cámbiala.</div>' : '') +
-    (al.por && al.por.length ? '<div class="tchips">' + al.por.map(p => '<button class="tch' + (c.q === p[1] ? ' on' : '') + '" ' + on('cantFija', p[1]) + '>' + esc(p[0]) + ' · ' + p[1] + ' ' + (al.u || 'g') + '</button>').join('') + '</div>' : '') +
+    (al.por && al.por.length ? '<div class="tchips">' + al.por.concat(al.por.filter(p => p[0] === 'Todo el envase').map(p => ['La mitad del envase', NUT.r1(p[1] / 2)])).map(p => '<button class="tch' + (c.q === p[1] ? ' on' : '') + '" ' + on('cantFija', p[1]) + '>' + esc(p[0]) + ' · ' + p[1] + ' ' + (al.u || 'g') + '</button>').join('') + '</div>' : '') +
     '<div class="cantfila"><button class="mini" ' + on('cantPaso', -1) + ' aria-label="Menos">−</button>' +
     '<input class="cant num" inputmode="decimal" value="' + c.q + '" ' + ev('change', 'cantEscrita', VALOR) + ' aria-label="Cantidad"><span class="u">' + (al.u || 'g') + '</span>' +
     '<button class="mini" ' + on('cantPaso', 1) + ' aria-label="Más">+</button></div>' +
@@ -498,8 +498,9 @@ function abrirCamara(tipo) {
 }
 function pedirFoto(tipo) {
   FOTO = { tipo: tipo };
-  if ((tipo === 'etiqueta' || tipo === 'tupper') && !scriptNut()) { cerrarModal(); return toast('Actualiza tu script a la 7.7 para leer fotos con la IA'); }
-  if ((tipo === 'etiqueta' || tipo === 'tupper') && !DATA.ia) { cerrarModal(); return toast('La IA no está activada en tu hoja'); }
+  if (tipo === 'nota' && !scriptEtiqueta()) { cerrarModal(); return toast('Actualiza tu script a la 8.2 para mandar foto con nota'); }
+  if ((tipo === 'etiqueta' || tipo === 'tupper' || tipo === 'nota') && !scriptNut()) { cerrarModal(); return toast('Actualiza tu script a la 7.7 para leer fotos con la IA'); }
+  if ((tipo === 'etiqueta' || tipo === 'tupper' || tipo === 'nota') && !DATA.ia) { cerrarModal(); return toast('La IA no está activada en tu hoja'); }
   let inp = $('fotoNut');
   if (!inp) {
     inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.id = 'fotoNut'; inp.style.display = 'none';
@@ -507,7 +508,8 @@ function pedirFoto(tipo) {
     document.body.appendChild(inp);
   }
   // Con "capture" el celular abre la cámara directo; sin él, deja elegir de la galería
-  if (FOTO_GALERIA) inp.removeAttribute('capture'); else inp.setAttribute('capture', 'environment');
+  // Con nota (desde el Registro inteligente) deja escoger: cámara o una foto/captura que ya tienes
+  if (FOTO_GALERIA || tipo === 'nota') inp.removeAttribute('capture'); else inp.setAttribute('capture', 'environment');
   inp.click();
 }
 // La foto se achica (1280 px, JPEG) antes de mandarla: sube rápido aun con poca señal
@@ -545,8 +547,21 @@ async function procesarFotoNut(file) {
       return;
     }
     if (!navigator.onLine) { cerrarModal(); return toast('Necesitas señal para leer la foto con la IA'); }
-    cargandoFoto(tipo === 'etiqueta' ? 'Leyendo la etiqueta…' : 'Viendo tu comida…');
+    cargandoFoto(tipo === 'etiqueta' ? 'Leyendo la etiqueta…' : tipo === 'nota' ? 'Leyendo tu foto…' : 'Viendo tu comida…');
     const f = await achicarFoto(file, 1280);
+    if (tipo === 'nota') {
+      const r = await conLimite(apiPost('fotoIA', [f.b64, 'image/jpeg', { nota: FOTO.nota || '', contexto: { meta: metaProt(), llevas: protTotal() } }]), 70000);
+      if (r.tipo === 'etiqueta') return abrirEtiqueta(r, true);
+      COMIDA_IA = { texto: FOTO.nota || '', items: (r.items || []).map(x => Object.assign(x, { on: true })), consejo: r.consejo, deFoto: true };
+      cerrarModal(); verTab('Comida');
+      setTimeout(() => { const c = document.querySelector('.iacard'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
+      return;
+    }
+    if (tipo === 'etiqueta' && scriptEtiqueta()) {
+      const r = await conLimite(apiPost('etiquetaIA', [f.b64, 'image/jpeg', {}]), 60000);
+      if (r.es_etiqueta === false) { cerrarModal(); return toast('No vi una tabla nutrimental en la foto: tómala de frente y con buena luz'); }
+      return abrirEtiqueta(r);
+    }
     if (tipo === 'etiqueta') {
       const r = await conLimite(apiPost('etiquetaIA', [f.b64, 'image/jpeg']), 45000);
       const e = NUT.normalizarEtiqueta(Object.assign({}, r, { src: 'etiqueta' }));
@@ -567,6 +582,126 @@ async function codigoManual() {
   cargandoFoto('Buscando el código…');
   const a = await productoPorCodigo(v);
   if (a) confirmarProducto(a, a.avisos || []); else abrirCamara();
+}
+
+/* ----- Etiqueta + lo que dijiste (script 8.2). La IA solo copió la tabla y tu nota; aquí se hacen las cuentas.
+   Revisas, cambias la cantidad (g/ml, piezas, porciones o parte del envase) y los macros se recalculan al instante.
+   Si ya tienes ese producto, se actualiza en vez de duplicarse. ----- */
+let ETQ = null;
+const scriptEtiqueta = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum('8.2'));
+function abrirEtiqueta(r, desdeIA) {
+  const e = NUT.leerEtiqueta(Object.assign({}, r, { src: 'etiqueta' }));
+  if (e.error) { cerrarModal(); return toast(e.error + '. Tómala de frente y con buena luz'); }
+  if (r.code) e.al.code = String(r.code);
+  const c = NUT.gramosDeConsumo(r.consumo, e.info);
+  const prev = nutCfg().productos.find(x => NUT.mismoProducto(e.al, x));
+  // Solo leche o proteína EN POLVO se proponen para el licuado (una barra o un yogurt "con proteína" no)
+  if (!e.al.rol) e.al.rol = /^leche|\bmilk\b/i.test(e.al.n) ? 'leche' : /whey|isolat|en polvo|\bpolvo\b/i.test(e.al.n) || e.al.p > 60 ? 'proteina' : '';
+  ETQ = { al: e.al, info: e.info, avisos: e.avisos.concat(r.avisos || []), modo: c.modo, valor: c.valor, falta: c.falta || null,
+          prev: prev ? prev.id : null, actualizar: !!prev, desdeIA: !!desdeIA };
+  pintarEtiqueta();
+  if (!$('modal').classList.contains('show')) abrirModal();
+}
+const etqGramos = () => NUT.gramosDe(ETQ.modo, ETQ.valor, ETQ.info);
+const ETQ_UNIDAD = { piezas: 'piezas', porciones: 'porciones', envase: 'del envase' };
+const ETQ_PASO = { g: 5, piezas: 1, porciones: 0.5, envase: 0.25 };
+function etqTotalHtml() {
+  const g = etqGramos(), u = ETQ.info.u;
+  if (g === null || !(g > 0)) return '<span class="muted">' + (g === null ? 'Falta saber cuánto trae el envase (arriba)' : 'Pon cuánto comiste') + '</span>';
+  const m = NUT.macros(ETQ.al, g);
+  return '<b class="num">' + NUT.r1(m.p) + ' g</b> proteína<span>' + NUT.r1(g) + ' ' + u + ' · ' + fmtM(m, true) + '</span>';
+}
+function pintarEtiqueta() {
+  const E = ETQ, a = E.al, i = E.info, u = i.u, prev = E.prev && nutCfg().productos.find(x => x.id === E.prev);
+  const decl = (i.declarada === 'porcion' ? 'La tabla venía por porción' + (i.porcionG ? ' (' + i.porcionG + ' ' + u + ')' : '') + ': ya la pasé a 100 ' + u + '.'
+    : i.declarada === 'ambas' ? 'La tabla traía por 100 ' + u + ' y por porción' + (i.porcionG ? ' (' + i.porcionG + ' ' + u + ')' : '') + '.' : 'La tabla venía por 100 ' + u + '.') +
+    (i.pieza ? ' 1 porción = ' + i.piezas + ' piezas, así que 1 pieza = ' + i.pieza + ' ' + u + '.' : '') +
+    (i.envase ? ' Envase: ' + i.envase + ' ' + u + ({ neto: ' (contenido neto)', porciones: ' (porciones por envase × porción)', columna: ' (columna "por envase")', kcal: ' (sacado de la columna "por envase")', mano: ' (lo pusiste tú)' }[i.envaseDe] || '') + '.' : '');
+  const modos = [['g', u], ['piezas', 'Piezas'], ['porciones', 'Porciones'], ['envase', 'Del envase']].filter(m => m[0] !== 'piezas' || i.pieza).filter(m => m[0] !== 'porciones' || i.porcionG);
+  const campo = (k, nom) => '<label class="pc"><span>' + nom + '</span><input class="num" inputmode="decimal" value="' + (a[k] === null || a[k] === undefined ? '' : a[k]) + '" ' + ev('change', 'etqNumero', k, VALOR) + '></label>';
+  const g = etqGramos();
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">Revisa antes de agregar</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
+    (E.avisos.length ? '<div class="tip acc" style="margin:8px 0">⚠️ ' + E.avisos.map(esc).join('<br>⚠️ ') + '</div>' : '') +
+    (E.falta === 'pieza' ? '<div class="tip acc" style="margin:8px 0">La tabla no dice cuántas piezas son una porción: pon los gramos o las porciones.</div>' : '') +
+    '<input class="campo" value="' + esc(a.n) + '" ' + ev('change', 'etqTexto', 'n', VALOR) + ' aria-label="Nombre">' +
+    '<input class="campo" value="' + esc(a.marca || '') + '" placeholder="Marca" ' + ev('change', 'etqTexto', 'marca', VALOR) + ' aria-label="Marca">' +
+    '<div class="muted etqdecl">' + esc(decl) + '</div>' +
+    (prev ? '<div class="tpaso">Ya tienes «' + esc(prev.n) + '» en tus productos</div><div class="tchips">' +
+      '<button class="tch' + (E.actualizar ? ' on' : '') + '" ' + on('etqActualizar', true) + '>Actualizar el que tengo</button>' +
+      '<button class="tch' + (!E.actualizar ? ' on' : '') + '" ' + on('etqActualizar', false) + '>Guardar como otro</button></div>' : '') +
+    '<div class="tpaso">¿Cuánto comiste?</div><div class="seg etqmodos">' + modos.map(m => '<button class="' + (E.modo === m[0] ? 'on' : '') + '" ' + on('etqModo', m[0]) + '>' + esc(m[1]) + '</button>').join('') + '</div>' +
+    (E.modo === 'envase' ? '<div class="tchips" style="margin-top:8px">' + [['Todo', 1], ['La mitad', 0.5], ['Un tercio', 0.333], ['Un cuarto', 0.25]]
+      .map(x => '<button class="tch' + (Math.abs(E.valor - x[1]) < 0.01 ? ' on' : '') + '" ' + on('etqFraccion', x[1]) + '>' + x[0] + '</button>').join('') + '</div>' +
+      (!i.envase ? '<div class="tip acc" style="margin:8px 0 4px">La tabla no dice cuánto trae el envase. Escríbelo (viene al frente: "Contenido neto"):</div>' +
+        '<div class="row etqenv"><input id="etqEnvG" class="cant num" inputmode="decimal" placeholder="—" ' + ev('change', 'etqEnvase', 'g', VALOR) + '><span class="muted">' + u + '</span>' +
+        (i.porcionG ? '<span class="muted">o</span><input id="etqEnvP" class="cant num" inputmode="decimal" placeholder="—" ' + ev('change', 'etqEnvase', 'porciones', VALOR) + '><span class="muted">porciones</span>' : '') + '</div>' : '') : '') +
+    '<div class="cantfila"><button class="mini" ' + on('etqPaso', -1) + ' aria-label="Menos">−</button>' +
+    '<input id="etqValor" class="cant num" inputmode="decimal" value="' + NUT.r1(E.valor) + '" ' + ev('input', 'etqValor', VALOR) + ' aria-label="Cantidad">' +
+    '<span class="u">' + esc(ETQ_UNIDAD[E.modo] || u) + '</span><button class="mini" ' + on('etqPaso', 1) + ' aria-label="Más">+</button></div>' +
+    '<div class="rectot" id="etqTot">' + etqTotalHtml() + '</div>' +
+    '<details class="etqdet"><summary>Valores por 100 ' + u + ' (corrige si algo se leyó mal)</summary><div class="pcs">' +
+      campo('p', 'Proteína') + campo('c', 'Carbos') + campo('f', 'Grasa') + campo('k', 'kcal') + campo('fib', 'Fibra') + '</div></details>' +
+    '<div class="tpaso">¿Es de tu licuado?</div><div class="tchips">' +
+      [['leche', '🥛 Mi leche de siempre'], ['proteina', '💪 Mi proteína de siempre'], ['', 'No']].map(r => '<button class="tch' + (a.rol === r[0] ? ' on' : '') + '" ' + on('etqRol', r[0]) + '>' + r[1] + '</button>').join('') + '</div>' +
+    '<div class="acts"><button class="btn ghost" ' + on('etqGuardar', false) + '>Solo guardar</button><button class="btn" id="etqAgregar"' + (g > 0 ? '' : ' disabled') + ' ' + on('etqGuardar', true) + '>Agregar</button></div>';
+}
+// Escribir la cantidad recalcula al instante sin repintar (no se cierra el teclado)
+function etqValor(v) {
+  ETQ.valor = numeroEscrito(v) || 0;
+  $('etqTot').innerHTML = etqTotalHtml();
+  const g = etqGramos(), b = $('etqAgregar'); if (b) b.disabled = !(g > 0);
+}
+function etqPaso(d) { const p = ETQ_PASO[ETQ.modo] || 1; ETQ.valor = Math.max(0, Math.round((ETQ.valor + d * p) * 1000) / 1000); hap('tecla'); pintarEtiqueta(); }
+// Cambiar de forma de contar conserva lo que ya llevabas (60 g → 6 piezas)
+function etqModo(m) {
+  const g = etqGramos(), i = ETQ.info;
+  const por = { g: 1, piezas: i.pieza, porciones: i.porcionG, envase: i.envase }[m];
+  ETQ.modo = m;
+  ETQ.valor = g > 0 && por ? Math.round(g / por * (m === 'envase' ? 100 : 10)) / (m === 'envase' ? 100 : 10) : m === 'g' ? (i.porcionG || 100) : 1;
+  pintarEtiqueta();
+}
+function etqFraccion(v) { ETQ.modo = 'envase'; ETQ.valor = v; pintarEtiqueta(); }
+function etqEnvase(tipo, v) {
+  const n = numeroEscrito(v), i = ETQ.info;
+  if (!(n > 0)) return;
+  i.envase = NUT.r1(tipo === 'porciones' ? n * i.porcionG : n); i.envaseDe = 'mano';
+  ETQ.al.por = ETQ.al.por.filter(x => x[0] !== 'Todo el envase').concat([['Todo el envase', i.envase]]);
+  pintarEtiqueta();
+}
+function etqNumero(k, v) { if (['p', 'c', 'f', 'k', 'fib'].includes(k)) { ETQ.al[k] = numeroEscrito(v) || 0; pintarEtiqueta(); } }
+function etqTexto(k, v) { if (k === 'n') ETQ.al.n = String(v).slice(0, 60); else if (k === 'marca') ETQ.al.marca = String(v).slice(0, 40); }
+function etqActualizar(b) { ETQ.actualizar = !!b; pintarEtiqueta(); }
+function etqRol(r) { ETQ.al.rol = r; pintarEtiqueta(); }
+function etqGuardar(agregar) {
+  const E = ETQ, a = E.al, c = nutCfg(), g = etqGramos();
+  if (!(a.p >= 0) || !(a.k >= 0)) return toast('Revisa la proteína y las calorías');
+  if (agregar && !(g > 0)) return toast(g === null ? 'Escribe cuánto trae el envase' : 'Pon cuánto comiste');
+  const id = E.actualizar && E.prev ? E.prev : 'p:' + uid();
+  const prod = { id: id, n: a.n, marca: a.marca || '', u: a.u || 'g', p: NUT.r1(a.p), c: NUT.r1(a.c), f: NUT.r1(a.f), k: Math.round(a.k), fib: NUT.r1(a.fib || 0),
+                 por: a.por || [], src: 'etiqueta', code: a.code || '', ts: Date.now() };
+  c.productos = c.productos.filter(x => x.id !== id).concat([prod]).slice(-40);
+  if (a.rol === 'leche' || a.rol === 'proteina') NUT.cambiarRol(c.recetas, a.rol, id, a.rol === 'proteina' && prod.por[0] ? prod.por[0][1] : null);
+  guardarNut(c);
+  ETQ = null;
+  if (agregar) {
+    const m = NUT.macros(prod, g), n = prod.n + ' · ' + NUT.r1(g) + ' ' + prod.u;
+    agregarAProt([nuevoRegistro(Object.assign({ n: n.slice(0, 60), q: g, u: prod.u, src: 'etiqueta', ref: id }, m))], [comidaActual()]);
+    contarUso(id);
+    if (E.desdeIA) { COMIDA_IA = null; COMIDA_SEQ++; }
+    cerrarModal(); hap('ok'); cambiarProt(); toast('+' + NUT.r1(m.p) + ' g · ' + Math.round(m.k) + ' kcal ✓' + (E.actualizar && E.prev ? ' · producto actualizado' : ''));
+  } else { cerrarModal(); hap('ok'); toast(E.actualizar && E.prev ? 'Producto actualizado ✓' : 'Guardado en tus productos ✓'); }
+  pintarComida(); actualizarWidgets();
+}
+// ¿Lo que escribiste es el texto de una tabla nutrimental? (varias palabras de tabla y números)
+function pareceEtiqueta(t) {
+  const pal = new Set((String(t).toLowerCase().match(/kcal|kj|energ[ií]a|contenido energ|prote[ií]nas?|grasas? (?:totales|saturadas)|carbohidratos|hidratos de carbono|porci[oó]n|sodio|az[uú]cares/g) || []).map(x => x.slice(0, 5)));
+  return pal.size >= 3 && (String(t).match(/\d+(?:[.,]\d+)?/g) || []).length >= 4;
+}
+// 📷 en el Registro inteligente: la foto (etiqueta o comida) va junto con lo que escribiste
+function fotoConNota() {
+  const t = ($('iaComida') || {}).value || (COMIDA_IA && COMIDA_IA.texto) || '';
+  (COMIDA_IA = COMIDA_IA || {}).texto = t;
+  pedirFoto('nota'); FOTO.nota = t;
 }
 
 /* ----- Producto nuevo (de la etiqueta o de Open Food Facts): revisas, lo guardas y puede ser tu leche o tu proteína de siempre ----- */
@@ -648,6 +783,14 @@ function metasAuto() { const c = nutCfg(); c.metas = null; guardarNut(c); cerrar
 
 /* ----- Estilos ----- */
 document.head.insertAdjacentHTML('beforeend', `<style>
+  .etqdecl { margin: 2px 0 8px; font-size: 13px; }
+  .etqmodos { display: flex; gap: 4px; margin-top: 6px; }
+  .etqmodos button { flex: 1; padding: 9px 4px; border-radius: 12px; background: none; color: var(--muted); font-weight: 650; }
+  .etqenv { gap: 8px; align-items: center; flex-wrap: wrap; }
+  .etqenv .cant { width: 90px; }
+  .etqdet { margin: 10px 0 2px; }
+  #etqAgregar:disabled { opacity: .4; }
+  .etqdet summary { cursor: pointer; color: var(--muted); font-size: 13.5px; padding: 6px 0; }
   .macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; margin: 12px 0 2px; padding: 0; border: 0; background: none; color: inherit; text-align: left; }
   .mm { position: relative; padding-bottom: 8px; min-width: 0; }
   .mm .et { display: block; font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

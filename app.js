@@ -1272,7 +1272,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v9.1';
+const VERSION_APP = 'v9.2';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1458,7 +1458,7 @@ function ladoVisible(base) {
 function verLado(base, lado) { QUIEN[base] = lado; ANIM_ABRE = base; hap('tecla'); pintarEntrenar(); }
 // Sugerencia al empezar cada ejercicio (subir, bajar o mantener, con números). El script 7.4 ya la manda calculada
 // con la misma función (motor.js → progresionInicio); con un script anterior, la calcula la app con tu última sesión.
-const SCRIPT_ESPERADO = '8.1';
+const SCRIPT_ESPERADO = '8.2';
 const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);
 const scriptAlDia = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum(SCRIPT_ESPERADO));
 // Un solo motor: si la hoja trae el mismo motor (misma huella que motor.js) se usa lo que calculó; si no, lo calcula la app
@@ -3880,8 +3880,9 @@ function tarjetaComidaIA() {
   if (!DATA.ia) return '';
   const c = COMIDA_IA || {};
   let h = '<div class="card iacard"><div class="row between" style="margin-bottom:8px"><div class="t1">✨ Registro Inteligente</div><span class="pill pri">IA asistida</span></div>' +
-    '<textarea id="iaComida" maxlength="600" placeholder="Ej. 3 tacos de asada y una coca · o: la etiqueta dice 24 g por porción y me comí 2" ' + ev('input', 'textoComidaIA', VALOR) + '>' + esc(c.texto || '') + '</textarea>' +
-    '<div class="fila-ia">' + botonMic('iaComida', 'calcularComida') + '<button class="btn" ' + on('calcularComida') + '>' + (c.cargando ? 'Preguntar de nuevo' : 'Calcular') + '</button></div>';
+    '<textarea id="iaComida" maxlength="600" placeholder="Ej. 3 tacos de asada y una coca · o toca 📷, toma la tabla nutrimental y escribe: me comí la mitad" ' + ev('input', 'textoComidaIA', VALOR) + '>' + esc(c.texto || '') + '</textarea>' +
+    '<div class="fila-ia">' + botonMic('iaComida', 'calcularComida') + (scriptEtiqueta() ? '<button class="mic" ' + on('fotoConNota') + ' aria-label="Foto de la etiqueta o de tu comida con lo que escribiste">' + ICO_CAM + '</button>' : '') +
+    '<button class="btn" ' + on('calcularComida') + '>' + (c.cargando ? 'Preguntar de nuevo' : 'Calcular') + '</button></div>';
   // Mientras piensa puedes corregir el texto y volver a preguntar: la respuesta vieja se ignora
   if (c.cargando) h += '<div class="muted" style="margin-top:8px">⏳ Calculando… <span id="iaSeg" class="num">' + Math.round((Date.now() - (c.desde || Date.now())) / 1000) + ' s</span> · ¿te equivocaste? Corrige y toca «Preguntar de nuevo».</div>';
   if (c.error) h += '<div class="muted" style="margin-top:8px;color:var(--acc)">' + esc(c.error) + '</div>';
@@ -3909,6 +3910,17 @@ async function calcularComida() {
   const id = ++COMIDA_SEQ, texto = c.texto, vigente = () => id === COMIDA_SEQ && COMIDA_IA === c;
   c.error = ''; c.items = null; c.locales = null;
   if (!navigator.onLine) { c.error = 'Sin señal no puedo preguntarle a la IA.'; c.locales = await sugerenciasCatalogo(texto); return repintarComidaIA(); }
+  // Texto copiado de una tabla nutrimental: la IA solo lo lee y la app hace las cuentas (vista previa)
+  if (scriptEtiqueta() && pareceEtiqueta(texto)) {
+    c.cargando = true; c.desde = Date.now(); repintarComidaIA(); relojIA(c);
+    try {
+      const e = await conLimite(apiPost('etiquetaIA', ['', '', { texto: texto, nota: texto }]), 60000);
+      if (!vigente()) return;
+      c.cargando = false;
+      if (e && e.es_etiqueta) { repintarComidaIA(); return abrirEtiqueta(e, true); }
+    } catch (err) { if (!vigente()) return; }
+    c.cargando = false;
+  }
   c.cargando = true; c.desde = Date.now(); repintarComidaIA(); relojIA(c);
   // Mientras la IA piensa: lo más parecido del catálogo, para que no tengas que esperarla
   sugerenciasCatalogo(texto).then(l => { if (vigente() && c.cargando && l.length) { c.locales = l; repintarComidaIA(); } }).catch(() => {});

@@ -155,3 +155,32 @@ test('botanas por pieza: "6 doritos" son 6 piezas, no 6 bolsas', () => {
   assert.strictEqual(NUT.cantidadDeTexto('una bolsa de sabritas', b('sabritas')).q, 45);
   assert.strictEqual(NUT.cantidadDeTexto('2 cocas', { n: 'Coca', por: [['1 lata', 355]] }), null, 'un número solo no multiplica envases');
 });
+
+test('leerEtiqueta: la app hace las cuentas (NOM-051 por porción, piezas y envase)', () => {
+  // Galletas: tabla solo por porción (30 g = 3 galletas), 6 porciones por envase, sin contenido neto
+  const g = NUT.leerEtiqueta({ nombre: 'Marías', u: 'g', declarada: 'porcion', por100: null,
+    porcion: { texto: '3 galletas', cant: 30, piezas: 3, p: 2.1, c: 22.5, f: 3, k: 125, fib: 0.6 }, porciones_envase: 6 });
+  assert.strictEqual(g.al.p, 7, 'por 100 g = porción × 100 / 30');
+  assert.strictEqual(g.info.pieza, 10);
+  assert.strictEqual(g.info.envase, 180);
+  assert.strictEqual(g.info.envaseDe, 'porciones');
+  assert.deepStrictEqual(NUT.gramosDeConsumo({ tipo: 'piezas', valor: 6 }, g.info), { q: 60, modo: 'piezas', valor: 6 });
+  assert.strictEqual(NUT.gramosDeConsumo({ tipo: 'fraccion', valor: 0.5 }, g.info).q, 90);
+  assert.strictEqual(NUT.gramosDeConsumo({ tipo: 'todo' }, g.info).q, 180);
+  assert.strictEqual(NUT.gramosDeConsumo(null, g.info).q, 30, 'sin decir cuánto: 1 porción');
+  // Bebida con columnas 100 ml y "por envase" (sin cantidad): el envase sale por las kcal
+  const b = NUT.leerEtiqueta({ nombre: 'Jugo', u: 'ml', declarada: 'ambas', por100: { p: 0, c: 11, f: 0, k: 44, fib: 0 },
+    porcion: null, envase: { cant: null, p: 0, c: 46, f: 0, k: 185 } });
+  assert.strictEqual(b.info.envase, 420);
+  // Sin ningún dato del envase: "todo" pide el tamaño
+  const s = NUT.leerEtiqueta({ nombre: 'Barra', u: 'g', por100: { p: 20, c: 40, f: 15, k: 375, fib: 5 } });
+  const t = NUT.gramosDeConsumo({ tipo: 'todo' }, s.info);
+  assert.strictEqual(t.falta, 'envase'); assert.strictEqual(t.q, null);
+  assert.strictEqual(NUT.gramosDe('envase', 0.5, Object.assign({}, s.info, { envase: 50 })), 25);
+});
+
+test('mismoProducto: no duplica (mismo código o casi el mismo nombre)', () => {
+  assert.ok(NUT.mismoProducto({ n: 'Galletas Marías', marca: 'Gamesa' }, { n: 'Marías Gamesa', marca: '' }));
+  assert.ok(NUT.mismoProducto({ n: 'X', code: '750100' }, { n: 'Y', code: '750100' }));
+  assert.ok(!NUT.mismoProducto({ n: 'Galletas Marías', marca: 'Gamesa' }, { n: 'Galletas Emperador', marca: 'Gamesa' }));
+});
