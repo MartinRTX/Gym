@@ -6,10 +6,10 @@ Actualizado: 30/10/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | v8.9 publicada; **v9.0 en la rama, falta "publica"** |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | v9.0 publicada (`main` = rama de trabajo) |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
-| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | 7.9 publicado; **8.0 en la rama `claude/comida-80`** (se publica solo con clasp al pasar a `main`) |
+| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | 8.0 publicado (se publica solo con clasp al subir a `main`) |
 | Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | Lee Gym y Finanzas (solo lectura) y tiene su propia hoja "Comidas 2026" |
 
 Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` (`herramientas/revisar.js` falla si no).
@@ -28,23 +28,25 @@ Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` 
 
 ```bash
 node herramientas/revisar.js            # versiones, sin onclick en texto, etc.
-node --test tests/*.test.js              # 71 pruebas de lógica
-NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 190 pruebas de pantalla (Playwright)
+node --test tests/*.test.js              # 72 pruebas de lógica
+NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 191 pruebas de pantalla (Playwright)
 ```
 
 En GitHub corren solas: "Pruebas" (revisar + unidad + pantalla), "APK Android" (desde `main`) y Pages.
 En Gym-script: "Publicar script" (revisa en todas las ramas; en `main` hace `clasp push`, versión nueva,
 actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
 
-## v9.0 / script 8.0 (hecho, sin publicar)
+## v9.0 / script 8.0 (publicado 30/10/2026)
 
-Al decir "publica": adelantar `main` de Gym a la rama de trabajo **y** pasar `claude/comida-80` a `main` de Gym-script (van juntos).
+App y script van juntos: al publicar, adelantar `main` de Gym **y** pasar la rama del script a `main` de Gym-script.
 
 - Buscador tolerante (`NUT.buscar`): ignora porciones ("rebanada", "scoop", "dos"), sinónimos ("coca" → refresco de cola),
   corrige errores de dedo con el vocabulario del catálogo, no exige todas las palabras. 7 platillos nuevos en `BASE` (chilaquiles, taco de asada…).
-- IA de comida: el script usa primero el modelo ligero sin razonamiento, 1536 tokens, y guarda 6 h lo mismo escrito igual;
-  tope de tiempo entre modelos. La app enseña sugerencias del catálogo mientras piensa, los segundos que lleva, espera 30 s
-  y si la respuesta llega tarde (hasta 1 min más) la muestra sola. Si tarda > 15 s lo anota en Errores ("Aviso: …") para medir.
+- IA de comida: modelo completo pensando (bajo), con reglas de porciones en el prompt ("1 rebanada" ≈ 110 g, nunca la pizza entera)
+  y memoria de 6 h para lo mismo escrito igual; tope de tiempo entre modelos. La app enseña sugerencias del catálogo mientras
+  piensa, los segundos que lleva, espera 30 s y si la respuesta llega tarde (hasta 1 min más) la muestra sola.
+  Si tarda > 15 s lo anota en Errores ("Aviso: …") para medir. (Martin prefirió precisión a velocidad: no usar el modelo ligero.)
+- Cantidad desde el texto (`NUT.cantidadDeTexto`): "4 rebanadas de pizza" → 4 × 107 g; "150 g" tal cual; "media taza" = la porción de 1/2 taza.
 - Arreglo: tocar una sugerencia en la tarjeta de la IA no abría nada (la hoja se pintaba escondida).
 - Hoja Comidas: recetas y tupper van un renglón por ingrediente con la columna nueva "Parte de"; el script los vuelve a juntar
   al mandarlos a la app (`juntarPartes_`). Recetas de antes sin ingredientes: si la receta no cambió, se sacan de ahí.

@@ -3960,14 +3960,16 @@ async function sugerenciasCatalogo(texto) {
   if (typeof listaBusqueda !== 'function') return [];
   try { await conLimite(cargarCatalogo(), 8000); } catch (e) { /* sin catálogo grande: busca en lo básico y lo tuyo */ }
   const lista = listaBusqueda(), out = [];
+  out.seg = {};   // de qué parte del texto salió cada uno ("3 tacos de asada"): para calcular la cantidad al tocarlo
   texto.toLowerCase().split(/[,.;+\n]|\by\b/).map(x => x.trim()).filter(x => x.length > 2).slice(0, 4)
     .forEach(q => {
       // Si con todas las palabras no hay nada (un error de dedo), palabra por palabra
       let r = NUT.buscar(lista, q, 2);
       if (!r.length) r = q.split(/\s+/).filter(w => w.length > 3).sort((a, b) => b.length - a.length).slice(0, 2).map(w => NUT.buscar(lista, w, 1)[0]).filter(Boolean);
-      r.forEach(a => { if (!out.some(x => x.id === a.id)) out.push(a); });
+      r.forEach(a => { if (!out.some(x => x.id === a.id)) { out.push(a); out.seg[a.id] = q; } });
     });
-  return out.slice(0, 6);
+  const seis = out.slice(0, 6); seis.seg = out.seg;
+  return seis;
 }
 function ajustarItem(i, d) { const x = COMIDA_IA.items[i]; x.g = Math.max(0, x.g + d); pintarComida(); }
 function agregarComidaIA() {

@@ -133,3 +133,16 @@ test('buscar es tolerante: porciones, sinónimos, errores de dedo y palabras que
   assert.strictEqual((NUT.buscar(grande, 'pechga de pollo')[0] || {}).id, 'b:pollo');
   assert.deepStrictEqual(NUT.buscar(B, 'dos rebanadas'), [], 'solo porciones: nada que buscar');
 });
+
+test('cantidadDeTexto: lo que escribiste se vuelve gramos (4 rebanadas = 4 × rebanada, no la pizza entera)', () => {
+  const b = id => NUT.BASE.find(a => a.id === 'b:' + id), q = (t, id) => (NUT.cantidadDeTexto(t, b(id)) || {}).q;
+  assert.strictEqual(q('4 rebanadas de pizza', 'pizza'), 428);
+  assert.strictEqual(q('una rebanada de pizza', 'pizza'), 107);
+  assert.strictEqual(q('3 tacos de asada', 'taco-asada'), 240);
+  assert.strictEqual(q('2 scoops de proteína', 'whey'), 60);
+  assert.strictEqual(q('150 g de pollo', 'pollo'), 150, 'gramos tal cual');
+  assert.strictEqual(q('media taza de avena', 'avena'), 40, 'media taza = la porción de 1/2 taza');
+  assert.strictEqual(q('1,5 tazas de arroz', 'arroz'), 240);
+  assert.strictEqual(q('dos tortillas de maíz', 'tort-maiz'), 60);
+  assert.strictEqual(NUT.cantidadDeTexto('pizza', b('pizza')), null, 'sin cantidad: se queda la porción de siempre');
+});

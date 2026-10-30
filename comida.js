@@ -402,7 +402,9 @@ function elegirNut(id) {
   // Desde la tarjeta de la IA no hay hoja abierta: se abre (antes se pintaba escondida y parecía que no hacía nada)
   const desdeIA = !$('modal').classList.contains('show');
   if (desdeIA) BUS = null;
-  pedirCantidad(al);
+  // La cantidad sale de lo que escribiste: en el buscador, la búsqueda; en la tarjeta de la IA, la parte del texto de ese alimento
+  const seg = desdeIA && COMIDA_IA && COMIDA_IA.locales && COMIDA_IA.locales.seg ? COMIDA_IA.locales.seg[id] : null;
+  pedirCantidad(al, desdeIA ? seg : BUS && BUS.q);
   if (desdeIA) { CANT.deIA = true; abrirModal(); }
 }
 
@@ -449,15 +451,17 @@ function elegirOFF(code) { const a = OFF_CACHE[code]; if (a) confirmarProducto(a
 
 /* ----- ¿Cuánto comiste? (porciones del alimento o gramos) ----- */
 let CANT = null;
-function pedirCantidad(al) {
-  const elegir = BUS && BUS.elegir;
-  CANT = { al: al, q: al.por && al.por[0] ? al.por[0][1] : 100, elegir: elegir, bus: BUS };
+// texto: lo que escribiste ("4 rebanadas de pizza"): si dice cuánto, la cantidad ya sale calculada
+function pedirCantidad(al, texto) {
+  const elegir = BUS && BUS.elegir, dijo = texto ? NUT.cantidadDeTexto(texto, al) : null;
+  CANT = { al: al, q: dijo ? dijo.q : al.por && al.por[0] ? al.por[0][1] : 100, elegir: elegir, bus: BUS, dijo: dijo };
   pintarCantidad();
 }
 function pintarCantidad() {
   const c = CANT, al = c.al, m = NUT.macros(al, c.q);
   $('sheet').innerHTML = '<div class="row between"><div class="t2" style="padding-right:8px">' + esc(al.n) + '</div><button class="cerrar" ' + on('cerrarCantidad') + ' aria-label="Volver">✕</button></div>' +
     '<div class="muted" style="margin:2px 0 10px">' + fuenteTxt(al) + (al.crudo ? ' · valores del alimento crudo: pésalo antes de cocinar' : '') + (al.nota ? ' · ' + esc(al.nota) : '') + '</div>' +
+    (c.dijo && c.q === c.dijo.q ? '<div class="tip" style="margin:0 0 10px">Escribiste ' + esc(c.dijo.texto) + ' = <b class="num">' + NUT.r1(c.q) + ' ' + (al.u || 'g') + '</b>. Si fue otra cantidad, cámbiala.</div>' : '') +
     (al.por && al.por.length ? '<div class="tchips">' + al.por.map(p => '<button class="tch' + (c.q === p[1] ? ' on' : '') + '" ' + on('cantFija', p[1]) + '>' + esc(p[0]) + ' · ' + p[1] + ' ' + (al.u || 'g') + '</button>').join('') + '</div>' : '') +
     '<div class="cantfila"><button class="mini" ' + on('cantPaso', -1) + ' aria-label="Menos">−</button>' +
     '<input class="cant num" inputmode="decimal" value="' + c.q + '" ' + ev('change', 'cantEscrita', VALOR) + ' aria-label="Cantidad"><span class="u">' + (al.u || 'g') + '</span>' +

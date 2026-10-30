@@ -323,6 +323,27 @@ const NUT = (() => {
     });
     return out.sort((x, y) => y.pts - x.pts).slice(0, max || 30).map(x => x.a);
   }
+  // Cuánto dijiste que comiste: "4 rebanadas de pizza" → 4 × la rebanada del alimento (no 100 g ni la pizza entera).
+  // Regresa { q, texto } o null si el texto no dice cantidad. Si dice gramos ("150 g") se usan tal cual.
+  const NUMEROS = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, docena: 12, media: 0.5, medio: 0.5 };
+  function cantidadDeTexto(texto, al) {
+    const crudo = String(texto || '').toLowerCase(), t = sinAcentos(crudo);
+    const g = /(\d+(?:[.,]\d+)?)\s*(g|gr|grs|gramos|ml)\b/.exec(crudo);
+    if (g) { const v = Number(g[1].replace(',', '.')); return v > 0 && v <= 3000 ? { q: v, texto: v + ' ' + (g[2] === 'ml' ? 'ml' : 'g') } : null; }
+    const pal = t.split(/\s+/).filter(Boolean), num = /(\d+(?:[.,]\d+)?)/.exec(crudo);
+    let n = num ? Number(num[1].replace(',', '.')) : null;
+    if (n === null) for (const w of pal) if (NUMEROS[w] !== undefined) { n = NUMEROS[w]; break; }
+    const por = (al && al.por) || [];
+    // La porción que nombraste ("rebanada", "taza", "scoop", "taco"…): se compara por raíz para que "rebanadas" sea "rebanada"
+    const nombrada = por.find(x => sinAcentos(x[0]).split(/\s+/).some(pw => pw.length > 2 && !NUMEROS[pw] && !/^\d/.test(pw) && pal.some(w => w.length > 2 && raiz(w) === raiz(pw))));
+    const base = nombrada || (n !== null ? por[0] : null);
+    if (!base || !(base[1] > 0)) return null;
+    // "media taza" con una porción de "1/2 taza" es esa porción una vez, no la mitad
+    let veces = n === null ? 1 : n;
+    if (veces === 0.5 && /^1\/2\b/.test(base[0])) veces = 1;
+    if (!(veces > 0 && veces <= 50)) return null;
+    return { q: Math.round(veces * base[1] * 10) / 10, texto: (veces === 0.5 ? '½' : veces) + ' × ' + base[0].replace(/^1\s+/, '') };
+  }
   // Catálogo grande (datos/alimentos.json): filas compactas → alimentos
   function desempacar(json) {
     return (json.a || []).map(r => ({ id: r[0], n: r[1], en: r[2] || '', g: r[3] || '', p: r[4], c: r[5], f: r[6], k: r[7], fib: r[8], u: r[9] || 'g',
@@ -341,6 +362,6 @@ const NUT = (() => {
   };
 
   return { MAC, BASE, BASE_POR_ID, RECETAS, TUPPER, LEGADO, ES_EN, r1, macros, sumar, receta, diferencia, cambiarRol, tupper, nombreTupper, claveTupper,
-           normalizarEtiqueta, metas, buscar, desempacar, sinAcentos };
+           normalizarEtiqueta, metas, buscar, cantidadDeTexto, desempacar, sinAcentos };
 })();
 if (typeof module !== 'undefined') module.exports = NUT;

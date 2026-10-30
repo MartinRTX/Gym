@@ -42,6 +42,11 @@ const filasHoja = p => p.evaluate(() => { const op = cola().filter(o => o.action
     r = await busca('coca cola'); ok('«coca cola» encuentra el refresco de cola', /refresco de cola/i.test(r[0] || ''), r);
     r = await busca('tacos de asada'); ok('«tacos de asada» encuentra el taco', /taco de carne asada/i.test(r[0] || ''), r);
     r = await busca('chilaquiles'); ok('Platillos nuevos: chilaquiles', /chilaquiles/i.test(r[0] || ''), r);
+    // La cantidad sale de lo que escribiste: 4 rebanadas = 4 × 107 g
+    await busca('4 rebanadas de pizza'); await p.locator('#busRes .bres').first().click(); await p.waitForTimeout(250);
+    const cant = await p.evaluate(() => ({ q: CANT.q, tip: (document.querySelector('#sheet .tip') || {}).textContent || '' }));
+    ok('«4 rebanadas de pizza» → 428 g (no 100 g ni la pizza entera) y lo explica', cant.q === 428 && /4 × rebanada/.test(cant.tip), cant);
+    await p.evaluate(() => cerrarCantidad()); await p.waitForTimeout(150);
     await p.evaluate(() => cerrarBuscador());
 
     // IA lenta: mientras piensa salen sugerencias del catálogo; si tarda, avisa y la respuesta tardía igual aparece
@@ -55,10 +60,10 @@ const filasHoja = p => p.evaluate(() => { const op = cola().filter(o => o.action
     await p.waitForTimeout(1600);
     ok('La respuesta que llega tarde se muestra sola', await p.evaluate(() => !!(COMIDA_IA.items && COMIDA_IA.items.length && !COMIDA_IA.error)));
     // Tocar una sugerencia abre la cantidad (antes se pintaba escondida)
-    await p.evaluate(() => { COMIDA_IA = { texto: 'pizza', locales: NUT.buscar(listaBusqueda(), 'pizza', 3) }; pintarComida(); }); await p.waitForTimeout(200);
+    await p.evaluate(async () => { COMIDA_IA = { texto: '3 tacos de asada y una coca', locales: await sugerenciasCatalogo('3 tacos de asada y una coca') }; pintarComida(); }); await p.waitForTimeout(200);
     await p.locator('.iacard .bres').first().click(); await p.waitForTimeout(300);
-    const hoja = await p.evaluate(() => ({ abierta: $('modal').classList.contains('show'), cant: !!document.querySelector('#sheet .cantfila') }));
-    ok('Tocar una sugerencia abre «¿cuánto comiste?»', hoja.abierta && hoja.cant, hoja);
+    const hoja = await p.evaluate(() => ({ abierta: $('modal').classList.contains('show'), cant: !!document.querySelector('#sheet .cantfila'), n: CANT.al.n, q: CANT.q }));
+    ok('Tocar una sugerencia abre «¿cuánto comiste?» con la cantidad que escribiste', hoja.abierta && hoja.cant && /taco/i.test(hoja.n) && hoja.q === 240, hoja);
     const antes = await p.evaluate(() => prot.length);
     await p.locator('#sheet .acts .btn').click(); await p.waitForTimeout(300);
     ok('Al agregarla queda en el día y la tarjeta de la IA se limpia', await p.evaluate(n => prot.length === n + 1 && !COMIDA_IA, antes));
