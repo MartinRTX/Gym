@@ -6,11 +6,11 @@ Actualizado: 30/10/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | v9.0 publicada (`main` = rama de trabajo) |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | v9.1 publicada (`main` = rama de trabajo) |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
-| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | 8.0 publicado (se publica solo con clasp al subir a `main`) |
-| Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | Lee Gym y Finanzas (solo lectura) y tiene su propia hoja "Comidas 2026" |
+| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | 8.1 publicado (se publica solo con clasp al subir a `main`) |
+| Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | 1.4: lee Gym y Finanzas (solo lectura); comidas y metas vienen de Gym; plan semanal en "Comidas 2026" |
 
 Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` (`herramientas/revisar.js` falla si no).
 `SCRIPT_ESPERADO` en `app.js` = `SCRIPT_VERSION` en `AppGym.js`. El `versionName` del APK sale de `VERSION_APP`.
@@ -65,12 +65,10 @@ App y script van juntos: al publicar, adelantar `main` de Gym **y** pasar la ram
 
 ## Pendientes de Panel ↔ Gym (ver detalle abajo)
 
-1. **Decidir una sola fuente de comidas.** Hoy hay dos registros que no se ven entre sí:
-   Gym escribe en la pestaña "Comidas" de "Entrenamiento 2026 – Martin"; Panel escribe en la hoja "Comidas 2026".
-   El licuado de Gym (avena + linaza, 576 kcal base) no es el "Licuado de proteína" de Panel (371 kcal, sin avena ni linaza).
-   Opciones: (a) Panel muestra las comidas de Gym (`comidasDias` / `macros7` ya vienen en la acción `data`),
-   (b) solo se registra en Panel y Gym lo lee, o (c) dejar las dos y no registrar lo mismo dos veces.
-2. **Metas distintas:** Gym usa 120 g de proteína (meta por defecto del script); Panel usa 140 g y 2,300 kcal. Igualarlas.
+1. ✅ Decidido (30/10, opción A): la comida se registra solo en Gym; **Gym calcula las metas** (se ajustan solas) y las manda
+   al script (`saveConfig({metasGym})`, script 8.1); Panel 1.4 las lee con `comidasPanel` (`src/Panel.js` del repo del script)
+   y solo las muestra. Nunca pegar código a mano en el Apps Script: clasp lo borra.
+2. Pendiente de revisar con datos reales: que Panel muestre las 6 semanas y las metas de Gym (1,800–1,900 kcal hoy).
 3. **Si cambia `getData` del script de Gym**, revisar `CALC.gymHoy` en `Panel/calculos.js`. Panel usa: `sugGrupo`, `todayKey`,
    `ultimoGrupo`, `ultimoGrupoFecha`, `dias`, `ultimoPeso`, `carrera`, `resumen.{semana,diasSemana,promedio7,cambioSemana,cambioCintura,cintura}`,
    `trotes.{semanas,km7}`, `cuerpo.{serie,actual,meta}`. Todos existen en 7.9 (revisado 30/10).
