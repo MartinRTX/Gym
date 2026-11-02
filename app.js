@@ -1272,7 +1272,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v9.3';
+const VERSION_APP = 'v9.4';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -3664,7 +3664,9 @@ function pintarComida() {
   const meta = metaProt(), tot = protTotal(), pct = Math.min(1, tot / meta), falta = meta - tot;
   const R = 74, C = 2 * Math.PI * R;
   const cuenta = LS.get('gym_food_counts', {});
-  const todas = FOODS.concat(misComidas());
+  // Tus recetas propias (guardadas desde la IA) van junto a tus comidas
+  const propias = recetasComoBotones().filter(r => /^@r-/.test(r.k)).map(r => Object.assign(r, { fav: true }));
+  const todas = FOODS.concat(misComidas(), propias);
   const top = todas.slice().sort((a, b) => (cuenta[b.k] || 0) - (cuenta[a.k] || 0)).slice(0, 3).filter(f => cuenta[f.k]);
   const tipico = diaTipicoLista();
   let h = '';
@@ -3685,23 +3687,27 @@ function pintarComida() {
     (falta <= 0 ? '<span class="pill ok">✓ Listo</span>' : '') + '</div>' +
     '<div class="consejo">💡 ' + (falta > 0 ? textoCompletar(falta) : 'Bien hecho hoy') + '</div>' + seguroNut(tarjetaMacros, 'macros') + '</div>';
   h += seguroNut(filaSiempre, 'de siempre');
+  h += seguroNut(filaHabitos, 'hábitos');
   h += botonRepetirAyer();
+  if (!COMIDA_DIA) h += '<button class="link" style="margin:0 2px 10px" ' + on('abrirRepetir') + '>📅 Repetir una comida de otro día</button>';
   if (!prot.length && tipico.length) h += '<button class="tipico" ' + on('diaTipico') + '><span class="ic">🍽️</span><span style="flex:1"><b>Mi día típico</b> <span class="pill ok">+' +
     protTotal(tipico) + ' g</span><small>' + esc(tipico.map(k => FOODS.some(f => f.k === k) ? k : tDe(k).split(' · ')[0]).join(' · ')) + '</small></span><span class="mas">＋</span></button>';
   if (top.length) h += '<div class="row between"><h2>Lo que más comes</h2><span class="muted" style="font-size:12px">Frecuentes</span></div><div class="foods tops">' + top.map(f => botonComida(f, true)).join('') + '</div>';
-  const favs = misComidas().filter(f => !top.some(t => t.k === f.k));
+  const favs = misComidas().concat(propias).filter(f => !top.some(t => t.k === f.k));
   if (favs.length || QUITAR_FAV) h += '<div class="row between"><h2>Mis comidas</h2><button class="link" ' + on('alternarQuitarFav') + '>' + (QUITAR_FAV ? 'Listo' : 'Editar') + '</button></div>' +
     (QUITAR_FAV ? '<div class="muted" style="margin:-4px 0 8px;font-size:13px">Toca una para quitarla de tus comidas</div>' : '') +
-    '<div class="foods">' + (QUITAR_FAV ? misComidas() : favs).map(f => botonComida(f, false)).join('') + '</div>';
+    '<div class="foods">' + (QUITAR_FAV ? misComidas().concat(propias) : favs).map(f => botonComida(f, false)).join('') + '</div>';
   h += '<div class="row between"><h2>Agregar</h2><span class="rapido">Toque rápido</span></div><div class="foods">' + FOODS.filter(f => !top.includes(f) && f.k !== 'Licuado').map(f => botonComida(f, false)).join('') + '</div>';
   // Primero los botones para agregar (lo que más usas); después en qué comida va y tu día típico
   h += tarjetaPorComida() + tarjetaComidaIA();
   if (!COMIDA_DIA) h += '<button class="link tipico-ed" ' + on('editarTipico', true) + '>✏️ ' + (tipico.length ? 'Editar mi día típico' : 'Arma tu día típico: lo agregas con un toque') + '</button>';
   if (prot.length) {
     const t = etiquetas(diaComida(), prot.length);
-    h += '<h2>' + (COMIDA_DIA ? 'Ese día comiste' : 'Hoy comiste') + ' · toca para quitar</h2>' + COMIDAS.concat([[null, 'Sin comida marcada', '•']]).map(c => {
+    h += '<h2>' + (COMIDA_DIA ? 'Ese día comiste' : 'Hoy comiste') + ' · toca para corregir o quitar</h2>' + COMIDAS.concat([[null, 'Sin comida marcada', '•']]).map(c => {
       const idx = prot.map((k, i) => i).filter(i => (t[i] || null) === c[0]);
-      return idx.length ? '<div class="muted comida-l">' + c[2] + ' ' + c[1] + '</div><div class="eaten">' + idx.map(i => { const m = macrosDe(prot[i]); return '<button ' + on('quitarProt', i) + '>' + esc(tDe(prot[i])) + ' ✕' +
+      return idx.length ? '<div class="muted comida-l">' + c[2] + ' ' + c[1] + '</div><div class="eaten">' + idx.map(i => { const m = macrosDe(prot[i]), r = regDe(prot[i]);
+        const ojo = NUT.esGrande(m) || NUT.revisarMacros(m, r && r.q).length;
+        return '<button' + (ojo ? ' class="grande"' : '') + ' ' + on('abrirItemDia', i) + '>' + (ojo ? '⚠️ ' : '') + esc(tDe(prot[i])) + ' ✏️' +
         '<span class="mac">' + Math.round(m.p || 0) + ' g prot' + (m.k !== null && m.k !== undefined ? ' · ' + Math.round(m.k) + ' kcal' : '') + '</span></button>'; }).join('') + '</div>' : '';
     }).join('');
   }
@@ -3712,7 +3718,7 @@ function botonComida(f, esTop) {
   const c = prot.filter(k => k === f.k).length;
   const quitar = QUITAR_FAV && f.fav;
   return '<button class="food' + (esTop ? ' top' : '') + (f.fav ? ' fav' : '') + (quitar ? ' quitar' : '') + '" ' +
-    (quitar ? on('quitarFav', f.t) : on('addProt', f.k)) + '>' +
+    (quitar ? (f.rec ? on('quitarReceta', f.k.slice(1)) : on('quitarFav', f.t)) : on('addProt', f.k)) + '>' +
     '<span class="ic">' + iconoComida(f) + '</span><b>+' + f.g + ' g</b><span class="nom">' + esc(f.t) + '</span>' +
     (c && !quitar ? '<span class="c">×' + c + '</span>' : '') + (esTop ? '<span class="mas">＋</span>' : '') + '</button>';
 }
@@ -3841,7 +3847,7 @@ function tarjetaPasos() {
 // APK: hoy a las 6 pm con tus números; sábado y domingo que vienen, un recordatorio aunque no abras la app
 function programarAvisoProt() {
   if (!NATIVO || !DATA) return;
-  nativo('LocalNotifications', 'cancel', { notifications: [0, 1, 2, 3, 4, 5, 6].map(d => ({ id: AVISO_PROT + d })).concat([0, 1, 2, 3, 4, 5, 6].map(d => ({ id: AVISO_PESO + d })), [{ id: AVISO_CINTURA }]) }).then(() => {
+  nativo('LocalNotifications', 'cancel', { notifications: [0, 1, 2, 3, 4, 5, 6].map(d => ({ id: AVISO_PROT + d })).concat([0, 1, 2, 3, 4, 5, 6].map(d => ({ id: AVISO_PESO + d })), [{ id: AVISO_CINTURA }, { id: AVISO_KCAL }]) }).then(() => {
     const ahora = new Date(), lista = [];
     // 7 am: ¿ya te pesaste? (al tocarla abre el teclado con tu último peso); hoy solo si aún no te pesas
     if (ajuste('avisoPeso', true)) for (let d = 0; d < 7; d++) {
@@ -3855,6 +3861,14 @@ function programarAvisoProt() {
     if (dom <= ahora || LS.get('gym_cint_' + claveDia(dom), null) !== null) dom.setDate(dom.getDate() + 7);
     lista.push({ id: AVISO_CINTURA, channelId: 'proteina', schedule: { at: dom, allowWhileIdle: true }, title: '📏 Hoy toca medir tu cintura',
                  body: 'A la altura del ombligo, en ayunas, al soltar el aire y sin apretar la cinta.' });
+    // 9 pm: si te faltan o te pasaste más de 350 kcal de tu meta del día
+    const nueve = new Date(); nueve.setHours(21, 0, 0, 0);
+    if (ajuste('avisoKcal', true) && nueve > ahora && scriptNut()) seguroNut(() => {
+      const t = totalMacros(cargarProt(hoy())), mt = metasHoy(), dif = mt.k - t.k;
+      if (t.k > 0 && Math.abs(dif) > 350) lista.push({ id: AVISO_KCAL, channelId: 'proteina', schedule: { at: nueve, allowWhileIdle: true },
+        title: dif > 0 ? 'Llevas ' + t.k.toLocaleString('es-MX') + ' kcal: te faltan ~' + Math.round(dif / 50) * 50 : 'Te pasaste ~' + Math.round(-dif / 50) * 50 + ' kcal hoy',
+        body: dif > 0 ? 'Meta ' + mt.k.toLocaleString('es-MX') + '. Si ya no vas a comer, ¿anotaste todo? (aceite, bebidas, botanas)' : 'Meta ' + mt.k.toLocaleString('es-MX') + '. No pasa nada: mañana vuelve a tu plan normal, sin compensar de golpe.' });
+    }, 'aviso kcal');
     if (!ajuste('avisoProt', true)) return canalProt().then(() => nativo('LocalNotifications', 'schedule', { notifications: lista }));
     for (let d = 0; d < 7; d++) {
       const f = new Date(); f.setDate(f.getDate() + d); f.setHours(18, 0, 0, 0);
@@ -3870,7 +3884,7 @@ function programarAvisoProt() {
     return canalProt().then(() => nativo('LocalNotifications', 'schedule', { notifications: lista }));
   });
 }
-const AVISO_CINTURA = 90, AVISO_PESO = 70;   // peso: ids 70 (dom) a 76 (sáb)
+const AVISO_CINTURA = 90, AVISO_PESO = 70, AVISO_KCAL = 96;   // peso: ids 70 (dom) a 76 (sáb)
 const canalPeso = () => nativo('LocalNotifications', 'createChannel', { id: 'peso', name: 'Pesarte en la mañana', description: 'A las 7 am, si ese día aún no te pesas', importance: 3, visibility: 1 });
 const canalProt = () => canalPeso().then(() => nativo('LocalNotifications', 'createChannel', { id: 'proteina', name: 'Proteína y cintura', description: 'A las 6 pm: cuánto llevas de proteína. Domingo: medir la cintura', importance: 3, visibility: 1 }));
 
@@ -3896,11 +3910,12 @@ function tarjetaComidaIA() {
       // Toca el nombre para corregir gramos y macros; lo que no cuadra sale marcado
       '<button class="nm" ' + on('editarItemIA', i) + '>' + esc(x.nombre) + (x.fijo && x.fijo.length ? ' 🔒' : '') + ' ✏️' + (x.nota ? '<small>' + esc(x.nota) + '</small>' : '') +
         '<span class="mac">' + (x.gramos ? Math.round(x.gramos) + ' g · ' : '') + 'C ' + Math.round(x.c || 0) + ' · G ' + Math.round(x.f || 0) + ' · ' + Math.round(x.k || 0) + ' kcal</span>' +
-        NUT.revisarMacros({ p: x.g, c: x.c, f: x.f, k: x.k }, x.gramos).map(a => '<span class="av">⚠️ ' + esc(a) + '</span>').join('') + '</button>' +
+        NUT.revisarMacros({ p: x.g, c: x.c, f: x.f, k: x.k }, x.gramos).concat(NUT.esGrande(x) ? [Math.round(x.k).toLocaleString('es-MX') + ' kcal en una sola cosa: ¿fue todo? Tócala para corregir'] : []).map(a => '<span class="av">⚠️ ' + esc(a) + '</span>').join('') + '</button>' +
       '<button class="mini" ' + on('ajustarItem', i, -2) + ' aria-label="Menos">−</button><span class="g num">' + x.g + ' g</span>' +
       '<button class="mini" ' + on('ajustarItem', i, 2) + ' aria-label="Más">+</button>' +
       '<button class="mini' + (x.fav ? ' on' : '') + '" ' + on('guardarFav', i) + ' aria-label="Guardar en mis comidas">⭐</button></div>').join('') + '</div>';
     if (c.consejo) h += '<div class="muted" style="margin:8px 0 0;font-size:13.5px">💡 ' + esc(c.consejo) + '</div>';
+    if (c.items.length > 1) h += '<button class="link" style="margin:8px 2px 0" ' + on('guardarRecetaIA') + '>💾 Guardar como receta (para la próxima, sin IA)</button>';
     h += '<div class="acts"><button class="btn ghost" ' + on('descartarComidaIA') + '>Descartar</button>' +
       '<button class="btn"' + (tot || kcal ? '' : ' disabled') + ' ' + on('agregarComidaIA') + '>Agregar +' + tot + ' g' + (kcal ? ' · ' + kcal + ' kcal' : '') + '</button></div>';
   }
@@ -4032,6 +4047,10 @@ function guardarFav(i) {
   x.fav = !x.fav;
   encolar('saveConfig', [{ comidas: DATA.comidas.slice(0, 30) }], 'cfg-comidas');
   toast(x.fav ? 'Guardada en Mis comidas ⭐' : 'Quitada de Mis comidas'); pintarComida();
+}
+function quitarReceta(id) {
+  if (!/^r-/.test(id)) return;
+  const c = nutCfg(); c.recetas = c.recetas.filter(r => r.id !== id); guardarNut(c); hap('ok'); pintarComida();
 }
 function quitarFav(t) {
   DATA.comidas = (DATA.comidas || []).filter(c => c.t !== t);
@@ -5198,6 +5217,7 @@ function abrirAjustes() {
     tog('ruta', true, 'Ruta de hoy', 'Te dice qué zona te falta en la semana y cuáles 2–4 ejercicios la cierran', AIC.flechas, 'ok') +
     (NATIVO ? tog('avisoPeso', true, 'Aviso para pesarte a las 7 am', 'Solo si ese día aún no te pesas; al tocarlo abre el teclado con tu último peso', AIC.campana, 'cyan') : '') +
     tog('avisoProt', true, 'Aviso de proteína a las 6 pm', 'Cuánto llevas y qué de lo que comes la completa (sábado y domingo aunque no abras la app)', AIC.cubiertos, 'acc') +
+    tog('avisoKcal', true, 'Aviso de calorías a las 9 pm', 'Solo si te faltan o te pasaste más de 350 kcal de tu meta', AIC.cubiertos, 'acc') +
     tog('calentamiento', true, 'Calentamiento automático', 'En los básicos, al abrirlos: barra sola × 10, 50 % × 8 y 75 % × 3, marcadas C (no cuentan para tu volumen)', AIC.flama, 'red') +
     '<div class="opt" style="display:block">' + sec(AIC.reloj, 'cyan', 'Descanso predeterminado') + '<div class="pills c-cyan" style="margin:0;display:grid;grid-template-columns:repeat(4,1fr)">' +
     DESCANSOS.map(s => '<button class="' + (s === def ? 'on' : '') + '" ' + on('elegirDescanso', s) + '>' + mmss(s) + '</button>').join('') + '</div></div>' +
@@ -5250,10 +5270,10 @@ async function toggleAjuste(k, d) {
     const p = await Notification.requestPermission();
     if (p !== 'granted') return toast('Necesito permiso de notificaciones para avisarte');
   }
-  if ((k === 'avisoProt' || k === 'avisoPasos' || k === 'avisoPeso') && nuevo && NATIVO) await nativo('LocalNotifications', 'requestPermissions');
+  if ((k === 'avisoProt' || k === 'avisoKcal' || k === 'avisoPasos' || k === 'avisoPeso') && nuevo && NATIVO) await nativo('LocalNotifications', 'requestPermissions');
   if (k === 'salud' && nuevo && !(await conectarSalud())) return abrirAjustes();
   setAjuste(k, nuevo);
-  if (k === 'avisoProt' || k === 'avisoPeso') programarAvisoProt();
+  if (k === 'avisoProt' || k === 'avisoKcal' || k === 'avisoPeso') programarAvisoProt();
   if (k === 'sencillo' || k === 'animaciones') { aplicarSencillo(); pintarTab(); }
   if (k === 'salud' && nuevo) leerSalud(true);
   if (k === 'salud' && !nuevo) { LS.del('gym_salud'); LS.del('gym_salud_firma'); actualizarWidgets(); }

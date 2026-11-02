@@ -30,6 +30,141 @@ function partesDe(t) {
   return (t.items || []).filter(x => x.al && x.m && x.q > 0).map(x => ({ n: String(x.al.n).slice(0, 60), q: NUT.r1(x.q), u: x.al.u || 'g',
     p: NUT.r1(x.m.p), c: n(x.m.c), f: n(x.m.f), k: x.m.k === null || x.m.k === undefined ? null : Math.round(x.m.k), fib: n(x.m.fib) }));
 }
+/* ----- v9.4: corregir lo que ya anotaste, lo de siempre a esta hora, repetir una comida de otro día y recetas desde la IA ----- */
+// Tocar algo de "Hoy comiste": ver sus números, corregirlos (gramos, ×porción o cada macro) o quitarlo
+let ITEM_ED = null;
+function abrirItemDia(i) {
+  asegurarProt();
+  const k = prot[i]; if (k === undefined) return;
+  const r = regDe(k), m = macrosDe(k);
+  ITEM_ED = { i: i, k: k, n: tDe(k), q: r ? r.q : null, u: r ? r.u || 'g' : 'g', p: m.p || 0, c: m.c, f: m.f, k2: m.k, fib: m.fib, partes: r && r.partes ? JSON.parse(JSON.stringify(r.partes)) : null };
+  pintarItemDia(); abrirModal();
+}
+function pintarItemDia() {
+  const E = ITEM_ED, av = NUT.revisarMacros({ p: E.p, c: E.c, f: E.f, k: E.k2 }, E.q).concat(NUT.esGrande({ k: E.k2 }) ? [Math.round(E.k2).toLocaleString('es-MX') + ' kcal en una sola cosa: si fue menos (2 rebanadas y no la pizza entera), corrígelo'] : []);
+  const campo = (k, nom, v) => '<label class="pc"><span>' + nom + '</span><input class="num" inputmode="decimal" value="' + (v === null || v === undefined ? '' : NUT.r1(v)) + '" ' + ev('change', 'itemDiaCampo', k, VALOR) + '></label>';
+  $('sheet').innerHTML = '<div class="row between"><div class="t2" style="padding-right:8px">' + esc(E.n) + '</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
+    avisosHtml(av) +
+    '<div class="tpaso">¿Fue otra cantidad?</div><div class="tchips">' + [['½', 0.5], ['×1½', 1.5], ['×2', 2]].map(x => '<button class="tch" ' + on('itemDiaVeces', x[1]) + '>' + x[0] + '</button>').join('') + '</div>' +
+    '<div class="pcs">' + (E.q ? campo('q', 'Cantidad (' + esc(E.u) + ')', E.q) : '') + campo('p', 'Proteína', E.p) + campo('c', 'Carbos', E.c) + campo('f', 'Grasa', E.f) + campo('k2', 'kcal', E.k2) + '</div>' +
+    '<div class="muted" style="font-size:12.5px;margin-top:6px">Cambiar la cantidad ajusta todo en proporción; si cambias un macro, las kcal se recalculan.</div>' +
+    '<div class="acts"><button class="btn ghost" ' + on('itemDiaQuitar') + '>Quitar</button><button class="btn" ' + on('itemDiaGuardar') + '>Guardar</button></div>';
+}
+function escalarItem(f) {
+  const E = ITEM_ED;
+  ['p', 'c', 'f', 'fib'].forEach(m => { if (E[m] !== null && E[m] !== undefined) E[m] = NUT.r1(E[m] * f); });
+  if (E.k2 !== null && E.k2 !== undefined) E.k2 = Math.round(E.k2 * f);
+  if (E.q) E.q = NUT.r1(E.q * f);
+  if (E.partes) E.partes.forEach(x => { ['q', 'p', 'c', 'f', 'fib'].forEach(m => { if (x[m] !== null && x[m] !== undefined) x[m] = NUT.r1(x[m] * f); }); if (x.k) x.k = Math.round(x.k * f); });
+}
+function itemDiaVeces(f) { escalarItem(f); hap('tecla'); pintarItemDia(); }
+function itemDiaCampo(k, v) {
+  const E = ITEM_ED, n = numeroEscrito(v);
+  if (!(n >= 0)) return;
+  if (k === 'q') { if (E.q > 0) escalarItem(n / E.q); E.q = n; }
+  else if (k === 'k2') E.k2 = Math.round(n);
+  else { E[k] = NUT.r1(n); E.k2 = Math.round(4 * (E.p || 0) + 4 * (E.c || 0) + 9 * (E.f || 0)); E.partes = null; }
+  pintarItemDia();
+}
+function itemDiaGuardar() {
+  const E = ITEM_ED; asegurarProt();
+  if (prot[E.i] !== E.k) { cerrarModal(); return toast('La lista cambió: vuelve a abrirlo'); }
+  // Lo que no era registro (botón de siempre, receta) se vuelve registro con los números corregidos
+  const nombre = E.q && !/·/.test(E.n) ? E.n : E.n.replace(/ · [\d.,]+ (g|ml)$/, '') + (E.q ? ' · ' + NUT.r1(E.q) + ' ' + E.u : '');
+  const r = regDe(E.k), base = r ? { src: r.src, ref: r.ref } : { src: 'editado', ref: E.k };
+  const nuevo = nuevoRegistro(Object.assign(base, { n: nombre, q: E.q, u: E.q ? E.u : '', p: E.p, c: E.c, f: E.f, k: E.k2, fib: E.fib, partes: E.partes }));
+  if (r) { const m = regMapa(); m[E.k.slice(1)] = Object.assign(m[nuevo.slice(1)], { ts: r.ts }); delete m[nuevo.slice(1)]; regGuardar(); }
+  else prot[E.i] = nuevo;
+  ITEM_ED = null; cerrarModal(); hap('ok'); cambiarProt(); toast('Corregido ✓');
+}
+function itemDiaQuitar() { const i = ITEM_ED.i; ITEM_ED = null; cerrarModal(); quitarProt(i); }
+
+// Lo que sueles comer a esta hora (de tus últimas 3 semanas) y que hoy no has anotado en esta comida
+function claveHabito(k) { const r = regDe(k); return r ? (r.src === 'receta' || r.src === 'tupper' ? r.src + ':' + r.ref : 'n:' + String(r.n).replace(/ · [\d.,]+ (g|ml)$/, '').toLowerCase()) : 'k:' + k; }
+function sugerenciasHora() {
+  const m = comidaActual(), cuenta = {}, ejemplo = {};
+  for (let d = 1; d <= 21; d++) {
+    const dia = sumarDias(hoy(), -d), l = LS.get('gym_prot_' + dia, null);
+    if (!l || !l.length) continue;
+    const t = etiquetas(dia, l.length), vistas = {};
+    l.forEach((k, i) => { if (t[i] !== m) return; const c = claveHabito(k); if (vistas[c]) return; vistas[c] = 1; cuenta[c] = (cuenta[c] || 0) + 1; if (!ejemplo[c]) ejemplo[c] = { dia: dia, i: i, k: k }; });
+  }
+  const tHoy = etiquetas(diaComida(), prot.length), ya = {};
+  prot.forEach((k, i) => { if (tHoy[i] === m) ya[claveHabito(k)] = 1; });
+  return Object.keys(cuenta).filter(c => cuenta[c] >= 2 && !ya[c]).sort((a, b) => cuenta[b] - cuenta[a]).slice(0, 3).map(c => ejemplo[c]);
+}
+function filaHabitos() {
+  if (COMIDA_DIA) return '';
+  const s = sugerenciasHora();
+  if (!s.length) return '';
+  return '<div class="habitos"><span class="muted">Sueles comer en ' + esc(nombreDeComida(comidaActual()).toLowerCase()) + ':</span>' + s.map(x => {
+    const m = macrosDe(x.k);
+    return '<button class="tch" ' + on('agregarHabito', x.dia, x.i) + '>＋ ' + esc(tDe(x.k).replace(/ · [\d.,]+ (g|ml)$/, '')) + ' <small>' + Math.round(m.p || 0) + ' g</small></button>';
+  }).join('') + '</div>';
+}
+// Copiar algo de otro día: una receta se calcula con tu receta de hoy; lo demás, tal como fue
+function copiaDe(k) {
+  const r = regDe(k);
+  if (r && r.src === 'receta' && recetaDe(r.ref)) return expandirClave('@' + r.ref);
+  return r ? nuevoRegistro(r) : k;
+}
+function agregarHabito(dia, i) {
+  const l = LS.get('gym_prot_' + dia, []) || [], k = l[i];
+  if (k === undefined) return;
+  agregarAProt([copiaDe(k)], [comidaActual()]); hap('ok'); cambiarProt(); toast('Agregado ✓');
+}
+// Repetir una comida de otro día (no solo ayer completo)
+function abrirRepetir() {
+  let h = '<div class="row between"><div class="t2">Repetir una comida</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
+    '<div class="muted" style="margin:2px 0 8px">Se agrega a ' + esc(nombreDeComida(comidaActual()).toLowerCase()) + ' de hoy.</div>';
+  let hay = 0;
+  for (let d = 1; d <= 7; d++) {
+    const dia = sumarDias(hoy(), -d), l = LS.get('gym_prot_' + dia, null);
+    if (!l || !l.length) continue;
+    const t = etiquetas(dia, l.length);
+    const grupos = COMIDAS.map(c => [c, l.map((k, i) => i).filter(i => t[i] === c[0])]).filter(g => g[1].length);
+    if (!grupos.length) continue;
+    h += '<div class="tpaso">' + esc(diaCorto(dia)) + '</div>' + grupos.map(([c, idx]) => {
+      const tot = idx.reduce((a, i) => { const m = macrosDe(l[i]); return { p: a.p + (m.p || 0), k: a.k + (m.k || 0) }; }, { p: 0, k: 0 });
+      hay++;
+      return '<button class="repcom" ' + on('repetirComida', dia, c[0]) + '><b>' + c[2] + ' ' + c[1] + '</b> <small>' + Math.round(tot.p) + ' g · ' + Math.round(tot.k) + ' kcal</small>' +
+        '<span>' + esc(idx.map(i => tDe(l[i]).replace(/ · [\d.,]+ (g|ml)$/, '')).join(', ')) + '</span></button>';
+    }).join('');
+  }
+  if (!hay) h += '<div class="muted">Aún no hay comidas de los últimos 7 días en este celular.</div>';
+  $('sheet').innerHTML = h; abrirModal();
+}
+function repetirComida(dia, m) {
+  const l = LS.get('gym_prot_' + dia, []) || [], t = etiquetas(dia, l.length);
+  const claves = l.filter((k, i) => t[i] === m).map(copiaDe);
+  if (!claves.length) return;
+  cerrarModal(); agregarAProt(claves, claves.map(() => comidaActual())); hap('ok'); cambiarProt(); toast('Repetido: ' + claves.length + ' cosa' + (claves.length > 1 ? 's' : '') + ' ✓');
+}
+// Guardar lo que contestó la IA como receta (molletes, tu tupper de los martes…): cada cosa queda como producto tuyo
+function guardarRecetaIA() {
+  const c = COMIDA_IA; if (!c || !c.items) return;
+  const items = c.items.filter(x => x.on && x.gramos > 0);
+  if (!items.length) return toast('Necesito los gramos de cada cosa: tócala y ponlos');
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">Guardar como receta</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
+    '<input id="recNom" class="campo" placeholder="Nombre (ej. Molletes con frijoles con soya)" value="' + esc(String(c.texto || '').slice(0, 40)) + '">' +
+    '<div class="muted" style="margin:4px 0 8px">' + esc(items.map(x => x.nombre + ' ' + Math.round(x.gramos) + ' g').join(' · ')) + '</div>' +
+    '<div class="acts"><button class="btn" ' + on('confirmarRecetaIA') + '>Guardar</button></div>';
+  abrirModal();
+}
+function confirmarRecetaIA() {
+  const c = COMIDA_IA, cfg = nutCfg(), nombre = (($('recNom') || {}).value || '').trim().slice(0, 50);
+  if (!nombre) return toast('Ponle nombre');
+  if (cfg.recetas.length >= 12) return toast('Ya tienes 12 recetas: borra una para guardar otra');
+  const items = c.items.filter(x => x.on && x.gramos > 0).map(x => {
+    const f = 100 / x.gramos, id = 'p:' + uid();
+    cfg.productos.push({ id: id, n: String(x.nombre).slice(0, 60), marca: '', u: 'g', p: NUT.r1(x.g * f), c: NUT.r1((x.c || 0) * f), f: NUT.r1((x.f || 0) * f), k: Math.round((x.k || 0) * f), fib: NUT.r1((x.fib || 0) * f), por: [], src: 'ia', code: '', ts: Date.now() });
+    return { ref: id, q: NUT.r1(x.gramos) };
+  });
+  cfg.productos = cfg.productos.slice(-40);
+  cfg.recetas.push({ id: 'r-' + uid(), n: nombre, ico: '🍽️', m: comidaActual(), items: items });
+  guardarNut(cfg); cerrarModal(); hap('ok'); toast('Receta guardada: la encuentras en Mis comidas ✓'); pintarComida();
+}
+
 // Recetas registradas antes de la v9.0 (sin ingredientes guardados): si la receta no ha cambiado, se sacan de ahí
 function partesSiNoCambio(r) {
   const rec = r.src === 'receta' && recetaDe(r.ref);
@@ -801,6 +936,7 @@ function abrirMetas() {
       ' kcal; −' + m.deficit + ' kcal para bajar grasa sin perder músculo' + (m.ajuste ? ' y ' + (m.ajuste > 0 ? '+' : '') + m.ajuste + ' porque ' + esc(m.porque) : '') +
       '. Proteína: tu meta. Grasa: 0.8 g por kg. Carbohidratos: lo que queda. Se recalculan solas con tu peso y tu ritmo. Panel muestra estas mismas.</div>'
       : '<div class="tip" style="margin:12px 0 0">Son las que pusiste tú. La proteína sigue siendo tu meta de siempre.</div>') +
+    tipMantReal(m) +
     '<div class="tpaso">¿Quieres poner las tuyas?</div><div class="pcs">' +
       ['k', 'c', 'f'].map(k => '<label class="pc"><span>' + { k: 'kcal', c: 'Carbos', f: 'Grasa' }[k] + '</span><input id="mt_' + k + '" class="num" inputmode="numeric" value="' + m[k] + '"></label>').join('') + '</div>' +
     '<div class="acts">' + (m.auto ? '' : '<button class="btn ghost" ' + on('metasAuto') + '>Volver a las calculadas</button>') + '<button class="btn" ' + on('guardarMetas') + '>Usar estas</button></div>';
@@ -810,11 +946,23 @@ function abrirMetas() {
 // (o una vez al día, para que Panel sepa que siguen vigentes)
 function mandarMetasGym() {
   if (!DATA || !DATA.scriptVersion || versionNum(DATA.scriptVersion) < versionNum('8.1')) return;
-  const m = metasHoy(), env = { k: m.k, p: m.p, c: m.c, f: m.f, fib: m.fib, auto: !!m.auto, mant: m.mant || null, porque: m.auto ? m.porque || '' : 'las pusiste en Gym' };
-  const ya = LS.get('gym_metas_env', null), firma = [env.k, env.p, env.c, env.f, env.fib, env.auto].join('|');
+  const m = metasHoy(), mr = mantReal(), env = { k: m.k, p: m.p, c: m.c, f: m.f, fib: m.fib, auto: !!m.auto, mant: m.mant || null, porque: m.auto ? m.porque || '' : 'las pusiste en Gym',
+    mantReal: mr && mr.confiable ? mr.mant : null };
+  const ya = LS.get('gym_metas_env', null), firma = [env.k, env.p, env.c, env.f, env.fib, env.auto, env.mantReal].join('|');
   if (ya && ya.firma === firma && ya.dia === hoy()) return;
   encolar('saveConfig', [{ metasGym: env }], 'metas-gym');
   LS.set('gym_metas_env', { firma: firma, dia: hoy() });
+}
+// Lo que de verdad pasa: tu promedio de calorías registradas contra cómo se movió tu peso
+function mantReal() { const m7 = DATA && DATA.macros7, r = DATA && DATA.resumen; return m7 ? NUT.mantenimientoReal(m7.kcal, r ? r.cambioSemana : null, m7.dias) : null; }
+function tipMantReal(m) {
+  const mr = mantReal();
+  if (!mr) return '';
+  const bajo = m.mant && mr.mant < m.mant - 300;
+  return '<div class="tip" style="margin:10px 0 0">📊 Con tus datos reales (' + (DATA.macros7.dias) + ' días completos): comes ~' + mr.kcal.toLocaleString('es-MX') + ' kcal y tu peso cambió ' +
+    (mr.cambio > 0 ? '+' : '') + NUT.r1(mr.cambio) + ' kg/sem → tu mantenimiento real anda en ~' + mr.mant.toLocaleString('es-MX') + ' kcal' + (m.mant ? ' (la fórmula dice ' + m.mant.toLocaleString('es-MX') + ')' : '') + '. ' +
+    (bajo ? 'Es bastante menos que la fórmula: lo más probable es que algo no se esté anotando (aceite, bebidas, botanas, probadas). ' : '') +
+    (!mr.confiable ? 'Con pocos días todavía es una idea, no un dato.' : '') + '</div>';
 }
 function guardarMetas() {
   const v = k => Math.round(Number(($('mt_' + k) || {}).value) || 0), c = nutCfg();
@@ -826,6 +974,13 @@ function metasAuto() { const c = nutCfg(); c.metas = null; guardarNut(c); cerrar
 /* ----- Estilos ----- */
 document.head.insertAdjacentHTML('beforeend', `<style>
   .etqdecl { margin: 2px 0 8px; font-size: 13px; }
+  .habitos { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 10px; }
+  .habitos .muted { width: 100%; font-size: 13px; }
+  .habitos small { color: var(--ok); font-weight: 700; }
+  .repcom { display: block; width: 100%; text-align: left; margin: 0 0 8px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: inherit; }
+  .repcom small { color: var(--muted); }
+  .repcom span { display: block; font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .eaten button.grande { border-color: var(--acc); }
   .seco { color: var(--acc); font-weight: 650; }
   .iitem .mac { display: block; font-size: 12.5px; color: var(--muted); }
   .iitem .av { display: block; font-size: 12.5px; color: var(--acc); }

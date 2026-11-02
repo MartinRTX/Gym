@@ -423,6 +423,15 @@ const NUT = (() => {
     if (HUMEDOS.test(n) && ((Number(a.p) || 0) + (Number(a.c) || 0) + (Number(a.f) || 0) > 75 || (/proteina/.test(n) && a.p > 35))) a.seco = true;
     return a;
   }
+  // Mantenimiento con tus datos reales: lo que comiste en promedio menos lo que cambió tu peso (7,700 kcal ≈ 1 kg).
+  // Con menos de 5 días completos registrados no es confiable. Si registras de menos, este número sale bajo.
+  function mantenimientoReal(kcalProm, cambioKgSemana, dias) {
+    if (!(kcalProm > 0) || cambioKgSemana === null || cambioKgSemana === undefined || isNaN(Number(cambioKgSemana))) return null;
+    const mant = Math.round((kcalProm - Number(cambioKgSemana) * 7700 / 7) / 10) * 10;
+    return { mant: mant, confiable: (Number(dias) || 0) >= 5, kcal: Math.round(kcalProm), cambio: Number(cambioKgSemana) };
+  }
+  // Una sola cosa con muchas calorías (una pizza entera, 660 g): puede estar bien, pero conviene revisarla
+  const esGrande = m => (Number(m.k) || 0) > 900;
   // ¿Los números tienen sentido? (lo que la IA o una ficha dicen de una cantidad). Regresa avisos para corregir antes de agregar
   function revisarMacros(m, gramos) {
     const av = [], p = Number(m.p) || 0, c = Number(m.c) || 0, f = Number(m.f) || 0, k = Number(m.k), q = Number(gramos) || 0;
@@ -446,6 +455,6 @@ const NUT = (() => {
   };
 
   return { MAC, BASE, BASE_POR_ID, RECETAS, TUPPER, LEGADO, ES_EN, r1, macros, sumar, receta, diferencia, cambiarRol, tupper, nombreTupper, claveTupper,
-           normalizarEtiqueta, leerEtiqueta, revisarMacros, marcarSeco, gramosDeConsumo, gramosDe, mismoProducto, metas, buscar, cantidadDeTexto, desempacar, sinAcentos };
+           normalizarEtiqueta, leerEtiqueta, revisarMacros, marcarSeco, mantenimientoReal, esGrande, gramosDeConsumo, gramosDe, mismoProducto, metas, buscar, cantidadDeTexto, desempacar, sinAcentos };
 })();
 if (typeof module !== 'undefined') module.exports = NUT;

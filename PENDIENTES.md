@@ -6,11 +6,11 @@ Actualizado: 02/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | v9.2 publicada (`main` = rama de trabajo) |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | v9.4 publicada (`main` = rama de trabajo) |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
-| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | 8.2 publicado (se publica solo con clasp al subir a `main`) |
-| Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | 1.4: lee Gym y Finanzas (solo lectura); comidas y metas vienen de Gym; plan semanal en "Comidas 2026" |
+| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | 8.4 publicado (se publica solo con clasp al subir a `main`) |
+| Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | 1.5: lee Gym y Finanzas (solo lectura); comidas y metas vienen de Gym; plan semanal en "Comidas 2026" |
 
 Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` (`herramientas/revisar.js` falla si no).
 `SCRIPT_ESPERADO` en `app.js` = `SCRIPT_VERSION` en `AppGym.js`. El `versionName` del APK sale de `VERSION_APP`.
@@ -60,7 +60,7 @@ App y script van juntos: al publicar, adelantar `main` de Gym **y** pasar la ram
 - Vista previa (`abrirEtiqueta`): cantidad en g/ml, piezas, porciones o parte del envase con macros al instante; actualiza el
   producto si ya lo tienes (`NUT.mismoProducto`); 📷 en el Registro inteligente (foto + lo escrito) y texto de tabla pegado.
 
-## Comida: lo que falló con datos reales (revisado 02/11) — puntos 1–6 hechos en v9.3 / script 8.3 (en ramas, falta "publica": script `claude/comida-83`)
+## Comida: lo que falló con datos reales (revisado 02/11) — puntos 1–6 hechos y publicados (v9.3 / script 8.3)
 
 Encontrado en la hoja (Comidas y Errores):
 - **Proteína inflada el 01/11**: "frijoles con soya" en el buscador eligió *Soja (Soya) Frijol, Proteína* (proteína de soya
@@ -86,6 +86,17 @@ Mejoras propuestas (en orden):
    escribir los números de la etiqueta a mano cuando la foto no sirve.
 6. ✅ **Corregido el 01/11 en la hoja** (Martin lo pidió): frijoles con soya 150 g (14.6 g prot) y mantequilla 10 g (0.1 g prot);
    Peso diario del 01/11 = 95 g. En el celular ese día sigue con lo viejo hasta que se borre o se edite (la hoja ya está bien).
+
+## v9.4 / script 8.4 / Panel 1.5 (publicado 02/11/2026): los 7 de Comida
+
+1. Tocar algo de "Hoy comiste" → corregir (½, ×1½, ×2, cantidad o cada macro) o quitar (`abrirItemDia`). Va a la hoja al guardar.
+2. "Sueles comer en …": lo que anotaste 2+ veces en esa comida en 3 semanas y hoy falta (`sugerenciasHora`).
+3. "📅 Repetir una comida de otro día" (últimos 7 días, por comida). Las recetas se recalculan con la receta de hoy.
+4. Aviso a las 9 pm si faltan o sobran más de 350 kcal (id 96, interruptor `avisoKcal` en Ajustes).
+5. Mantenimiento real = kcal promedio registradas − cambio de peso × 1,100 (`NUT.mantenimientoReal`): en Metas, en Panel
+   (`metasGym.mantReal`, con 5+ días) y en el reporte del domingo.
+6. "💾 Guardar como receta" lo que contestó la IA: cada cosa queda como producto y la receta sale en Mis comidas (se quita con Editar).
+7. Cosas de más de 900 kcal salen ⚠️ en el día y en la respuesta de la IA.
 
 ## Pendientes de la app (refactor y auditoría)
 
