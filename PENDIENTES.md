@@ -60,7 +60,7 @@ App y script van juntos: al publicar, adelantar `main` de Gym **y** pasar la ram
 - Vista previa (`abrirEtiqueta`): cantidad en g/ml, piezas, porciones o parte del envase con macros al instante; actualiza el
   producto si ya lo tienes (`NUT.mismoProducto`); 📷 en el Registro inteligente (foto + lo escrito) y texto de tabla pegado.
 
-## Comida: lo que falló con datos reales (revisado 02/11) y mejoras propuestas
+## Comida: lo que falló con datos reales (revisado 02/11) — puntos 1–6 hechos en v9.3 / script 8.3 (en ramas, falta "publica": script `claude/comida-83`)
 
 Encontrado en la hoja (Comidas y Errores):
 - **Proteína inflada el 01/11**: "frijoles con soya" en el buscador eligió *Soja (Soya) Frijol, Proteína* (proteína de soya
@@ -84,8 +84,8 @@ Mejoras propuestas (en orden):
 5. **Etiquetas difíciles**: hasta 3 fotos de la misma etiqueta (galón: frente, costado, atrás); el texto en renglones
    ("Contenido energético 61 kcal, proteínas 3.1 g…") ya se acepta; "galón" = 3,785 ml como envase; y un formulario corto para
    escribir los números de la etiqueta a mano cuando la foto no sirve.
-6. **Corregir el 01/11** (pedir confirmación antes de tocar datos): quitar la proteína de soya seca (150 g) y la mantequilla
-   con 20 g de proteína, o cambiarlas por frijoles con soya y mantequilla reales.
+6. ✅ **Corregido el 01/11 en la hoja** (Martin lo pidió): frijoles con soya 150 g (14.6 g prot) y mantequilla 10 g (0.1 g prot);
+   Peso diario del 01/11 = 95 g. En el celular ese día sigue con lo viejo hasta que se borre o se edite (la hoja ya está bien).
 
 ## Pendientes de la app (refactor y auditoría)
 

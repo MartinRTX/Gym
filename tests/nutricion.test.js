@@ -184,3 +184,17 @@ test('mismoProducto: no duplica (mismo código o casi el mismo nombre)', () => {
   assert.ok(NUT.mismoProducto({ n: 'X', code: '750100' }, { n: 'Y', code: '750100' }));
   assert.ok(!NUT.mismoProducto({ n: 'Galletas Marías', marca: 'Gamesa' }, { n: 'Galletas Emperador', marca: 'Gamesa' }));
 });
+
+test('revisarMacros y marcarSeco: lo que no puede ser sale marcado', () => {
+  assert.ok(NUT.revisarMacros({ p: 20, c: 0, f: 8, k: 72 }, 10).some(a => /pesan más/.test(a)), 'mantequilla 10 g con 20 g de proteína');
+  assert.ok(NUT.revisarMacros({ p: 71.4, c: 57.6, f: 1.8, k: 533 }, 150).some(a => /mucho/.test(a)));
+  assert.ok(NUT.revisarMacros({ p: 10, c: 10, f: 10, k: 500 }, 100).some(a => /no cuadran/.test(a)));
+  assert.deepStrictEqual(NUT.revisarMacros({ p: 0.1, c: 0, f: 8.1, k: 72 }, 10), []);
+  assert.ok(NUT.marcarSeco({ n: 'Soja (Soya) Frijol, Proteína', p: 47.6, c: 38.4, f: 1.2 }).seco);
+  assert.ok(NUT.marcarSeco({ n: 'Leche De Vaca, Entera', p: 29.4, c: 38, f: 26 }).seco);
+  assert.ok(!NUT.marcarSeco({ n: 'Leche De Vaca, En Polvo Entera', p: 24.9, c: 38, f: 27 }).seco, 'ya dice que es polvo');
+  assert.ok(!NUT.marcarSeco({ n: 'Leche De Vaca, Entera Deslactosada', p: 2.9, c: 4.7, f: 3.2 }).seco);
+  assert.strictEqual(NUT.buscar(NUT.BASE, 'frijoles con soya')[0].id, 'b:frijol-soya');
+  assert.strictEqual(NUT.buscar(NUT.BASE, 'mantequilla')[0].id, 'b:mantequilla');
+  assert.strictEqual(NUT.buscar(NUT.BASE, 'pan birote')[0].id, 'b:bolillo');
+});

@@ -1272,7 +1272,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v9.2';
+const VERSION_APP = 'v9.3';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1458,7 +1458,7 @@ function ladoVisible(base) {
 function verLado(base, lado) { QUIEN[base] = lado; ANIM_ABRE = base; hap('tecla'); pintarEntrenar(); }
 // Sugerencia al empezar cada ejercicio (subir, bajar o mantener, con números). El script 7.4 ya la manda calculada
 // con la misma función (motor.js → progresionInicio); con un script anterior, la calcula la app con tu última sesión.
-const SCRIPT_ESPERADO = '8.2';
+const SCRIPT_ESPERADO = '8.3';
 const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);
 const scriptAlDia = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum(SCRIPT_ESPERADO));
 // Un solo motor: si la hoja trae el mismo motor (misma huella que motor.js) se usa lo que calculó; si no, lo calcula la app
@@ -3893,7 +3893,10 @@ function tarjetaComidaIA() {
     const tot = c.items.filter(x => x.on).reduce((a, x) => a + x.g, 0), kcal = c.items.filter(x => x.on).reduce((a, x) => a + (x.k || 0), 0);
     h += '<div style="margin-top:10px">' + c.items.map((x, i) => '<div class="iitem' + (x.on ? '' : ' off') + '">' +
       '<button class="mini' + (x.on ? ' on' : '') + '" ' + on('alternarItemIA', i) + ' aria-label="Incluir">✓</button>' +
-      '<div class="nm">' + esc(x.nombre) + (x.nota ? '<small>' + esc(x.nota) + '</small>' : '') + '</div>' +
+      // Toca el nombre para corregir gramos y macros; lo que no cuadra sale marcado
+      '<button class="nm" ' + on('editarItemIA', i) + '>' + esc(x.nombre) + (x.fijo && x.fijo.length ? ' 🔒' : '') + ' ✏️' + (x.nota ? '<small>' + esc(x.nota) + '</small>' : '') +
+        '<span class="mac">' + (x.gramos ? Math.round(x.gramos) + ' g · ' : '') + 'C ' + Math.round(x.c || 0) + ' · G ' + Math.round(x.f || 0) + ' · ' + Math.round(x.k || 0) + ' kcal</span>' +
+        NUT.revisarMacros({ p: x.g, c: x.c, f: x.f, k: x.k }, x.gramos).map(a => '<span class="av">⚠️ ' + esc(a) + '</span>').join('') + '</button>' +
       '<button class="mini" ' + on('ajustarItem', i, -2) + ' aria-label="Menos">−</button><span class="g num">' + x.g + ' g</span>' +
       '<button class="mini" ' + on('ajustarItem', i, 2) + ' aria-label="Más">+</button>' +
       '<button class="mini' + (x.fav ? ' on' : '') + '" ' + on('guardarFav', i) + ' aria-label="Guardar en mis comidas">⭐</button></div>').join('') + '</div>';
@@ -3984,6 +3987,29 @@ async function sugerenciasCatalogo(texto) {
   const seis = out.slice(0, 6); seis.seg = out.seg;
   return seis;
 }
+// Corregir lo que dijo la IA: gramos (escala todo), proteína, carbos, grasa y kcal (se recalculan de los macros si no las tocas)
+function editarItemIA(i) {
+  const x = COMIDA_IA && COMIDA_IA.items[i]; if (!x) return;
+  const campo = (k, nom, v) => '<label class="pc"><span>' + nom + '</span><input class="num" inputmode="decimal" value="' + (v === null || v === undefined ? '' : NUT.r1(v)) + '" ' + ev('change', 'cambiarItemIA', i, k, VALOR) + '></label>';
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">' + esc(x.nombre) + '</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
+    '<div class="muted" style="margin:2px 0 6px">Cambiar los gramos ajusta todo en proporción. Si cambias proteína, carbos o grasa, las kcal se recalculan.</div>' +
+    '<div class="iedit"><div class="pcs">' + campo('gramos', 'Gramos', x.gramos) + campo('g', 'Proteína', x.g) + campo('c', 'Carbos', x.c) + campo('f', 'Grasa', x.f) + campo('k', 'kcal', x.k) + '</div></div>' +
+    '<div id="iaEdAv">' + avisosHtml(NUT.revisarMacros({ p: x.g, c: x.c, f: x.f, k: x.k }, x.gramos)) + '</div>' +
+    '<div class="acts"><button class="btn" ' + on('cerrarYPintarIA') + '>Listo</button></div>';
+  abrirModal();
+}
+function cambiarItemIA(i, k, v) {
+  const x = COMIDA_IA && COMIDA_IA.items[i], n = numeroEscrito(v);
+  if (!x || !(n >= 0)) return;
+  if (k === 'gramos') {
+    const f = x.gramos > 0 ? n / x.gramos : null;
+    if (f) { x.g = Math.round(x.g * f); ['c', 'f', 'fib'].forEach(m => { if (x[m] !== null && x[m] !== undefined) x[m] = NUT.r1(x[m] * f); }); if (x.k) x.k = Math.round(x.k * f); }
+    x.gramos = n;
+  } else if (k === 'k') x.k = Math.round(n);
+  else { x[k] = k === 'g' ? Math.round(n) : NUT.r1(n); x.k = Math.round(4 * (x.g || 0) + 4 * (x.c || 0) + 9 * (x.f || 0)); }
+  editarItemIA(i);
+}
+function cerrarYPintarIA() { cerrarModal(); pintarComida(); }
 function ajustarItem(i, d) { const x = COMIDA_IA.items[i]; x.g = Math.max(0, x.g + d); pintarComida(); }
 function agregarComidaIA() {
   // También lo que casi no trae proteína (refresco, fruta, pan): suma calorías y carbohidratos

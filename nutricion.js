@@ -29,6 +29,8 @@ const NUT = (() => {
     B('queso-fresco', 'Queso fresco', 18.1, 3.0, 23.8, 299, 0, [['1 rebanada', 30]], { rol: 'queso' }),
     B('queso-cotija', 'Queso cotija', 20.0, 4.0, 30.0, 366, 0, [['1 cucharada', 10]], { rol: 'queso' }),
     B('frijol-refrito', 'Frijoles refritos', 6.1, 18.3, 3.9, 128, 2.3, [['2 cucharadas', 30], ['1/2 taza', 120]], { rol: 'frijol', src: 'mx' }),
+    // Como en casa: 60 g de refritos con 15 g de soya texturizada (se hidrata a ~45 g)
+    B('frijol-soya', 'Frijoles con soya (refritos con soya texturizada)', 9.7, 15.1, 2.2, 117, 5.5, [['2 cucharadas', 30], ['1/2 taza', 120]], { src: 'calc' }),
     B('frijol-olla', 'Frijoles de olla (con caldo)', 5.8, 11.5, 0.3, 69, 5.5, [['1 cucharón', 120], ['1/2 taza', 86]], { rol: 'frijol', src: 'mx' }),
     B('frijol-negro', 'Frijoles negros cocidos', 8.9, 23.7, 0.5, 132, 8.7, [['1 cucharón', 120], ['1/2 taza', 86]], { rol: 'frijol' }),
     B('soya-text', 'Soya texturizada (seca)', 43.7, 34.2, 2.3, 310, 4.9, [['1 cucharada', 6], ['1/4 taza', 20]], { src: 'mx' }),
@@ -47,6 +49,7 @@ const NUT = (() => {
     B('huevo', 'Huevo', 12.6, 0.7, 9.5, 143, 0, [['1 huevo', 50], ['2 huevos', 100]]),
     B('huevo-revuelto', 'Huevo revuelto', 10.0, 1.6, 11.0, 149, 0, [['2 huevos', 110]]),
     B('atun', 'Atún en agua (escurrido)', 19.4, 0, 1.0, 86, 0, [['1 lata', 100]]),
+    // Las marcas mexicanas varían mucho (algunas traen soya): si la lata dice otra proteína, escríbela y manda
     B('tilapia', 'Pescado (tilapia) cocido', 26.2, 0, 2.7, 128, 0, [['1 filete', 120]]),
     B('jamon', 'Jamón', 16.6, 3.6, 8.8, 164, 1.3, [['1 rebanada', 20]]),
     B('salchicha', 'Salchicha de pavo o pollo', 15.5, 2.7, 16.2, 223, 0, [['1 pieza', 45]]),
@@ -65,7 +68,8 @@ const NUT = (() => {
     B('yogurt-griego', 'Yogurt griego natural', 10.2, 3.6, 0.4, 59, 0, [['1 vaso', 170]]),
     B('requeson', 'Requesón o cottage', 10.5, 4.8, 2.3, 81, 0, [['1/2 taza', 113]]),
     B('pan-blanco', 'Pan de caja', 8.9, 49.4, 3.3, 266, 2.7, [['1 rebanada', 25]]),
-    B('bolillo', 'Bolillo o telera', 9.8, 50.1, 3.9, 279, 1.8, [['1 pieza', 60]]),
+    B('bolillo', 'Pan bolillo o telera (birote)', 9.8, 50.1, 3.9, 279, 1.8, [['1 pieza', 60]]),
+    B('mantequilla', 'Mantequilla', 0.9, 0.1, 81.1, 717, 0, [['1 cucharadita', 5], ['1 cucharada', 14]]),
     B('pan-dulce', 'Pan dulce', 6.2, 50.9, 16.4, 372, 2.4, [['1 pieza', 70]]),
     B('manzana', 'Manzana', 0.3, 13.8, 0.2, 52, 2.4, [['1 mediana', 180]]),
     B('naranja', 'Naranja', 0.9, 11.8, 0.1, 47, 2.4, [['1 mediana', 130]]),
@@ -79,7 +83,7 @@ const NUT = (() => {
     B('refresco', 'Refresco de cola', 0, 10.4, 0, 42, 0, [['1 lata', 355], ['600 ml', 600]], { u: 'ml' }),
     B('lentejas', 'Lentejas cocidas', 9.0, 20.1, 0.4, 116, 7.9, [['1 cucharón', 120]]),
     B('garbanzo', 'Garbanzos cocidos', 8.9, 27.4, 2.6, 164, 7.6, [['1/2 taza', 82]]),
-    B('soya-cocida', 'Frijol de soya cocido', 18.2, 8.4, 9.0, 172, 6.0, [['1/2 taza', 86]]),
+    B('soya-cocida', 'Soya en grano cocida (frijol de soya)', 18.2, 8.4, 9.0, 172, 6.0, [['1/2 taza', 86]]),
     B('tofu', 'Tofu firme', 9.0, 2.9, 4.2, 78, 0.9, [['1 porción', 100]]),
     B('elote', 'Elote cocido', 3.4, 21.0, 1.5, 96, 2.4, [['1 elote', 100]]),
     B('tamal', 'Tamal', 9.0, 18.0, 12.0, 216, 2.2, [['1 tamal', 150]]),
@@ -306,7 +310,7 @@ const NUT = (() => {
   const SINONIMOS = { scoop: ['proteina'], whey: ['proteina'], coca: ['cola', 'refresco'], cocacola: ['cola', 'refresco'], soda: ['refresco'], pepsi: ['cola', 'refresco'],
     dogo: ['dogo', 'salchicha'], hotdog: ['dogo', 'salchicha'], papitas: ['papa'], sabritas: ['papa'], bistec: ['res', 'bistec'], bisteck: ['res', 'bistec'],
     puerco: ['cerdo', 'porcinos'], cerdo: ['porcinos'], res: ['bovinos'], tomate: ['jitomate'], yogur: ['yogurt'], yoghurt: ['yogurt'], licuado: ['licuado', 'leche'],
-    bimbo: ['pan'], hotcakes: ['hotcake', 'pancakes'], cheerios: ['cheerios', 'cereal'], corn: ['cereal'], flakes: ['cereal'], zucaritas: ['cereal'],
+    bimbo: ['pan'], birote: ['bolillo', 'birote'], telera: ['bolillo', 'telera'], mazatun: ['atun'], dolores: ['atun'], tuny: ['atun'], hotcakes: ['hotcake', 'pancakes'], cheerios: ['cheerios', 'cereal'], corn: ['cereal'], flakes: ['cereal'], zucaritas: ['cereal'],
     asada: ['asada', 'asado', 'res'], tacos: ['taco'], quesadillas: ['quesadilla'], tortillas: ['tortilla'], frijol: ['frijol', 'frijoles'] };
   const raiz = w => w.length > 5 && /es$/.test(w) ? w.slice(0, -2) : w.length > 3 && /s$/.test(w) ? w.slice(0, -1) : w;
   // Cada alimento se normaliza una sola vez; el vocabulario (para corregir errores de dedo) se arma una vez por lista
@@ -377,7 +381,7 @@ const NUT = (() => {
       if (hay < minimo) return;
       pts += hay === n ? 4 : -3 * (n - hay);
       if (pal[0].some(f => f[1] === 1 && es.trim().indexOf(f[0]) === 0)) pts += 3;
-      pts -= (ORDEN[String(a.id).split(':')[0]] || 0) * 1.2 + Math.min(3, a.n.length / 40);
+      pts -= (ORDEN[String(a.id).split(':')[0]] || 0) * 1.2 + Math.min(3, a.n.length / 40) + (a.seco ? 5 : 0);
       out.push({ a: a, pts: pts });
     });
     return out.sort((x, y) => y.pts - x.pts).slice(0, max || 30).map(x => x.a);
@@ -407,8 +411,27 @@ const NUT = (() => {
   }
   // Catálogo grande (datos/alimentos.json): filas compactas → alimentos
   function desempacar(json) {
-    return (json.a || []).map(r => ({ id: r[0], n: r[1], en: r[2] || '', g: r[3] || '', p: r[4], c: r[5], f: r[6], k: r[7], fib: r[8], u: r[9] || 'g',
+    return (json.a || []).map(r => marcarSeco({ id: r[0], n: r[1], en: r[2] || '', g: r[3] || '', p: r[4], c: r[5], f: r[6], k: r[7], fib: r[8], u: r[9] || 'g',
                                       por: r[10] || [], src: String(r[0]).split(':')[0], crudo: !!r[11] }));
+  }
+  // Fichas que por sus números son secas o en polvo aunque el nombre no lo diga ("Leche De Vaca, Entera" con 29 g de proteína,
+  // "Soja Frijol, Proteína" = proteína de soya seca): se marcan y bajan en la búsqueda. Solo alimentos que normalmente van húmedos.
+  const HUMEDOS = /\b(leche|frijol|soya|soja|huevo|yogu?rt|carne|pollo|res|pescado|atun|queso fresco|panela|requeson)\b/;
+  function marcarSeco(a) {
+    const n = sinAcentos(a.n);
+    if (/polvo|seco|seca|deshidrat|concentrad|aislad|harina|evaporad|condensad|dulce|cajeta|chocolate|galleta|pastel|helado|cereal|barra|botana|\bpan\b|nuez|cacahuate|frit|chicharron|tostad|totopo|crema de|cand|snack|coat|cover|granola/.test(n)) return a;
+    if (HUMEDOS.test(n) && ((Number(a.p) || 0) + (Number(a.c) || 0) + (Number(a.f) || 0) > 75 || (/proteina/.test(n) && a.p > 35))) a.seco = true;
+    return a;
+  }
+  // ¿Los números tienen sentido? (lo que la IA o una ficha dicen de una cantidad). Regresa avisos para corregir antes de agregar
+  function revisarMacros(m, gramos) {
+    const av = [], p = Number(m.p) || 0, c = Number(m.c) || 0, f = Number(m.f) || 0, k = Number(m.k), q = Number(gramos) || 0;
+    if (q > 0 && p + c + f > q * 1.03) av.push('Proteína + carbos + grasa (' + Math.round(p + c + f) + ' g) pesan más que la comida (' + Math.round(q) + ' g)');
+    const calc = 4 * p + 4 * c + 9 * f;
+    if (k > 30 && calc > 0 && Math.abs(calc - k) / k > 0.3) av.push('Las calorías (' + Math.round(k) + ') no cuadran con los macros (~' + Math.round(calc) + ')');
+    // Más de 35 g de proteína por cada 100 g ya comidos solo pasa con polvos o algo seco (la carne cocida anda en 25–31)
+    if (q > 0 ? p > 20 && p / q > 0.35 : p > 60) av.push(Math.round(p) + ' g de proteína' + (q > 0 ? ' en ' + Math.round(q) + ' g' : '') + ' es mucho: ¿es algo seco o en polvo? Revisa la cantidad');
+    return av;
   }
 
   /* ----- Lo de antes: los botones fijos solo tenían proteína. Para los días viejos y los botones de siempre, sus macros estimados
@@ -423,6 +446,6 @@ const NUT = (() => {
   };
 
   return { MAC, BASE, BASE_POR_ID, RECETAS, TUPPER, LEGADO, ES_EN, r1, macros, sumar, receta, diferencia, cambiarRol, tupper, nombreTupper, claveTupper,
-           normalizarEtiqueta, leerEtiqueta, gramosDeConsumo, gramosDe, mismoProducto, metas, buscar, cantidadDeTexto, desempacar, sinAcentos };
+           normalizarEtiqueta, leerEtiqueta, revisarMacros, marcarSeco, gramosDeConsumo, gramosDe, mismoProducto, metas, buscar, cantidadDeTexto, desempacar, sinAcentos };
 })();
 if (typeof module !== 'undefined') module.exports = NUT;

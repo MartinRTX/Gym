@@ -375,7 +375,7 @@ function abrirBuscador(o) {
 function pintarBuscador() {
   const b = BUS, res = b.q ? NUT.buscar(listaBusqueda(), b.q, 40) : nutCfg().productos.concat(Object.values(LS.get('gym_alim_usados', {}))).slice(-12).reverse();
   const fila = a => '<button class="bres" ' + on('elegirNut', a.id) + '><span class="nm">' + esc(a.n) + (a.marca ? ' · ' + esc(a.marca) : '') +
-    '<small>' + fuenteTxt(a) + ' · por 100 ' + (a.u || 'g') + ': <b>' + NUT.r1(a.p) + ' g prot</b> · ' + Math.round(a.k) + ' kcal' + (a.crudo ? ' · crudo' : '') + '</small></span></button>';
+    '<small>' + fuenteTxt(a) + ' · por 100 ' + (a.u || 'g') + ': <b>' + NUT.r1(a.p) + ' g prot</b> · ' + Math.round(a.k) + ' kcal' + (a.crudo ? ' · crudo' : '') + (a.seco ? ' · <span class="seco">⚠️ seco o en polvo</span>' : '') + '</small></span></button>';
   const offRes = b.off ? (b.off.length ? b.off.map(a => '<button class="bres" ' + on('elegirOFF', a.code) + '><span class="nm">' + esc(a.n) + (a.marca ? ' · ' + esc(a.marca) : '') +
     '<small>Open Food Facts · por 100 ' + a.u + ': <b>' + NUT.r1(a.p) + ' g prot</b> · ' + Math.round(a.k || 0) + ' kcal</small></span></button>').join('') : '<div class="muted" style="margin:8px 2px">No encontré productos con ese nombre.</div>') : '';
   $('sheet').innerHTML = '<div class="row between"><div class="t2">' + (b.elegir ? 'Elige el ingrediente' : 'Buscar alimento') + '</div><button class="cerrar" ' + on('cerrarBuscador') + ' aria-label="Cerrar">✕</button></div>' +
@@ -461,6 +461,8 @@ function pintarCantidad() {
   const c = CANT, al = c.al, m = NUT.macros(al, c.q);
   $('sheet').innerHTML = '<div class="row between"><div class="t2" style="padding-right:8px">' + esc(al.n) + '</div><button class="cerrar" ' + on('cerrarCantidad') + ' aria-label="Volver">✕</button></div>' +
     '<div class="muted" style="margin:2px 0 10px">' + fuenteTxt(al) + (al.crudo ? ' · valores del alimento crudo: pésalo antes de cocinar' : '') + (al.nota ? ' · ' + esc(al.nota) : '') + '</div>' +
+    (al.seco ? '<div class="tip acc" style="margin:0 0 10px">⚠️ Esta ficha es de alimento seco o en polvo (' + NUT.r1(al.p) + ' g de proteína por 100 g). Si lo comiste preparado (frijoles de la olla, leche líquida…), busca el preparado.</div>' : '') +
+    '<div id="cantAvisos">' + avisosHtml(NUT.revisarMacros(m, c.q)) + '</div>' +
     (c.dijo && c.q === c.dijo.q ? '<div class="tip" style="margin:0 0 10px">Escribiste ' + esc(c.dijo.texto) + ' = <b class="num">' + NUT.r1(c.q) + ' ' + (al.u || 'g') + '</b>. Si fue otra cantidad, cámbiala.</div>' : '') +
     (al.por && al.por.length ? '<div class="tchips">' + al.por.concat(al.por.filter(p => p[0] === 'Todo el envase').map(p => ['La mitad del envase', NUT.r1(p[1] / 2)])).map(p => '<button class="tch' + (c.q === p[1] ? ' on' : '') + '" ' + on('cantFija', p[1]) + '>' + esc(p[0]) + ' · ' + p[1] + ' ' + (al.u || 'g') + '</button>').join('') + '</div>' : '') +
     '<div class="cantfila"><button class="mini" ' + on('cantPaso', -1) + ' aria-label="Menos">−</button>' +
@@ -469,6 +471,7 @@ function pintarCantidad() {
     '<div class="rectot"><b class="num">' + NUT.r1(m.p) + ' g</b> proteína<span>' + fmtM(m, true) + '</span></div>' +
     '<div class="acts"><button class="btn" ' + on('usarCantidad') + '>' + (c.elegir ? 'Usar en la receta' : 'Agregar a ' + esc(nombreDeComida(comidaActual()).toLowerCase())) + '</button></div>';
 }
+const avisosHtml = av => av.length ? '<div class="tip acc" style="margin:0 0 10px">⚠️ ' + av.map(esc).join('<br>⚠️ ') + '</div>' : '';
 function cerrarCantidad() { const b = CANT && CANT.bus; CANT = null; if (b) { BUS = b; pintarBuscador(); } else cerrarModal(); }
 function usarCantidad() {
   const c = CANT; CANT = null;
@@ -490,7 +493,8 @@ function abrirCamara(tipo) {
     '<div class="camopts">' +
     '<button ' + on('pedirFoto', 'etiqueta') + '><span>🏷️</span><b>Tabla nutricional</b><small>Leche, proteína o cualquier empaque: lee los macros solo</small></button>' +
     '<button ' + on('pedirFoto', 'tupper') + '><span>🍱</span><b>Mi comida o el tupper</b><small>Cuando no sabes qué guisado es ni cuánto pesa</small></button>' +
-    '<button ' + on('pedirFoto', 'codigo') + '><span>🔢</span><b>Código de barras</b><small>Lo busca en Open Food Facts</small></button></div>' +
+    '<button ' + on('pedirFoto', 'codigo') + '><span>🔢</span><b>Código de barras</b><small>Lo busca en Open Food Facts</small></button>' +
+    '<button ' + on('etiquetaAMano') + '><span>✍️</span><b>Escribir los datos</b><small>Cuando la foto no se lee: los números de la etiqueta a mano</small></button></div>' +
     '<label class="galeria"><input type="checkbox" id="deGaleria"' + (FOTO_GALERIA ? ' checked' : '') + ' ' + ev('change', 'fotoDeGaleria', MARCADO) + '> Elegir una foto que ya tomé (galería)</label>' +
     '<div class="row" style="gap:8px;margin-top:10px"><input id="codManual" class="campo" style="margin:0;flex:1" inputmode="numeric" placeholder="O escribe el número del código">' +
     '<button class="btn" ' + on('codigoManual') + '>Buscar</button></div>';
@@ -498,18 +502,20 @@ function abrirCamara(tipo) {
 }
 function pedirFoto(tipo) {
   FOTO = { tipo: tipo };
-  if (tipo === 'nota' && !scriptEtiqueta()) { cerrarModal(); return toast('Actualiza tu script a la 8.2 para mandar foto con nota'); }
-  if ((tipo === 'etiqueta' || tipo === 'tupper' || tipo === 'nota') && !scriptNut()) { cerrarModal(); return toast('Actualiza tu script a la 7.7 para leer fotos con la IA'); }
-  if ((tipo === 'etiqueta' || tipo === 'tupper' || tipo === 'nota') && !DATA.ia) { cerrarModal(); return toast('La IA no está activada en tu hoja'); }
+  if ((tipo === 'nota' || tipo === 'otraEtiqueta') && !scriptEtiqueta()) { cerrarModal(); return toast('Actualiza tu script a la 8.2 para mandar foto con nota'); }
+  if ((tipo === 'etiqueta' || tipo === 'tupper' || tipo === 'nota' || tipo === 'otraEtiqueta') && !scriptNut()) { cerrarModal(); return toast('Actualiza tu script a la 7.7 para leer fotos con la IA'); }
+  if ((tipo === 'etiqueta' || tipo === 'tupper' || tipo === 'nota' || tipo === 'otraEtiqueta') && !DATA.ia) { cerrarModal(); return toast('La IA no está activada en tu hoja'); }
   let inp = $('fotoNut');
   if (!inp) {
     inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.id = 'fotoNut'; inp.style.display = 'none';
-    inp.addEventListener('change', () => { const f = inp.files && inp.files[0]; inp.value = ''; if (f) procesarFotoNut(f); });
+    inp.addEventListener('change', () => { const fs = Array.from(inp.files || []).slice(0, 3); inp.value = ''; if (fs.length) procesarFotoNut(fs); });
     document.body.appendChild(inp);
   }
   // Con "capture" el celular abre la cámara directo; sin él, deja elegir de la galería
   // Con nota (desde el Registro inteligente) deja escoger: cámara o una foto/captura que ya tienes
   if (FOTO_GALERIA || tipo === 'nota') inp.removeAttribute('capture'); else inp.setAttribute('capture', 'environment');
+  // Con nota se pueden escoger hasta 3 fotos del mismo empaque (un galón por varios lados)
+  inp.multiple = tipo === 'nota';
   inp.click();
 }
 // La foto se achica (1280 px, JPEG) antes de mandarla: sube rápido aun con poca señal
@@ -531,8 +537,8 @@ function cargandoFoto(txt) {
   $('sheet').innerHTML = '<div class="t2">' + esc(txt) + '</div><div class="esq" style="position:relative;height:120px;margin-top:12px;border-radius:16px"><div class="brillo"></div><span>Un momento…</span></div>';
   if (!$('modal').classList.contains('show')) abrirModal();
 }
-async function procesarFotoNut(file) {
-  const tipo = FOTO.tipo;
+async function procesarFotoNut(files) {
+  const tipo = FOTO.tipo, file = Array.isArray(files) ? files[0] : files, todas = Array.isArray(files) ? files : [files];
   try {
     if (tipo === 'codigo') {
       cargandoFoto('Leyendo el código…');
@@ -547,11 +553,17 @@ async function procesarFotoNut(file) {
       return;
     }
     if (!navigator.onLine) { cerrarModal(); return toast('Necesitas señal para leer la foto con la IA'); }
-    cargandoFoto(tipo === 'etiqueta' ? 'Leyendo la etiqueta…' : tipo === 'nota' ? 'Leyendo tu foto…' : 'Viendo tu comida…');
+    cargandoFoto(tipo === 'etiqueta' || tipo === 'otraEtiqueta' ? 'Leyendo la etiqueta…' : tipo === 'nota' ? 'Leyendo tu foto…' : 'Viendo tu comida…');
     const f = await achicarFoto(file, 1280);
-    if (tipo === 'nota') {
-      const r = await conLimite(apiPost('fotoIA', [f.b64, 'image/jpeg', { nota: FOTO.nota || '', contexto: { meta: metaProt(), llevas: protTotal() } }]), 70000);
-      if (r.tipo === 'etiqueta') return abrirEtiqueta(r, true);
+    if (tipo === 'nota' || tipo === 'otraEtiqueta') {
+      const fotos = [f.b64];
+      for (const x of todas.slice(1)) fotos.push((await achicarFoto(x, 1280)).b64);
+      // Otra foto de la misma etiqueta: se manda junto con las anteriores
+      const antes = tipo === 'otraEtiqueta' && FOTO.antes ? FOTO.antes : [];
+      const lote = antes.concat(fotos).slice(-3);
+      const r = await conLimite(apiPost(tipo === 'otraEtiqueta' ? 'etiquetaIA' : 'fotoIA', [lote.length > 1 ? lote : lote[0], 'image/jpeg', { nota: FOTO.nota || '', contexto: { meta: metaProt(), llevas: protTotal() } }]), 70000);
+      if (r.tipo === 'etiqueta' || (tipo === 'otraEtiqueta' && r.es_etiqueta)) return abrirEtiqueta(r, FOTO.desdeIA !== false, lote, FOTO.nota || '');
+      if (tipo === 'otraEtiqueta') { cerrarModal(); return toast('No vi la tabla en esas fotos: intenta de frente y con luz'); }
       COMIDA_IA = { texto: FOTO.nota || '', items: (r.items || []).map(x => Object.assign(x, { on: true })), consejo: r.consejo, deFoto: true };
       cerrarModal(); verTab('Comida');
       setTimeout(() => { const c = document.querySelector('.iacard'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
@@ -560,7 +572,7 @@ async function procesarFotoNut(file) {
     if (tipo === 'etiqueta' && scriptEtiqueta()) {
       const r = await conLimite(apiPost('etiquetaIA', [f.b64, 'image/jpeg', {}]), 60000);
       if (r.es_etiqueta === false) { cerrarModal(); return toast('No vi una tabla nutrimental en la foto: tómala de frente y con buena luz'); }
-      return abrirEtiqueta(r);
+      return abrirEtiqueta(r, false, [f.b64], '');
     }
     if (tipo === 'etiqueta') {
       const r = await conLimite(apiPost('etiquetaIA', [f.b64, 'image/jpeg']), 45000);
@@ -589,7 +601,7 @@ async function codigoManual() {
    Si ya tienes ese producto, se actualiza en vez de duplicarse. ----- */
 let ETQ = null;
 const scriptEtiqueta = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum('8.2'));
-function abrirEtiqueta(r, desdeIA) {
+function abrirEtiqueta(r, desdeIA, fotos, nota) {
   const e = NUT.leerEtiqueta(Object.assign({}, r, { src: 'etiqueta' }));
   if (e.error) { cerrarModal(); return toast(e.error + '. Tómala de frente y con buena luz'); }
   if (r.code) e.al.code = String(r.code);
@@ -598,7 +610,7 @@ function abrirEtiqueta(r, desdeIA) {
   // Solo leche o proteína EN POLVO se proponen para el licuado (una barra o un yogurt "con proteína" no)
   if (!e.al.rol) e.al.rol = /^leche|\bmilk\b/i.test(e.al.n) ? 'leche' : /whey|isolat|en polvo|\bpolvo\b/i.test(e.al.n) || e.al.p > 60 ? 'proteina' : '';
   ETQ = { al: e.al, info: e.info, avisos: e.avisos.concat(r.avisos || []), modo: c.modo, valor: c.valor, falta: c.falta || null,
-          prev: prev ? prev.id : null, actualizar: !!prev, desdeIA: !!desdeIA };
+          prev: prev ? prev.id : null, actualizar: !!prev, desdeIA: !!desdeIA, fotos: fotos || [], nota: nota || '' };
   pintarEtiqueta();
   if (!$('modal').classList.contains('show')) abrirModal();
 }
@@ -626,6 +638,7 @@ function pintarEtiqueta() {
     '<input class="campo" value="' + esc(a.n) + '" ' + ev('change', 'etqTexto', 'n', VALOR) + ' aria-label="Nombre">' +
     '<input class="campo" value="' + esc(a.marca || '') + '" placeholder="Marca" ' + ev('change', 'etqTexto', 'marca', VALOR) + ' aria-label="Marca">' +
     '<div class="muted etqdecl">' + esc(decl) + '</div>' +
+    (E.fotos.length && E.fotos.length < 3 ? '<button class="link" style="margin:0 2px 6px" ' + on('otraFotoEtiqueta') + '>📷 Agregar otra foto de la misma etiqueta (' + E.fotos.length + ' de 3)</button>' : '') +
     (prev ? '<div class="tpaso">Ya tienes «' + esc(prev.n) + '» en tus productos</div><div class="tchips">' +
       '<button class="tch' + (E.actualizar ? ' on' : '') + '" ' + on('etqActualizar', true) + '>Actualizar el que tengo</button>' +
       '<button class="tch' + (!E.actualizar ? ' on' : '') + '" ' + on('etqActualizar', false) + '>Guardar como otro</button></div>' : '') +
@@ -691,6 +704,35 @@ function etqGuardar(agregar) {
     cerrarModal(); hap('ok'); cambiarProt(); toast('+' + NUT.r1(m.p) + ' g · ' + Math.round(m.k) + ' kcal ✓' + (E.actualizar && E.prev ? ' · producto actualizado' : ''));
   } else { cerrarModal(); hap('ok'); toast(E.actualizar && E.prev ? 'Producto actualizado ✓' : 'Guardado en tus productos ✓'); }
   pintarComida(); actualizarWidgets();
+}
+// La etiqueta no se leyó completa (un galón curvo, la tabla de lado): otra foto y se leen todas juntas
+function otraFotoEtiqueta() {
+  const E = ETQ;
+  pedirFoto('otraEtiqueta'); FOTO.antes = E.fotos.slice(); FOTO.nota = E.nota; FOTO.desdeIA = E.desdeIA;
+}
+// Escribir los datos de la etiqueta a mano (cuando la foto no sirve): lo de 1 porción y se calcula igual que con la foto
+let ETQ_MANO = null;
+function etiquetaAMano() {
+  ETQ_MANO = ETQ_MANO || { nombre: '', u: 'g', cant: '', piezas: '', porciones: '', p: '', c: '', f: '', k: '' };
+  const M = ETQ_MANO, campo = (k, nom, ph) => '<label class="pc"><span>' + nom + '</span><input class="num" inputmode="decimal" placeholder="' + (ph || '') + '" value="' + esc(M[k]) + '" ' + ev('change', 'manoCampo', k, VALOR) + '></label>';
+  $('sheet').innerHTML = '<div class="row between"><div class="t2">Datos de la etiqueta</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
+    '<input class="campo" placeholder="Nombre (ej. Leche Lala entera)" value="' + esc(M.nombre) + '" ' + ev('change', 'manoCampo', 'nombre', VALOR) + '>' +
+    '<div class="tchips">' + [['g', 'Sólido (g)'], ['ml', 'Líquido (ml)']].map(x => '<button class="tch' + (M.u === x[0] ? ' on' : '') + '" ' + on('manoCampo', 'u', x[0]) + '>' + x[1] + '</button>').join('') + '</div>' +
+    '<div class="tpaso">1 porción</div><div class="pcs">' + campo('cant', 'Porción (' + M.u + ')', '250') + campo('piezas', 'Piezas', '—') + campo('porciones', 'Porciones por envase', '—') + '</div>' +
+    '<div class="tpaso">En esa porción</div><div class="pcs">' + campo('p', 'Proteína') + campo('c', 'Carbos') + campo('f', 'Grasa') + campo('k', 'kcal') + '</div>' +
+    '<div class="muted" style="font-size:12.5px;margin-top:6px">Si la etiqueta da "por 100 ' + M.u + '", pon 100 en la porción. Un galón son 3,785 ml.</div>' +
+    '<div class="acts"><button class="btn" ' + on('manoListo') + '>Continuar</button></div>';
+  if (!$('modal').classList.contains('show')) abrirModal();
+}
+function manoCampo(k, v) { if (k === 'nombre' || k === 'u') ETQ_MANO[k] = String(v).slice(0, 60); else ETQ_MANO[k] = v; if (k === 'u') etiquetaAMano(); }
+function manoListo() {
+  const M = ETQ_MANO, n = k => { const x = numeroEscrito(M[k]); return x > 0 ? x : null; };
+  if (!n('cant')) return toast('Pon de cuánto es la porción');
+  if (n('p') === null && n('k') === null) return toast('Pon al menos la proteína o las kcal');
+  ETQ_MANO = null;
+  abrirEtiqueta({ es_etiqueta: true, nombre: M.nombre || 'Producto', u: M.u, declarada: 'porcion', por100: null,
+    porcion: { texto: n('piezas') ? n('piezas') + ' piezas' : '1 porción', cant: n('cant'), piezas: n('piezas'), p: n('p') || 0, c: n('c') || 0, f: n('f') || 0, k: n('k'), fib: 0 },
+    porciones_envase: n('porciones'), consumo: null }, false);
 }
 // ¿Lo que escribiste es el texto de una tabla nutrimental? (varias palabras de tabla y números)
 function pareceEtiqueta(t) {
@@ -784,6 +826,11 @@ function metasAuto() { const c = nutCfg(); c.metas = null; guardarNut(c); cerrar
 /* ----- Estilos ----- */
 document.head.insertAdjacentHTML('beforeend', `<style>
   .etqdecl { margin: 2px 0 8px; font-size: 13px; }
+  .seco { color: var(--acc); font-weight: 650; }
+  .iitem .mac { display: block; font-size: 12.5px; color: var(--muted); }
+  .iitem .av { display: block; font-size: 12.5px; color: var(--acc); }
+  .iitem .nm { text-align: left; background: none; border: 0; color: inherit; padding: 0; font: inherit; }
+  .iedit .pcs { margin-top: 6px; }
   .etqmodos { display: flex; gap: 4px; margin-top: 6px; }
   .etqmodos button { flex: 1; padding: 9px 4px; border-radius: 12px; background: none; color: var(--muted); font-weight: 650; }
   .etqenv { gap: 8px; align-items: center; flex-wrap: wrap; }
