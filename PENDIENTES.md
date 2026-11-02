@@ -1,6 +1,6 @@
 # Pendientes y contexto (para seguir en un chat nuevo)
 
-Actualizado: 30/10/2026. Pega este archivo (o su link) al empezar un chat nuevo.
+Actualizado: 02/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 ## Dónde está todo
 
@@ -59,6 +59,33 @@ App y script van juntos: al publicar, adelantar `main` de Gym **y** pasar la ram
   (`NUT.leerEtiqueta`, `gramosDeConsumo`, `gramosDe`). Si falta el envase y pides todo/la mitad, la vista previa lo pide.
 - Vista previa (`abrirEtiqueta`): cantidad en g/ml, piezas, porciones o parte del envase con macros al instante; actualiza el
   producto si ya lo tienes (`NUT.mismoProducto`); 📷 en el Registro inteligente (foto + lo escrito) y texto de tabla pegado.
+
+## Comida: lo que falló con datos reales (revisado 02/11) y mejoras propuestas
+
+Encontrado en la hoja (Comidas y Errores):
+- **Proteína inflada el 01/11**: "frijoles con soya" en el buscador eligió *Soja (Soya) Frijol, Proteína* (proteína de soya
+  SECA, 47.6 g/100 g): 150 g = **71 g de proteína** que no comió. Y la IA puso *Mantequilla 10 g* con **20 g de proteína** (imposible).
+- **Catálogo mexicano con fichas engañosas**: *Leche De Vaca, Entera* trae 29 g de proteína y 504 kcal por 100 g (es leche en polvo).
+  No hay mantequilla en los básicos; "pan birote" no encuentra el bolillo.
+- **La IA sigue tardando** con el modelo completo: 2 veces el 01/11 ("Cereal kellogs all bran", "molletes…"). No hay ningún
+  "Aviso: tardó" (o contesta rápido o no contesta), así que falta saber dónde se va el tiempo.
+- **Etiquetas difíciles**: el galón de leche trae la información escrita en renglones (no en tabla) y en superficie curva.
+
+Mejoras propuestas (en orden):
+1. **Revisión de sentido común antes de agregar** (app): proteína + carbos + grasa no puede pasar del peso; kcal ≈ 4P+4C+9G;
+   más de 40 g de proteína en un solo alimento del catálogo pide confirmar. Lo que no cuadre sale marcado para corregir.
+2. **Catálogo más seguro**: fichas que por sus números son secas o en polvo (P+C+G > 80 g por 100 g sin decir "polvo/seco/deshidratado")
+   se marcan "seco o en polvo" y bajan en la búsqueda. Básicos nuevos: mantequilla, frijoles con soya (refritos con soya
+   texturizada), sinónimos birote/telera → bolillo, atún en lata por marca (Mazatún, Dolores, Tuny) por lata.
+3. **"El dato que sé manda"**: escribir "lata de atún Mazatún con 12 g de proteína" → la IA respeta los 12 g y estima lo demás;
+   cada cosa de la respuesta se puede tocar para corregir gramos, proteína, carbos, grasa y kcal (hoy solo ±2 g de proteína) y confirmar.
+4. **Medir la IA**: el script anota cada consulta (duración, modelo que contestó, modelos que fallaron) en una pestaña "IA";
+   con eso se decide el orden de modelos. Si un modelo del arreglo ya no existe, se quita.
+5. **Etiquetas difíciles**: hasta 3 fotos de la misma etiqueta (galón: frente, costado, atrás); el texto en renglones
+   ("Contenido energético 61 kcal, proteínas 3.1 g…") ya se acepta; "galón" = 3,785 ml como envase; y un formulario corto para
+   escribir los números de la etiqueta a mano cuando la foto no sirve.
+6. **Corregir el 01/11** (pedir confirmación antes de tocar datos): quitar la proteína de soya seca (150 g) y la mantequilla
+   con 20 g de proteína, o cambiarlas por frijoles con soya y mantequilla reales.
 
 ## Pendientes de la app (refactor y auditoría)
 
