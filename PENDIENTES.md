@@ -6,11 +6,11 @@ Actualizado: 03/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | v9.7 publicada; **v9.8 en la rama** (falta "publica") |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v9.8 publicada** (03/11); `main` = rama de trabajo |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
-| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | 8.5 publicado; **8.6 en la rama `claude/tempo-encabezado`** (Tempo + workflow de Comidas) |
-| Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | 1.5 publicada; **1.6 en la rama `claude/carrera`** (semana de carrera, sin onclick + CSP, clave de Comidas en Propiedades) |
+| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **8.6 publicado** (03/11); `main` = rama de trabajo |
+| Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | **1.6 publicada** (03/11); `main` = rama de trabajo |
 
 Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` (`herramientas/revisar.js` falla si no).
 `SCRIPT_ESPERADO` (en `app.js`, junto a `VERSION_APP`) ≤ `SCRIPT_VERSION` en `AppGym.js`. El `versionName` del APK sale de `VERSION_APP`.
@@ -36,17 +36,21 @@ En GitHub corren solas: "Pruebas" (revisar + unidad + pantalla), "APK Android" (
 En Gym-script: "Publicar script" (revisa en todas las ramas; en `main` hace `clasp push`, versión nueva,
 actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
 
-## Para publicar lo que está en las ramas (cuando Martin diga "publica")
+## Cómo publicar (cuando Martin diga "publica")
 
-1. Gym-script: `claude/tempo-encabezado` → `main` (8.6). Primero el script.
-2. Gym: rama de trabajo → `main` (v9.8). Al abrirla, el celular baja la versión nueva completa y recarga una vez.
-3. Panel: `claude/carrera` → `main` (1.6).
-4. Script de Comidas con clasp (cuando Martin quiera dejar de pegarlo a mano): en el Apps Script de "Comidas 2026",
-   ⚙️ Configuración del proyecto › Propiedades del script: `CLAVE` = su clave; y pasar el "ID de secuencia de comandos"
-   para ponerlo en `COMIDAS_SCRIPT_ID` (`Gym-script/.github/workflows/comidas.yml`). Si falta la propiedad, el workflow
-   regresa la implementación a la versión anterior.
+Hoy no hay nada pendiente de publicar: en Gym, Gym-script y Panel, `main` está igual que la rama de trabajo.
+Cuando haya cambios, este orden:
 
-## v9.8 / script 8.6 / Panel 1.6 (en las ramas, 03/11/2026)
+1. Gym-script: rama → `main`. Primero el script (si la app pide un `SCRIPT_ESPERADO` nuevo).
+2. Gym: rama de trabajo → `main`. Al abrirla, el celular baja la versión nueva completa y recarga una vez.
+3. Panel: rama → `main`.
+
+Script de Comidas con clasp: **lo está terminando otro chat; no tocarlo desde aquí.** Lo que falta (de parte de Martin):
+en el Apps Script de "Comidas 2026", ⚙️ Configuración del proyecto › Propiedades del script: `CLAVE` = su clave; y pasar el
+"ID de secuencia de comandos" para ponerlo en `COMIDAS_SCRIPT_ID` (`Gym-script/.github/workflows/comidas.yml`). Si falta la
+propiedad, el workflow regresa la implementación a la versión anterior.
+
+## v9.8 / script 8.6 / Panel 1.6 (publicado 03/11/2026)
 
 - **Service worker todo o nada**: los archivos de la app salen SOLO del caché de su versión; una versión nueva se baja
   completa en `install` cuando cambia `VERSION` de `sw.js`. Ya no se pueden mezclar archivos de dos versiones.
@@ -132,7 +136,7 @@ Mejoras propuestas (en orden):
 6. "💾 Guardar como receta" lo que contestó la IA: cada cosa queda como producto y la receta sale en Mis comidas (se quita con Editar).
 7. Cosas de más de 900 kcal salen ⚠️ en el día y en la respuesta de la IA.
 
-## v9.5 (en la rama, falta "publica"): diseño y textos
+## v9.5 (publicada 03/11 con la v9.6): diseño y textos
 
 - Un solo color para lo que se toca (`--act`: cian #0E7490 en claro, #22C3E6 en oscuro, contraste ≥ 4.5:1); el color del día
   (`--dia`) solo en el nombre grande, el rack y las pestañas de grupo. `--rut` ahora es el color de acción (`CSS_V95`).
@@ -166,6 +170,9 @@ Mejoras propuestas (en orden):
 
 1. ✅ v9.8: partir `app.js`, `app.css`, una capa de guardado, contraste, service worker todo o nada, hash del catálogo, Tempo.
 2. Opcional: pasar más pantallas a la plantilla ``html`…` `` (hoy el escapado se cuida con `esc()` y lo vigila `escapar-v98`).
+   Hoy la usan solo `progreso.js`, `ajustes.js` y `app.js`. Plan propuesto (03/11): un archivo por versión, sin cambios
+   visuales, empezando por los chicos (`coach.js`, `trote.js`, `sesion.js`) y dejando `series.js` y `comida.js` al final.
+   **En espera: Martin dirá cuándo empezar.**
 3. Animaciones: ajustes según lo que Martin vea en el celular real (posturas, colores, velocidad).
 4. ✅ Panel 1.6: service worker "todo o nada" como Gym (`config.js` sigue yendo primero por la red).
 
