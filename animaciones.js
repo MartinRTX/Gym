@@ -297,14 +297,17 @@
     guia: (a, b) => 'M' + f1(a.tobillo) + ' L' + f1(b.tobillo) };
 
   F.zancada = { nombre: 'Zancada', textos: { concentrica: 'Empuja con el pie de adelante', excentrica: 'Baja recto, rodilla de atrás al piso' },
-    pose(t) {
-      const cad = P(140, mezcla(204, 160, t)), adelante = P(182, PISO - 4), atras = P(96, PISO - 6);
+    pose(t, ex) {
+      // Búlgara: el pie de atrás arriba de un banco y casi todo el trabajo en la pierna de adelante
+      const bulgara = /b[uú]lgar/i.test(ex && ex.ejercicio || '');
+      const cad = bulgara ? P(140, mezcla(206, 172, t)) : P(140, mezcla(204, 160, t)), adelante = P(bulgara ? 186 : 182, PISO - 4), atras = bulgara ? P(86, 190) : P(96, PISO - 6);
       const r1 = ik(cad, adelante, L.muslo, L.pierna, 'adelante'), r2 = ik(cad, atras, L.muslo, L.pierna, 'abajo');
       const j = { cadera: cad, rodilla: r1.medio, tobillo: r1.fin, torso: -88, rodilla2: r2.medio, tobillo2: r2.fin };
       return completar(j, { brazo: 92, antebrazo: 92 });
     },
     piernaAtras: true,
     musculos: (j, t) => [Object.assign(M.cuadriceps(j, t), { principal: true }), M.gluteo(j)],
+    estatico(g, imp, ex) { if (/b[uú]lgar/i.test(ex && ex.ejercicio || '')) EQ.banco(g, 58, 200, 104, 200); },
     equipo: equipoEnMano({}), guia: (a, b) => 'M' + f1(a.cadera) + ' L' + f1(b.cadera) };
 
   F.pantorrilla = { nombre: 'Pantorrilla', textos: { concentrica: 'Sube lo más alto que puedas', excentrica: 'Baja el talón hasta estirar' },
@@ -442,18 +445,30 @@
     equipo: equipoEnMano({ pivote: P(203, 40), pila: 222, sube: 40 }),
     guia: (a, b) => 'M' + f1(P(a.mano.x, a.mano.y + 6)) + ' L' + f1(P(b.mano.x, b.mano.y - 8)) };
 
-  F.fondos = { nombre: 'Fondos', textos: { concentrica: 'Empuja hasta estirar los brazos', excentrica: 'Baja lento hasta 90°' },
+  // Fondos: el cuerpo cuelga de las manos (nunca toca el piso). Arriba, brazos casi estirados y torso derecho;
+  // abajo, codos hacia atrás (~75–90°), hombros adelante y abajo y el pecho inclinado. Piernas dobladas hacia atrás:
+  // en la máquina asistida van hincadas en el cojín, que sube con el contrapeso.
+  F.fondos = { nombre: 'Fondos', textos: { concentrica: 'Empuja hasta estirar los brazos', excentrica: 'Baja lento hasta 90° en el codo' },
     pose(t) {
-      const mano = P(156, 150), hombro = P(mezcla(146, 151, t), mezcla(140, 100, t));
-      const j = { hombro: hombro, torso: -80 };
-      j.cadera = mas(hombro, L.torso, 100); const r = desdeCadera(j.cadera, { muslo: 96, pierna: 160, torso: -80 });
-      Object.assign(j, { rodilla: r.rodilla, tobillo: r.tobillo }); j.pie = 60;
+      const mano = P(158, 112), hombro = P(mezcla(170, 155, t), mezcla(80, 55, t)), torso = mezcla(-62, -82, t);
+      const j = { hombro: hombro, torso: torso };
+      j.cadera = mas(hombro, L.torso, torso + 180);
+      const r = desdeCadera(j.cadera, { muslo: mezcla(104, 98, t), pierna: 172, torso: torso });
+      Object.assign(j, { rodilla: r.rodilla, tobillo: r.tobillo }); j.pie = 70;
       return completar(j, { mano: mano, doblar: 'atras' });
     },
-    musculos: (j, t) => [Object.assign(M.triceps(j, t), { principal: true }), M.pecho(j, t)],
-    estatico(g, imp) { g.add('rect', { x: 140, y: 147, width: 40, height: 7, rx: 3, fill: 'var(--maq)' }); EQ.poste(g, 176, 150); if (imp === 'placas') EQ.pila(g, 250); },
-    vivo(g, imp) { if (imp === 'placas') g.v.cojin = g.add('path', { fill: 'var(--maq2)' }); },
-    mover(g, j, t) { if (g.v.cojin) { g.v.cojin.setAttribute('d', miembro(P(j.rodilla.x - 14, j.rodilla.y + 8), P(j.rodilla.x + 14, j.rodilla.y + 8), 8, 8, 8, 0.5)); EQ.moverPila(g, 34 * t); } },
+    musculos: (j, t) => [Object.assign(M.triceps(j, t), { principal: true }), M.pecho(j, t), M.deltoides(j)],
+    estatico(g, imp) { g.add('rect', { x: 140, y: 109, width: 44, height: 7, rx: 3, fill: 'var(--maq)' }); EQ.poste(g, 180, 112); if (imp === 'placas') EQ.pila(g, 250); },
+    vivo(g, imp) { if (imp === 'placas') { g.v.brazoCojin = g.add('rect', { width: 5, rx: 2, fill: 'var(--maq)' }); g.v.cojin = g.add('path', { fill: 'var(--maq2)' }); } },
+    mover(g, j, t) {
+      if (!g.v.cojin) return;
+      // Cojín bajo las rodillas y espinillas, sostenido por un brazo que baja a la máquina
+      const a = P(j.rodilla.x - 22, j.rodilla.y + 9), b = P(j.rodilla.x + 8, j.rodilla.y + 9);
+      g.v.cojin.setAttribute('d', miembro(a, b, 8, 8, 8, 0.5));
+      g.v.brazoCojin.setAttribute('x', (j.rodilla.x - 9).toFixed(1)); g.v.brazoCojin.setAttribute('y', (j.rodilla.y + 12).toFixed(1));
+      g.v.brazoCojin.setAttribute('height', Math.max(4, PISO - j.rodilla.y - 12).toFixed(1));
+      EQ.moverPila(g, 30 * t);
+    },
     guia: (a, b) => 'M' + f1(a.hombro) + ' L' + f1(b.hombro) };
 
   F.tricepsPolea = { nombre: 'Extensión de tríceps', textos: { concentrica: 'Estira el codo, brazo pegado', excentrica: 'Sube lento sin mover el codo' },
@@ -493,13 +508,22 @@
 
   F.crunch = { nombre: 'Crunch', textos: { concentrica: 'Enrolla el torso, exhala', excentrica: 'Baja lento sin soltar el abdomen' },
     pose(t, ex) {
+      if (/maquina|máquina/i.test(ex && ex.ejercicio || '') || (ex && /placas/i.test(ex.modalidad || ''))) {
+        const j = desdeCadera(P(150, 192), { muslo: 2, pierna: 88, torso: mezcla(-94, -48, t) });
+        j.hombro = mas(j.cadera, L.torso, j.torso);
+        return completar(j, { mano: mas(j.hombro, 26, j.torso + 62), doblar: 'abajo' });
+      }
       const inverso = /invers/i.test(ex && ex.ejercicio || '');
       const j = desdeCadera(P(170, 232), { muslo: inverso ? mezcla(-48, -100, t) : -48, pierna: inverso ? mezcla(40, -20, t) : 50, torso: inverso ? 178 : mezcla(180, 208, t) });
       j.hombro = mas(j.cadera, L.torso, j.torso);
       return completar(j, { brazo: j.torso - 150, antebrazo: j.torso + 20 });
     },
     musculos: (j, t) => [Object.assign(M.abdomen(j, t), { principal: true })],
-    estatico(g) { g.add('rect', { x: 60, y: PISO - 6, width: 200, height: 6, rx: 3, fill: 'var(--maq2)' }); },
+    estatico(g, imp, ex) {
+      if (/maquina|máquina/i.test(ex && ex.ejercicio || '') || /placas/i.test(imp || '')) { EQ.asiento(g, 152, 200, 68); EQ.respaldo(g, 112, 128, 204); EQ.pila(g, 255); }
+      else g.add('rect', { x: 60, y: PISO - 6, width: 200, height: 6, rx: 3, fill: 'var(--maq2)' });
+    },
+    mover(g, j, t) { EQ.moverPila(g, 30 * t); },
     guia: (a, b) => 'M' + f1(a.hombro) + ' L' + f1(b.hombro) };
 
   F.elevPiernas = { nombre: 'Elevación de piernas', textos: { concentrica: 'Sube las rodillas al pecho', excentrica: 'Baja lento sin columpiarte' },

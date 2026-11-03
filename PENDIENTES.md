@@ -110,6 +110,16 @@ Mejoras propuestas (en orden):
 - Arreglos: "Descartar" de la IA ya se ve como botón secundario; la Ruta de hoy ya no se sale de la tarjeta.
 - El documento "CAMBIOS v8.4" de otro chat era sobre la v8.3: NO aplicar sus archivos (borraría v8.5–v9.4).
 
+## v9.6 (en la rama con la v9.5, falta "publica"): color del día y animaciones
+
+- Colores del día: Push naranja, **Pull rojo**, Legs amarillo, Core verde, **Trote cian**. La pesa de Entrenar en la barra de abajo
+  es lo único de la barra con el color del día (`#nEntrenar`); lo demás sigue en el color de acción.
+- Animaciones revisadas con una galería de las 32 (abajo, subiendo, arriba, bajando). Arregladas: **fondos** (antes quedaba hincado
+  en el piso; ahora cuelga de las barras, codo atrás a ~70–90° abajo y casi estirado arriba, pecho inclinado, cojín de la asistida
+  que sube con la pila), **búlgara** (pie de atrás en el banco) y **crunch en máquina** (sentado, el torso se enrolla). Con pruebas.
+- Ideas pendientes de animaciones: más recorrido visible en pantorrilla; en aperturas que las manos se junten al centro;
+  granjero caminando; acercar el curl de muñeca; variantes por máquina (press de pecho sentado, fondos en máquina sentado, remo T).
+
 ## Pendientes de la app (refactor y auditoría)
 
 1. Partir `app.js` (~5,300 líneas) en ~10 archivos y juntar los `CSS_V53…CSS_V89` en un `app.css`.

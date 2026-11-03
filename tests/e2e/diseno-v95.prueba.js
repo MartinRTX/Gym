@@ -21,7 +21,12 @@ const res = []; const ok = (n, c, x) => res.push((c ? '✓ ' : '✗ ') + n + (x 
         return { act: act, acc: acc, titulo: col(document.querySelector('.hoy .grupo b')), empezar: bg(document.querySelector('.ex.sig .empezar')), nav: bg(document.querySelector('#nav button.on .bola')) };
       });
       ok(tema + ': el nombre del día va en su color (Push naranja)', c.titulo === c.acc, c);
-      ok(tema + ': "Empezar" y la barra van en el color de acción', c.empezar === c.act && c.nav === c.act, c);
+      ok(tema + ': "Empezar" va en el color de acción y la pesa de la barra en el del día (Push naranja)', c.empezar === c.act && c.nav === c.acc, c);
+      const dias = await p.evaluate(() => { const r = {}; const tmp = document.createElement('div'); document.body.appendChild(tmp);
+        const v = x => { tmp.style.color = 'var(' + x + ')'; return getComputedStyle(tmp).color; };
+        ['Pull', 'Trote'].forEach(g => { document.body.dataset.rut = g; r[g] = getComputedStyle(document.querySelector('#nEntrenar')).color; });
+        r.red = v('--red'); r.cyan = v('--cyan'); tmp.remove(); document.body.dataset.rut = GRUPO; return r; });
+      ok(tema + ': Pull va en rojo y Trote en cian', dias.Pull === dias.red && dias.Trote === dias.cyan, dias);
       const t = await p.evaluate(() => ({ sig: !!document.querySelector('.ex.sig .sigtxt'), n: document.querySelectorAll('.empezar').length, enc: document.querySelector('.hoy').textContent, h2: [...document.querySelectorAll('#vEntrenar h2')].map(x => x.textContent).join('|') }));
       ok(tema + ': una sola tarjeta "Siguiente · Empezar"', t.sig && t.n === 1, t);
       ok(tema + ': encabezado sin "bloque" y con lo que trabaja', /pecho, hombros y tríceps/.test(t.enc) && !/bloque/i.test(t.enc), t.enc);

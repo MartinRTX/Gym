@@ -1031,8 +1031,16 @@ const CSS_V86 = `
 const CSS_V95 = `
   :root { --act: #0E7490; --on-act: #FFFFFF; --act-weak: #E0F5FA; --on-dia: #FFFFFF; --dia: var(--pri); }
   @media (prefers-color-scheme: dark) { :root { --act: #22C3E6; --on-act: #06222A; --act-weak: #0B2A33; --on-dia: #120F1C; } }
-  body[data-rut=Push] { --dia: var(--acc); } body[data-rut=Pull] { --dia: var(--cyan); } body[data-rut=Legs] { --dia: var(--leg); }
-  body[data-rut=Core] { --dia: var(--ok); } body[data-rut=Trote] { --dia: var(--red); }
+  /* Color de cada día: Push naranja, Pull rojo, Legs amarillo, Core verde, Trote cian */
+  body[data-rut=Push] { --dia: var(--acc); } body[data-rut=Pull] { --dia: var(--red); } body[data-rut=Legs] { --dia: var(--leg); }
+  body[data-rut=Core] { --dia: var(--ok); } body[data-rut=Trote] { --dia: var(--cyan); }
+  .chip.r-Pull { --c: var(--red); } .chip.r-Trote { --c: var(--cyan); }
+  .chip.r-Trote.on { background: var(--cyan); border-color: var(--cyan); box-shadow: none; }
+  /* El botón de Entrenar (la pesa) es lo único de la barra con el color del día */
+  #nEntrenar { color: var(--dia); }
+  body[data-tab=Entrenar] #nav #nEntrenar { --tabc: var(--dia); --on-tabc: var(--on-dia); color: var(--dia); }
+  #nEntrenar .bola { color: inherit; }
+  body[data-tab=Entrenar] #nEntrenar .bola { background: var(--dia); color: var(--on-dia); box-shadow: 0 0 0 5px var(--bg), 0 10px 22px -10px var(--dia); }
   body[data-rut], body:not([data-rut]) { --rut: var(--act); --rut-g: var(--act); --rut-weak: var(--act-weak); --on-rut: var(--on-act); }
   .hoy .grupo b { color: var(--dia); }
   .rack .mancuerna rect { fill: var(--dia); }
@@ -1303,7 +1311,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v9.5';
+const VERSION_APP = 'v9.6';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }

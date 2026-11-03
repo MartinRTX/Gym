@@ -80,3 +80,22 @@ test('Jalón: la mano baja en línea recta', () => {
   const xs = [0, 0.3, 0.6, 1].map(t => A.pose(ex, t).mano.x);
   assert.ok(Math.max(...xs) - Math.min(...xs) < 1, JSON.stringify(xs));
 });
+
+test('fondos: el cuerpo cuelga (nada toca el piso) y el codo llega a ~90° abajo y casi estirado arriba', () => {
+  const ex = { ejercicio: 'Fondos asistidos', modalidad: 'Placas' }, codo = j => {
+    const a = { x: j.hombro.x - j.codo.x, y: j.hombro.y - j.codo.y }, b = { x: j.mano.x - j.codo.x, y: j.mano.y - j.codo.y };
+    return Math.acos((a.x * b.x + a.y * b.y) / Math.hypot(a.x, a.y) / Math.hypot(b.x, b.y)) * 180 / Math.PI;
+  };
+  for (let t = 0; t <= 1; t += 0.25) { const j = ANIM.pose(ex, t); assert.ok(Math.max(j.rodilla.y, j.tobillo.y) < 230, 'piernas en el aire en t=' + t); }
+  const abajo = codo(ANIM.pose(ex, 0)), arriba = codo(ANIM.pose(ex, 1));
+  assert.ok(abajo > 60 && abajo < 100, 'abajo ~90°: ' + abajo);
+  assert.ok(arriba > 150, 'arriba casi estirado: ' + arriba);
+  assert.ok(ANIM.pose(ex, 0).codo.x < ANIM.pose(ex, 0).hombro.x, 'el codo va hacia atrás');
+});
+test('búlgara con el pie de atrás en el banco; crunch en máquina sentado', () => {
+  const b = ANIM.pose({ ejercicio: 'Sentadilla búlgara', modalidad: 'Mancuerna' }, 0.5);
+  assert.ok(Math.abs(b.tobillo2.y - 190) < 2, 'pie de atrás arriba del banco');
+  const c0 = ANIM.pose({ ejercicio: 'Crunch en máquina', modalidad: 'Placas' }, 0), c1 = ANIM.pose({ ejercicio: 'Crunch en máquina', modalidad: 'Placas' }, 1);
+  assert.deepStrictEqual(c0.cadera, c1.cadera, 'sentado: la cadera no se mueve');
+  assert.ok(c1.hombro.x > c0.hombro.x + 25, 'el torso se enrolla hacia adelante');
+});
