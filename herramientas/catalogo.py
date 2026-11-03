@@ -10,10 +10,14 @@ Fuentes:
 Uso: python3 herramientas/catalogo.py   (vuelve a escribir datos/alimentos.json)
 Formato: {"v": versión, "fuentes": {...}, "a": [[id, nombre, nombre_en, grupo, p, c, f, kcal, fibra, unidad, porciones, crudo], ...]}
 """
-import io, json, os, re, tarfile, unicodedata, urllib.request
+import base64, hashlib, io, json, os, re, tarfile, unicodedata, urllib.request
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPO = 'https://registry.npmjs.org/tempo-food-db/-/tempo-food-db-1.0.0.tgz'
+# Huella del paquete (la misma "integrity" que publica npm para la 1.0.0). Si el archivo que llega es otro, no se usa:
+# así un paquete cambiado o envenenado nunca llega al catálogo. Si algún día se cambia de versión, poner la huella nueva
+# (https://registry.npmjs.org/tempo-food-db/<versión> → dist.integrity) y revisar el cambio antes de publicarlo.
+TEMPO_SHA512 = 'wALzOQ7yFjiuvXvKLase8nf1rXj39Ws1QfcL2kemdpZOBlWI0yqfYRHp/h/odaCH1VEB7E1eSdPXfZ9+mg92/w=='
 
 
 def num(x):
@@ -65,6 +69,9 @@ def mexico():
 
 def usda():
     datos = urllib.request.urlopen(TEMPO, timeout=120).read()
+    huella = base64.b64encode(hashlib.sha512(datos).digest()).decode()
+    if huella != TEMPO_SHA512:
+        raise SystemExit('✗ tempo-food-db no coincide con su huella (sha512-' + huella + '): no se toca el catálogo')
     with tarfile.open(fileobj=io.BytesIO(datos)) as t:
         filas = json.load(t.extractfile('package/data/tempolife-foods.json'))
     out, vistos = [], set()

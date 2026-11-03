@@ -1,19 +1,19 @@
 # Pendientes y contexto (para seguir en un chat nuevo)
 
-Actualizado: 02/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
+Actualizado: 03/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 ## Dónde está todo
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | v9.4 publicada (`main` = rama de trabajo) |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | v9.7 publicada; **v9.8 en la rama** (falta "publica") |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
-| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | 8.4 publicado (se publica solo con clasp al subir a `main`) |
-| Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | 1.5: lee Gym y Finanzas (solo lectura); comidas y metas vienen de Gym; plan semanal en "Comidas 2026" |
+| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | 8.5 publicado; **8.6 en la rama `claude/tempo-encabezado`** (Tempo + workflow de Comidas) |
+| Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | 1.5 publicada; **1.6 en la rama `claude/carrera`** (semana de carrera, sin onclick + CSP, clave de Comidas en Propiedades) |
 
 Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` (`herramientas/revisar.js` falla si no).
-`SCRIPT_ESPERADO` en `app.js` = `SCRIPT_VERSION` en `AppGym.js`. El `versionName` del APK sale de `VERSION_APP`.
+`SCRIPT_ESPERADO` (en `app.js`, junto a `VERSION_APP`) ≤ `SCRIPT_VERSION` en `AppGym.js`. El `versionName` del APK sale de `VERSION_APP`.
 
 ## Reglas que no cambian
 
@@ -28,13 +28,47 @@ Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` 
 
 ```bash
 node herramientas/revisar.js            # versiones, sin onclick en texto, etc.
-node --test tests/*.test.js              # 72 pruebas de lógica
-NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 191 pruebas de pantalla (Playwright)
+node --test tests/*.test.js              # 79 pruebas de lógica
+NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 275 pruebas de pantalla (Playwright)
 ```
 
 En GitHub corren solas: "Pruebas" (revisar + unidad + pantalla), "APK Android" (desde `main`) y Pages.
 En Gym-script: "Publicar script" (revisa en todas las ramas; en `main` hace `clasp push`, versión nueva,
 actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
+
+## Para publicar lo que está en las ramas (cuando Martin diga "publica")
+
+1. Gym-script: `claude/tempo-encabezado` → `main` (8.6). Primero el script.
+2. Gym: rama de trabajo → `main` (v9.8). Al abrirla, el celular baja la versión nueva completa y recarga una vez.
+3. Panel: `claude/carrera` → `main` (1.6).
+4. Script de Comidas con clasp (cuando Martin quiera dejar de pegarlo a mano): en el Apps Script de "Comidas 2026",
+   ⚙️ Configuración del proyecto › Propiedades del script: `CLAVE` = su clave; y pasar el "ID de secuencia de comandos"
+   para ponerlo en `COMIDAS_SCRIPT_ID` (`Gym-script/.github/workflows/comidas.yml`). Si falta la propiedad, el workflow
+   regresa la implementación a la versión anterior.
+
+## v9.8 / script 8.6 / Panel 1.6 (en las ramas, 03/11/2026)
+
+- **Service worker todo o nada**: los archivos de la app salen SOLO del caché de su versión; una versión nueva se baja
+  completa en `install` cuando cambia `VERSION` de `sw.js`. Ya no se pueden mezclar archivos de dos versiones.
+- **Contraste** (`CSS_V98`, ahora al final de `app.css`): textos chicos y botones activos ≥ 4.5:1 en claro y oscuro
+  (prueba `contraste-v98` revisa 10 pantallas en los dos temas).
+- **Escapado**: prueba `escapar-v98` mete HTML en todo lo que viene de afuera (hoja, IA, catálogo) y revisa 15 pantallas.
+- **app.js partido** (mismo código, revisado sentencia por sentencia): `app.js` (núcleo: utilidades, APK, configuración,
+  cola, arranque, `VERSION_APP`, `SCRIPT_ESPERADO`), `entrenar.js`, `series.js`, `sesion.js`, `trote.js`, `comida-dia.js`,
+  `coach.js`, `progreso.js`, `ajustes.js`, `inicio.js` (acciones y `arrancar()`, va al último). Los estilos que se metían
+  con JS (`CSS_V53…CSS_V98` y los de `comida.js`) están en **`app.css`** (estilos calculados idénticos en 10 pantallas × 2 temas).
+  Nada de lo que corre al cargar usa algo de un archivo posterior; si se agrega código "suelto" (fuera de funciones),
+  cuidar el orden de `index.html`.
+- **Una sola capa de guardado**: solo el bloque `LS` de `app.js` toca localStorage (`LS.claves()` para recorrer).
+  `revisar.js` falla si otro archivo lo usa directo, o si `sw.js` no guarda algo que carga `index.html`.
+- `catalogo.py` verifica la huella sha512 del paquete npm `tempo-food-db` (si cambia, no toca el catálogo).
+- Script 8.6: si la celda W1 del Catálogo está vacía escribe "Tempo" (con nota de cómo llenarlo).
+- Panel 1.6: semana de carrera igual que Gym (descarga, víspera y día de carrera descansan); la fecha sale de Gym.
+  Sin `onclick` en texto (`clic('fn', …)` / `alEscribir`), sin script en línea, y en Chrome CSP con `script-src 'self'`.
+  `Comidas.gs` lee la clave de Propiedades del script (`CLAVE`), con la línea del código como respaldo.
+- CSP en el APK de Gym: **no se puso**. Solo podría llevar `'unsafe-inline'` (el puente de Capacitor es un script en línea),
+  y así no frena el JS inyectado, que es el riesgo real; a cambio, si bloquea algo de Capacitor, se rompen Health Connect,
+  avisos o widgets sin poder probarlo aquí. Lo que sí protege (todo escapado + prueba `escapar-v98`) ya está.
 
 ## v9.0 / script 8.0 (publicado 30/10/2026)
 
@@ -130,14 +164,11 @@ Mejoras propuestas (en orden):
 
 ## Pendientes de la app (refactor y auditoría)
 
-1. Partir `app.js` (~5,300 líneas) en ~10 archivos y juntar los `CSS_V53…CSS_V89` en un `app.css`.
-2. Pasar el resto de las pantallas a la plantilla ``html`…` `` que escapa sola (hoy solo `pintarMaquina` y `abrirFallas`).
-3. Una sola capa de guardado (hoy hay `LS`, IndexedDB para fotos y llaves sueltas).
-4. Contraste de textos chicos (chips, "✓ Al día", textos apagados).
-5. Service worker: puede mezclar archivos de dos versiones (stale-while-revalidate). Cambiar a "todo o nada" por versión.
-6. `catalogo.py` baja el paquete de npm sin verificar su hash.
-7. Animaciones: ajustes según lo que Martin vea en el celular real (posturas, colores, velocidad).
-8. Opcional: encabezado "Tempo" en la columna W del Catálogo; CSP en el APK si Capacitor lo permite.
+1. ✅ v9.8: partir `app.js`, `app.css`, una capa de guardado, contraste, service worker todo o nada, hash del catálogo, Tempo.
+2. Opcional: pasar más pantallas a la plantilla ``html`…` `` (hoy el escapado se cuida con `esc()` y lo vigila `escapar-v98`).
+3. Animaciones: ajustes según lo que Martin vea en el celular real (posturas, colores, velocidad).
+4. Opcional: Panel tiene el mismo service worker de antes (puede mezclar dos versiones un momento después de publicar);
+   pasarlo a "todo o nada" como Gym (cuidando que `config.js` siga yendo primero por la red).
 
 ## Pendientes de Panel ↔ Gym (ver detalle abajo)
 
@@ -148,17 +179,19 @@ Mejoras propuestas (en orden):
 3. **Si cambia `getData` del script de Gym**, revisar `CALC.gymHoy` en `Panel/calculos.js`. Panel usa: `sugGrupo`, `todayKey`,
    `ultimoGrupo`, `ultimoGrupoFecha`, `dias`, `ultimoPeso`, `carrera`, `resumen.{semana,diasSemana,promedio7,cambioSemana,cambioCintura,cintura}`,
    `trotes.{semanas,km7}`, `cuerpo.{serie,actual,meta}`. Todos existen en 7.9 (revisado 30/10).
-4. Rutina de hoy en Panel: no sabe de la semana de carrera (en Gym la víspera es descanso y hay descarga). Alrededor del 20–21/11 pueden decir cosas distintas.
-5. Fecha de la carrera: Panel usa la de su `config.js` y no la de Gym. Si cambia, cambiarla en los dos.
+4. ✅ Panel 1.6: la semana de carrera, la víspera y el día de la carrera igual que Gym.
+5. ✅ Panel 1.6: la fecha de la carrera sale de Gym (`config.js` solo de respaldo).
 6. Si algún día cambia el id de la implementación del script de Gym, actualizar `URL_GYM` en `Panel/config.js`
    (el workflow de Gym-script actualiza siempre la misma, así que no debería pasar).
 7. Seguridad (solo en Chrome, no en las APK): Gym, Panel y Finanzas comparten origen `martinrtx.github.io`, así que comparten
    localStorage (Panel puede leer `gym_key`; por eso existe "Usar la conexión de tu app") y el mismo espacio de ~5 MB.
-   Panel usa `onclick` en texto, así que no puede tener la CSP estricta que ya tiene Gym. Opcional: pasarlo a `data-click` y CSP.
+   ✅ Panel 1.6 ya no usa `onclick` en texto y en Chrome tiene CSP estricta.
 8. La URL `/exec` de Gym ya es pública (está en `Panel/config.js`): la única protección es la clave. Usar una clave larga.
-9. Opcional: el script de Comidas de Panel se pega a mano; se podría publicar con clasp como el de Gym.
+9. Script de Comidas con clasp: listo el workflow (`Gym-script/.github/workflows/comidas.yml`); falta la propiedad `CLAVE`
+   y el ID del script (ver "Para publicar" arriba).
 
 ## Lo que le toca a Martin (recomendado, no urgente)
 
-- Activar 2FA en GitHub y proteger la rama `main` de Gym y Gym-script.
-- Pesar avena, plátano y fresas del licuado y corregir las cantidades en Comida › Mi licuado.
+- (Martin lo dejó así: trabaja solo.) 2FA en GitHub y proteger `main`: opcional, ver la explicación del 03/11.
+- La clave larga se queda como está (decisión de Martin).
+- Pesar las comidas (Martin lo va a hacer): avena, plátano y fresas del licuado y corregir en Comida › Mi licuado.
