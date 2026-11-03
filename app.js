@@ -1057,6 +1057,19 @@ const CSS_V95 = `
   .ex.sig { border-color: color-mix(in srgb, var(--act) 55%, var(--line)); }
   .sigtxt { margin: -2px 0 -6px 14px; padding-top: 8px; font-size: 11.5px; font-weight: 800; letter-spacing: .04em; color: var(--act); }
   .mic { background: var(--act-weak); color: var(--act); }
+  .iitem .mac b { color: var(--ok); font-weight: 700; }
+  .ingtog { display: block; margin: 0 0 6px 46px; font-size: 13.5px; text-align: left; }
+  .iacard button.ingtog { text-align: left; width: calc(100% - 46px); }
+  .iacard .ings button.ingtog { margin-left: 0; width: 100%; }
+  .ing .mini { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--muted); }
+  .iitem .g { color: var(--act); }
+  .ings { margin: 0 0 8px 46px; }
+  .ing { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-top: 1px dashed var(--line); }
+  .ing .nm { flex: 1; min-width: 0; font-size: 14px; }
+  .ing .nm small { display: block; color: var(--muted); font-size: 12px; }
+  .ing input.num { width: 64px; padding: 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--card2); color: var(--text); text-align: right; }
+  .ing .u { color: var(--muted); font-size: 13px; }
+  .ing.nuevo .campo { flex: 1; margin: 0; padding: 7px 10px; }
   .ruta ol { grid-template-columns: minmax(0, 1fr); }
   .ex-meta .pill.sube { display: inline-flex; margin: 0 6px 2px 0; padding: 2px 8px; font-size: 12px; vertical-align: middle; }
   .ex-meta .pill.sube svg { width: 13px; height: 13px; }
@@ -1311,7 +1324,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v9.6';
+const VERSION_APP = 'v9.7';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1497,7 +1510,7 @@ function ladoVisible(base) {
 function verLado(base, lado) { QUIEN[base] = lado; ANIM_ABRE = base; hap('tecla'); pintarEntrenar(); }
 // Sugerencia al empezar cada ejercicio (subir, bajar o mantener, con números). El script 7.4 ya la manda calculada
 // con la misma función (motor.js → progresionInicio); con un script anterior, la calcula la app con tu última sesión.
-const SCRIPT_ESPERADO = '8.3';
+const SCRIPT_ESPERADO = '8.5';
 const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);
 const scriptAlDia = () => !!(DATA && DATA.scriptVersion && versionNum(DATA.scriptVersion) >= versionNum(SCRIPT_ESPERADO));
 // Un solo motor: si la hoja trae el mismo motor (misma huella que motor.js) se usa lo que calculó; si no, lo calcula la app
@@ -3953,11 +3966,13 @@ function tarjetaComidaIA() {
       '<button class="mini' + (x.on ? ' on' : '') + '" ' + on('alternarItemIA', i) + ' aria-label="Incluir">✓</button>' +
       // Toca el nombre para corregir gramos y macros; lo que no cuadra sale marcado
       '<button class="nm" ' + on('editarItemIA', i) + '>' + esc(x.nombre) + (x.fijo && x.fijo.length ? ' 🔒' : '') + ' ✏️' + (x.nota ? '<small>' + esc(x.nota) + '</small>' : '') +
-        '<span class="mac">' + (x.gramos ? Math.round(x.gramos) + ' g · ' : '') + 'C ' + Math.round(x.c || 0) + ' · G ' + Math.round(x.f || 0) + ' · ' + Math.round(x.k || 0) + ' kcal</span>' +
+        '<span class="mac"><b>' + x.g + ' g prot</b> · ' + (x.gramos && x.piezas ? Math.round(x.gramos) + ' g · ' : '') + 'C ' + Math.round(x.c || 0) + ' · G ' + Math.round(x.f || 0) + ' · ' + Math.round(x.k || 0) + ' kcal</span>' +
         NUT.revisarMacros({ p: x.g, c: x.c, f: x.f, k: x.k }, x.gramos).concat(NUT.esGrande(x) ? [Math.round(x.k).toLocaleString('es-MX') + ' kcal en una sola cosa: ¿fue todo? Tócala para corregir'] : []).map(a => '<span class="av">⚠️ ' + esc(a) + '</span>').join('') + '</button>' +
-      '<button class="mini" ' + on('ajustarItem', i, -2) + ' aria-label="Menos">−</button><span class="g num">' + x.g + ' g</span>' +
-      '<button class="mini" ' + on('ajustarItem', i, 2) + ' aria-label="Más">+</button>' +
-      '<button class="mini' + (x.fav ? ' on' : '') + '" ' + on('guardarFav', i) + ' aria-label="Guardar en mis comidas">⭐</button></div>').join('') + '</div>';
+      // − / + cambian la PORCIÓN (piezas o gramos) y todo sube parejo; la proteína se ve abajo del nombre
+      '<button class="mini" ' + on('porcionItemIA', i, -1) + ' aria-label="Menos">−</button><span class="g num">' + cantidadItemIA(x) + '</span>' +
+      '<button class="mini" ' + on('porcionItemIA', i, 1) + ' aria-label="Más">+</button>' +
+      '<button class="mini' + (x.fav ? ' on' : '') + '" ' + on('guardarFav', i) + ' aria-label="Guardar en mis comidas">⭐</button></div>' +
+      ingredientesItemIA(x, i)).join('') + '</div>';
     if (c.consejo) h += '<div class="muted" style="margin:8px 0 0;font-size:13.5px">💡 ' + esc(c.consejo) + '</div>';
     if (c.items.length > 1) h += '<button class="link" style="margin:8px 2px 0" ' + on('guardarRecetaIA') + '>💾 Guardar como receta</button>';
     h += '<div class="acts"><button class="btn ghost" ' + on('descartarComidaIA') + '>Descartar</button>' +
@@ -4061,21 +4076,61 @@ function cambiarItemIA(i, k, v) {
   const x = COMIDA_IA && COMIDA_IA.items[i], n = numeroEscrito(v);
   if (!x || !(n >= 0)) return;
   if (k === 'gramos') {
-    const f = x.gramos > 0 ? n / x.gramos : null;
-    if (f) { x.g = Math.round(x.g * f); ['c', 'f', 'fib'].forEach(m => { if (x[m] !== null && x[m] !== undefined) x[m] = NUT.r1(x[m] * f); }); if (x.k) x.k = Math.round(x.k * f); }
-    x.gramos = n;
+    // Con gramos de antes, todo sube parejo (también piezas e ingredientes); sin ellos, solo se anotan los gramos
+    if (x.gramos > 0 && n > 0) NUT.escalarItem(x, n / x.gramos); else x.gramos = n;
   } else if (k === 'k') x.k = Math.round(n);
   else { x[k] = k === 'g' ? Math.round(n) : NUT.r1(n); x.k = Math.round(4 * (x.g || 0) + 4 * (x.c || 0) + 9 * (x.f || 0)); }
   editarItemIA(i);
 }
 function cerrarYPintarIA() { cerrarModal(); pintarComida(); }
+// La porción que se ve entre − y +: piezas si se cuentan así (3 galletas), si no, gramos
+const cantidadItemIA = x => x.piezas ? NUT.r1(x.piezas) + (x.piezas === 1 ? ' pza' : ' pzas') : x.gramos ? Math.round(x.gramos) + ' g' : '×1';
+function porcionItemIA(i, d) {
+  const x = COMIDA_IA && COMIDA_IA.items[i]; if (!x) return;
+  let f;
+  if (x.piezas) { const n = Math.max(x.piezas < 1 ? 0.5 : 1, (x.piezas >= 1 ? Math.round(x.piezas) : x.piezas) + d * (x.piezas <= 1 && d < 0 ? 0.5 : 1)); f = n / x.piezas; }
+  else if (x.gramos) { const paso = x.gramos >= 200 ? 25 : x.gramos >= 60 ? 10 : 5, n = Math.max(paso, Math.round(x.gramos / paso) * paso + d * paso); f = n / x.gramos; }
+  else f = d > 0 ? 1.25 : 0.8;
+  NUT.escalarItem(x, f); hap('tecla'); pintarComida();
+}
+// Un platillo (ensalada, pizza, torta…): sus ingredientes con su porción; cambias uno y cambia el plato
+function ingredientesItemIA(x, i) {
+  const l = x.ingredientes || [];
+  if (!l.length) return '';
+  if (!x.verIng) return '<button class="link ingtog" ' + on('verIngIA', i) + '>🥗 Ingredientes (' + l.length + ') · cámbialos ▾</button>';
+  return '<div class="ings"><button class="link ingtog" ' + on('verIngIA', i) + '>🥗 Ingredientes (' + l.length + ') ▴</button>' + l.map((g, k) =>
+    '<div class="ing"><span class="nm">' + esc(g.nombre) + '<small>' + NUT.r1(g.g) + ' g prot · ' + Math.round(g.k || 0) + ' kcal</small></span>' +
+    '<input class="num" inputmode="decimal" value="' + NUT.r1(g.gramos) + '" ' + ev('change', 'cambiarIngIA', i, k, VALOR) + ' aria-label="Gramos de ' + esc(g.nombre) + '"><span class="u">g</span>' +
+    '<button class="mini" ' + on('quitarIngIA', i, k) + ' aria-label="Quitar">✕</button></div>').join('') +
+    '<div class="ing nuevo"><input id="ingNom' + i + '" class="campo" placeholder="Otro ingrediente (ej. crutones)"><input id="ingG' + i + '" class="num" inputmode="decimal" placeholder="g">' +
+    '<button class="mini" ' + on('agregarIngIA', i) + ' aria-label="Agregar ingrediente">＋</button></div></div>';
+}
+function verIngIA(i) { const x = COMIDA_IA && COMIDA_IA.items[i]; if (x) { x.verIng = !x.verIng; pintarComida(); } }
+function cambiarIngIA(i, k, v) {
+  const x = COMIDA_IA && COMIDA_IA.items[i], n = numeroEscrito(v); if (!x || !(n >= 0) || !x.ingredientes[k]) return;
+  NUT.cantidadIngrediente(x.ingredientes[k], n); NUT.sumarIngredientes(x); pintarComida();
+}
+function quitarIngIA(i, k) { const x = COMIDA_IA && COMIDA_IA.items[i]; if (!x) return; x.ingredientes.splice(k, 1); NUT.sumarIngredientes(x); pintarComida(); }
+// Agregar un ingrediente que no vio: sus macros salen del catálogo (sin gastar IA)
+async function agregarIngIA(i) {
+  const x = COMIDA_IA && COMIDA_IA.items[i], nom = (($('ingNom' + i) || {}).value || '').trim(), g = numeroEscrito(($('ingG' + i) || {}).value);
+  if (!x || !nom) return toast('Escribe el ingrediente');
+  if (!(g > 0)) return toast('Pon los gramos');
+  try { await conLimite(cargarCatalogo(), 8000); } catch (e) { /* con lo básico */ }
+  const al = NUT.buscar(listaBusqueda(), nom, 1)[0];
+  if (!al) return toast('No lo encontré en el catálogo: escríbelo arriba y toca Calcular');
+  const m = NUT.macros(al, g);
+  x.ingredientes.push({ nombre: al.n.slice(0, 30), gramos: g, g: NUT.r1(m.p), c: m.c, f: m.f, k: m.k, fib: m.fib });
+  NUT.sumarIngredientes(x); pintarComida();
+}
 function ajustarItem(i, d) { const x = COMIDA_IA.items[i]; x.g = Math.max(0, x.g + d); pintarComida(); }
 function agregarComidaIA() {
   // También lo que casi no trae proteína (refresco, fruta, pan): suma calorías y carbohidratos
   const items = COMIDA_IA.items.filter(x => x.on && (x.g > 0 || x.k > 0));
   const cuenta = LS.get('gym_food_counts', {});
   const claves = items.map(x => x.k !== undefined && x.k !== null
-    ? nuevoRegistro({ n: x.nombre, q: x.gramos || null, u: x.gramos ? 'g' : '', src: COMIDA_IA.deFoto ? 'foto' : 'ia', p: x.g, c: x.c, f: x.f, k: x.k, fib: x.fib })
+    ? nuevoRegistro({ n: x.nombre + (x.piezas ? ' · ' + NUT.r1(x.piezas) + (x.piezas === 1 ? ' pza' : ' pzas') : ''), q: x.gramos || null, u: x.gramos ? 'g' : '', src: COMIDA_IA.deFoto ? 'foto' : 'ia', p: x.g, c: x.c, f: x.f, k: x.k, fib: x.fib,
+        partes: (x.ingredientes || []).length ? x.ingredientes.map(i => ({ n: i.nombre, q: i.gramos, u: 'g', p: i.g, c: i.c, f: i.f, k: i.k, fib: i.fib })) : null })
     : clavePropia(x.nombre, x.g));
   items.forEach(x => { const k = clavePropia(x.nombre, x.g); cuenta[k] = (cuenta[k] || 0) + 1; });
   agregarAProt(claves, claves.map(() => comidaActual()));

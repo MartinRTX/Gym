@@ -312,7 +312,7 @@
 
   F.pantorrilla = { nombre: 'Pantorrilla', textos: { concentrica: 'Sube lo más alto que puedas', excentrica: 'Baja el talón hasta estirar' },
     pose(t) {
-      const bola = P(166, PISO - 14), pieAng = mezcla(22, -32, t), tob = mas(bola, 15, 180 + pieAng);
+      const bola = P(166, PISO - 14), pieAng = mezcla(30, -44, t), tob = mas(bola, 15, 180 + pieAng);   // del talón abajo del escalón a la punta de los pies
       const j = dePie(tob, { pierna: -90, muslo: -90, torso: -90 }); j.pie = pieAng;
       completar(j, { brazo: 92, antebrazo: 92 });
       j.punta = mas(j.tobillo, 17, pieAng); j.talon = mas(j.tobillo, 6, pieAng + 180);
@@ -354,6 +354,15 @@
     musculos: (j, t) => [Object.assign(M.dorsal(j, t), { principal: true }), M.biceps(j, t)],
     estatico(g, imp, ex) { if (/apoyad|banco/i.test(ex && ex.ejercicio || '')) EQ.banco(g, 96, 212, 200, 154); },
     equipo: equipoEnMano({}), guia: (a, b) => 'M' + f1(a.mano) + ' L' + f1(b.mano) };
+  // Remo T: inclinado sobre una barra que gira en un punto del piso (atrás) con los discos en la punta, junto a las manos
+  F.remoT = Object.assign({}, F.remoInclinado, { nombre: 'Remo T', equipo: null,
+    pose(t) {
+      const j = dePie(TOB, { pierna: -76, muslo: -116, torso: -30 }); j.hombro = mas(j.cadera, L.torso, j.torso);
+      return completar(j, { mano: P(mezcla(j.hombro.x + 2, j.hombro.x - 6, t), mezcla(j.hombro.y + 54, j.hombro.y + 22, t)), doblar: 'atras' });
+    },
+    estatico(g) { g.add('circle', { cx: 40, cy: PISO - 4, r: 5, fill: 'var(--maq2)' }); },
+    vivo(g) { EQ.palanca(g); EQ.disco(g); EQ.agarre(g); },
+    mover(g, j) { EQ.moverPalanca(g, P(40, PISO - 4), P(j.mano.x + 12, j.mano.y + 2)); EQ.moverDisco(g, P(j.mano.x + 6, j.mano.y + 4)); EQ.moverAgarre(g, j.mano); } });
   F.remoInvertido = { nombre: 'Remo invertido', textos: { concentrica: 'Lleva el pecho a la barra', excentrica: 'Baja con el cuerpo recto' },
     pose(t) {
       const tob = P(236, PISO - 4), a = mezcla(-164, -146, t), rod = mas(tob, L.pierna, a), cad = mas(rod, L.muslo, a);
@@ -448,6 +457,30 @@
   // Fondos: el cuerpo cuelga de las manos (nunca toca el piso). Arriba, brazos casi estirados y torso derecho;
   // abajo, codos hacia atrás (~75–90°), hombros adelante y abajo y el pecho inclinado. Piernas dobladas hacia atrás:
   // en la máquina asistida van hincadas en el cojín, que sube con el contrapeso.
+  // Press de pecho sentado (máquina): espalda en el respaldo, las manos empujan al frente a la altura del pecho
+  F.pressSentado = { nombre: 'Press de pecho sentado', textos: { concentrica: 'Empuja al frente sin despegar la espalda', excentrica: 'Regresa lento hasta el pecho' },
+    pose(t) {
+      const j = desdeCadera(P(136, 198), { muslo: 0, pierna: 90, torso: -92 }); j.hombro = mas(j.cadera, L.torso, j.torso);
+      return completar(j, { mano: P(mezcla(j.hombro.x + 16, j.hombro.x + 54, t), j.hombro.y + 10), doblar: 'abajo' });
+    },
+    musculos: (j, t) => [Object.assign(M.pecho(j, t), { principal: true }), M.triceps(j, t), M.deltoides(j)],
+    estatico(g) { EQ.respaldo(g, 118, 112, 206); EQ.asiento(g, 138, 200, 64); EQ.pila(g, 262); },
+    vivo(g) { EQ.agarre(g); EQ.palanca(g); },
+    mover(g, j, t) { EQ.moverAgarre(g, j.mano); EQ.moverPalanca(g, j.mano, P(j.mano.x + 30, 60)); EQ.moverPila(g, 34 * t); },
+    guia: (a, b) => 'M' + f1(a.mano) + ' L' + f1(b.mano) };
+
+  // Fondos en máquina sentado: el torso derecho y las manos empujan las agarraderas de las costillas a la cadera
+  F.fondosSentado = { nombre: 'Fondos en máquina', textos: { concentrica: 'Empuja hacia abajo hasta estirar', excentrica: 'Sube lento, codos atrás' },
+    pose(t) {
+      const j = desdeCadera(P(150, 196), { muslo: 0, pierna: 90, torso: -90 }); j.hombro = mas(j.cadera, L.torso, j.torso);
+      return completar(j, { mano: P(mezcla(j.hombro.x + 6, j.hombro.x + 8, t), mezcla(j.hombro.y + 26, j.hombro.y + 56, t)), doblar: 'atras' });
+    },
+    musculos: (j, t) => [Object.assign(M.triceps(j, t), { principal: true }), M.pecho(j, t)],
+    estatico(g) { EQ.respaldo(g, 132, 112, 202); EQ.asiento(g, 152, 198, 64); EQ.pila(g, 262); },
+    vivo(g) { EQ.agarre(g); EQ.palanca(g); },
+    mover(g, j, t) { EQ.moverAgarre(g, j.mano); EQ.moverPalanca(g, j.mano, P(250, j.mano.y - 30)); EQ.moverPila(g, 34 * t); },
+    guia: (a, b) => 'M' + f1(a.mano) + ' L' + f1(b.mano) };
+
   F.fondos = { nombre: 'Fondos', textos: { concentrica: 'Empuja hasta estirar los brazos', excentrica: 'Baja lento hasta 90° en el codo' },
     pose(t) {
       const mano = P(158, 112), hombro = P(mezcla(170, 155, t), mezcla(80, 55, t)), torso = mezcla(-62, -82, t);
@@ -483,7 +516,7 @@
     equipo: equipoEnMano({ polea: P(214, PISO - 8), pila: 236 }),
     guia(a, b, pose) { let d = ''; for (let i = 0; i <= 12; i++) { const p = pose(i / 12).mano; d += (i ? ' L' : 'M') + f1(p); } return d; } };
 
-  F.antebrazo = { nombre: 'Curl de muñeca', textos: { concentrica: 'Sube solo con la muñeca', excentrica: 'Baja lento hasta estirar' },
+  F.antebrazo = { nombre: 'Curl de muñeca', caja: '62 112 180 146', textos: { concentrica: 'Sube solo con la muñeca', excentrica: 'Baja lento hasta estirar' },
     pose(t) {
       const j = desdeCadera(P(120, 200), { muslo: 0, pierna: 90, torso: -70 });
       j.hombro = mas(j.cadera, L.torso, j.torso);
@@ -499,8 +532,11 @@
 
   F.granjero = { nombre: 'Paseo del granjero', textos: { concentrica: 'Camina firme, hombros atrás', excentrica: 'Pasos cortos, abdomen apretado' },
     pose(t) {
-      const s = Math.sin(t * Math.PI * 2), j = desdeCadera(P(150, 160), { muslo: 90 + 14 * s, pierna: 92 + 10 * Math.max(0, s), torso: -90 });
-      j.muslo2 = 90 - 14 * s; return completar(j, { brazo: 90, antebrazo: 90 });
+      const s = Math.sin(t * Math.PI * 2), sube = 2.5 * Math.abs(Math.cos(t * Math.PI * 2));
+      const j = desdeCadera(P(150, 158 - sube), { muslo: 90 - 24 * s, pierna: 90 + 26 * Math.max(0, s) - 6 * s, torso: -88 });
+      j.muslo2 = 90 + 24 * s; j.pie = -6 * s;
+      const r2 = mas(j.cadera, L.muslo, j.muslo2); j.rodilla2 = r2; j.tobillo2 = mas(r2, L.pierna, 90 + 26 * Math.max(0, -s) + 6 * s);
+      return completar(j, { brazo: 90 + 4 * s, antebrazo: 90 + 4 * s });
     },
     caminando: true,
     musculos: j => [Object.assign(M.antebrazo(j, 1), { principal: true }), M.trapecio(j)],
@@ -582,8 +618,8 @@
       const cruce = /polea|cruce/i.test(ex && (ex.ejercicio + ' ' + ex.modalidad) || '') && !/m[aá]quina/i.test(ex && ex.ejercicio || '');
       if (cruce && /abajo hacia arriba|de abajo/i.test(ex.ejercicio)) return frentePose({ pelvis: 160, brazo: mezcla(40, -40, t), antebrazo: mezcla(44, -120, t), prof: mezcla(1, 0.75, t), muslo: 86, pierna: 90 });
       if (cruce) return frentePose({ pelvis: 160, brazo: mezcla(-10, 70, t), antebrazo: mezcla(-4, 120, t), prof: mezcla(1, 0.75, t), muslo: 86, pierna: 90 });
-      const p = Math.cos(rad(mezcla(0, 72, t)));   // el brazo va hacia ti: se ve más corto
-      return frentePose({ pelvis: 172, brazo: 2, antebrazo: -88, prof: Math.max(0.3, p), profA: 1, muslo: 98, pierna: 92, profM: 0.45 });
+      const p = Math.cos(rad(mezcla(0, 86, t)));   // el brazo gira hacia ti: se ve más corto y las manos llegan casi al centro
+      return frentePose({ pelvis: 172, brazo: 2, antebrazo: -88, prof: Math.max(0.08, p), profA: 1, muslo: 98, pierna: 92, profM: 0.45 });
     },
     musculos: (j, t) => [{ d: miembro(P(CX - 18, j.hom[0].y + 12), P(CX - 4, j.hom[0].y + 14), 10, 14 + 3 * t, 10, 0.5), c: P(CX - 11, j.hom[0].y + 13), principal: true },
                          { d: miembro(P(CX + 4, j.hom[1].y + 14), P(CX + 18, j.hom[1].y + 12), 10, 14 + 3 * t, 10, 0.5), c: P(CX + 11, j.hom[1].y + 13) }],
@@ -634,11 +670,11 @@
     [/hip thrust|puente de gluteo|puente/, 'hipThrust'], [/curl femoral|nordico|femoral/, 'curlFemoral'], [/extension de cuadriceps|extension de pierna/, 'extensionPierna'],
     [/prensa|hack/, 'prensa'], [/zancada|desplante|bulgar|unilateral de pierna|lunge|step/, 'zancada'], [/pantorrilla|gemelo|calf/, 'pantorrilla'],
     [/rumano|buenos dias|piernas rigidas/, 'rumano'], [/peso muerto|deadlift/, 'pesoMuerto'], [/sentadilla|squat/, 'sentadilla'],
-    [/remo invertido|australian/, 'remoInvertido'], [/remo con barra|remo con mancuerna|remo inclinado|pecho apoyado|remo .*banco|remo t/, 'remoInclinado'], [/remo/, 'remoSentado'],
+    [/remo invertido|australian/, 'remoInvertido'], [/remo (en )?t\b|t-bar|remo con barra t|landmine/, 'remoT'], [/remo con barra|remo con mancuerna|remo inclinado|pecho apoyado|remo .*banco/, 'remoInclinado'], [/remo/, 'remoSentado'],
     [/dominad|pull ?up|chin/, 'dominada'], [/jalon|pulldown/, 'jalon'], [/pullover/, 'pullover'],
-    [/fondo|dip/, 'fondos'], [/extension de triceps|triceps|press frances|patada/, 'tricepsPolea'],
+    [/fondos? (en|de) maquina|maquina de fondos|fondos sentado|dip machine|seated dip/, 'fondosSentado'], [/fondo|dip/, 'fondos'], [/extension de triceps|triceps|press frances|patada/, 'tricepsPolea'],
     [/muneca|antebrazo/, 'antebrazo'], [/curl|martillo|bicep/, 'curl'], [/granjero|farmer|cargada/, 'granjero'],
-    [/press inclinado|inclinado/, 'pressInclinado'], [/press de banca|press plano|press de pecho|pecho plano|banca/, 'pressPlano'],
+    [/press inclinado|inclinado/, 'pressInclinado'], [/press de pecho (sentado|en maquina)|press (en|de) maquina de pecho|chest press|press sentado/, 'pressSentado'], [/press de banca|press plano|press de pecho|pecho plano|banca/, 'pressPlano'],
     [/press militar|press de hombro|hombro|arnold/, 'pressHombro'],
     [/crunch|abdominal|encogimiento abdominal/, 'crunch'], [/elevacion de piernas|elevaciones de rodillas|elevacion de rodillas|silla romana/, 'elevPiernas'],
     [/plancha|hollow|plank/, 'plancha']
@@ -673,7 +709,7 @@
       this.cont = cont; this.visible = false; this.desfase = o.desfase || 0;
       cont.innerHTML = '';
       const svg = document.createElementNS(NS, 'svg');
-      svg.setAttribute('viewBox', '0 0 320 260'); svg.setAttribute('role', 'img');
+      const caja = (this.fam && this.fam.caja) || '0 0 320 260', vb = caja.split(' ').map(Number); svg.setAttribute('viewBox', caja); svg.setAttribute('role', 'img');
       svg.setAttribute('aria-label', 'Animación de ' + (ex.ejercicio || 'el ejercicio') + ': ' + this.fam.nombre);
       cont.appendChild(svg); this.svg = svg;
       const fam = this.fam, pose = (t, r) => fam.pose(t, ex, r || 0);
@@ -710,7 +746,7 @@
       }
       this.musArriba = grupo(svg);
       this.pico = grupo(svg).add('circle', { r: 10, fill: 'none', stroke: 'var(--musculo)', 'stroke-width': 2, opacity: 0 });
-      this.cuenta = grupo(svg).add('text', { x: 308, y: 22, 'text-anchor': 'end', 'font-size': 15, 'font-weight': 700, fill: 'var(--muted)' });
+      this.cuenta = grupo(svg).add('text', { x: vb[0] + vb[2] - 12, y: vb[1] + 22, 'text-anchor': 'end', 'font-size': Math.round(15 * vb[2] / 320), 'font-weight': 700, fill: 'var(--muted)' });
       this.textoFase = o.textoFase || null; this.ultimo = '';
     }
     cuadro(ms) {

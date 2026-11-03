@@ -198,3 +198,15 @@ test('revisarMacros y marcarSeco: lo que no puede ser sale marcado', () => {
   assert.strictEqual(NUT.buscar(NUT.BASE, 'mantequilla')[0].id, 'b:mantequilla');
   assert.strictEqual(NUT.buscar(NUT.BASE, 'pan birote')[0].id, 'b:bolillo');
 });
+
+test('porciones de la IA: 1 → 3 galletas sube todo parejo; un ingrediente cambia el plato', () => {
+  const galleta = { nombre: 'Galleta salada', gramos: 20, piezas: 1, g_pieza: 20, g: 2, c: 14, f: 2, k: 82, fib: 1 };
+  NUT.escalarItem(galleta, 3);
+  assert.deepStrictEqual([galleta.piezas, galleta.gramos, galleta.g, galleta.c, galleta.k], [3, 60, 6, 42, 246]);
+  assert.deepStrictEqual(NUT.revisarMacros({ p: galleta.g, c: galleta.c, f: galleta.f, k: galleta.k }, galleta.gramos), [], 'sin avisos');
+  const ens = { nombre: 'Ensalada', ingredientes: [{ nombre: 'Lechuga', gramos: 80, g: 1, c: 2.3, f: 0.1, k: 12, fib: 1 }, { nombre: 'Atún', gramos: 100, g: 19.4, c: 0, f: 1, k: 86, fib: 0 }] };
+  NUT.sumarIngredientes(ens);
+  assert.deepStrictEqual([ens.gramos, ens.g, ens.k], [180, 20, 98]);
+  NUT.cantidadIngrediente(ens.ingredientes[1], 150); NUT.sumarIngredientes(ens);
+  assert.deepStrictEqual([ens.ingredientes[1].g, ens.gramos, ens.g, ens.k], [29.1, 230, 30, 141]);
+});

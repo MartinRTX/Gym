@@ -110,15 +110,23 @@ Mejoras propuestas (en orden):
 - Arreglos: "Descartar" de la IA ya se ve como botón secundario; la Ruta de hoy ya no se sale de la tarjeta.
 - El documento "CAMBIOS v8.4" de otro chat era sobre la v8.3: NO aplicar sus archivos (borraría v8.5–v9.4).
 
-## v9.6 (en la rama con la v9.5, falta "publica"): color del día y animaciones
+## v9.6 (publicada 03/11 con la v9.5): color del día y animaciones
 
 - Colores del día: Push naranja, **Pull rojo**, Legs amarillo, Core verde, **Trote cian**. La pesa de Entrenar en la barra de abajo
   es lo único de la barra con el color del día (`#nEntrenar`); lo demás sigue en el color de acción.
 - Animaciones revisadas con una galería de las 32 (abajo, subiendo, arriba, bajando). Arregladas: **fondos** (antes quedaba hincado
   en el piso; ahora cuelga de las barras, codo atrás a ~70–90° abajo y casi estirado arriba, pecho inclinado, cojín de la asistida
   que sube con la pila), **búlgara** (pie de atrás en el banco) y **crunch en máquina** (sentado, el torso se enrolla). Con pruebas.
-- Ideas pendientes de animaciones: más recorrido visible en pantorrilla; en aperturas que las manos se junten al centro;
-  granjero caminando; acercar el curl de muñeca; variantes por máquina (press de pecho sentado, fondos en máquina sentado, remo T).
+
+## v9.7 / script 8.5 (publicado 03/11)
+
+- Animaciones: pantorrilla con más recorrido, aperturas en máquina (las manos llegan al centro), granjero caminando,
+  curl de muñeca de cerca (`caja` = viewBox por familia) y 3 nuevas: press de pecho sentado, fondos en máquina sentado, remo T.
+- Comida: en la respuesta de la IA, − / + cambian la PORCIÓN (piezas o gramos) y todo sube parejo (antes subían la proteína
+  de 2 en 2 y salía "las calorías no cuadran"). Platillos con ingredientes editables (cambiar gramos, quitar, agregar del
+  catálogo); se guardan con sus ingredientes (un renglón por ingrediente en la hoja). `NUT.escalarItem/sumarIngredientes`.
+- Script: IA_COMIDA e IA_FOTO devuelven `piezas`, `g_pieza` e `ingredientes`; comida, fotos y etiquetas usan primero el modelo
+  ligero (la pestaña IA mostró al completo con 429/503 y respuestas de 90–280 s). Revisar la pestaña IA en unos días.
 
 ## Pendientes de la app (refactor y auditoría)
 

@@ -430,6 +430,27 @@ const NUT = (() => {
     const mant = Math.round((kcalProm - Number(cambioKgSemana) * 7700 / 7) / 10) * 10;
     return { mant: mant, confiable: (Number(dias) || 0) >= 5, kcal: Math.round(kcalProm), cambio: Number(cambioKgSemana) };
   }
+  // Lo que contestó la IA, en otra cantidad: todo sube o baja parejo (gramos, piezas, macros e ingredientes)
+  function escalarItem(x, f) {
+    if (!(f > 0) || !isFinite(f)) return x;
+    const e = v => v === null || v === undefined ? v : r1(v * f);
+    x.g = Number.isInteger(x.g || 0) ? Math.round((x.g || 0) * f) : r1(x.g * f); ['c', 'f', 'fib'].forEach(m => { x[m] = e(x[m]); }); if (x.k !== null && x.k !== undefined) x.k = Math.round(x.k * f);
+    if (x.gramos) x.gramos = r1(x.gramos * f);
+    if (x.piezas) x.piezas = Math.round(x.piezas * f * 100) / 100;
+    (x.ingredientes || []).forEach(i => { i.gramos = r1(i.gramos * f); i.g = r1(i.g * f); ['c', 'f', 'fib'].forEach(m => { i[m] = e(i[m]); }); if (i.k !== null && i.k !== undefined) i.k = Math.round(i.k * f); });
+    return x;
+  }
+  // Un platillo con ingredientes: sus totales son la suma (al cambiar uno, cambia el plato)
+  function sumarIngredientes(x) {
+    const l = x.ingredientes || [];
+    if (!l.length) return x;
+    const s = k => l.reduce((a, i) => a + (Number(i[k]) || 0), 0);
+    x.gramos = r1(s('gramos')); x.g = Math.round(s('g')); x.c = r1(s('c')); x.f = r1(s('f')); x.k = Math.round(s('k')); x.fib = r1(s('fib'));
+    if (x.piezas && x.g_pieza) x.g_pieza = r1(x.gramos / x.piezas);
+    return x;
+  }
+  // Un ingrediente en otra cantidad (sus macros en proporción)
+  function cantidadIngrediente(i, gramos) { const f = i.gramos > 0 ? gramos / i.gramos : 0; if (f > 0) { const g = i.gramos; escalarItem(Object.assign(i, { gramos: g }), f); } return i; }
   // Una sola cosa con muchas calorías (una pizza entera, 660 g): puede estar bien, pero conviene revisarla
   const esGrande = m => (Number(m.k) || 0) > 900;
   // ¿Los números tienen sentido? (lo que la IA o una ficha dicen de una cantidad). Regresa avisos para corregir antes de agregar
@@ -455,6 +476,6 @@ const NUT = (() => {
   };
 
   return { MAC, BASE, BASE_POR_ID, RECETAS, TUPPER, LEGADO, ES_EN, r1, macros, sumar, receta, diferencia, cambiarRol, tupper, nombreTupper, claveTupper,
-           normalizarEtiqueta, leerEtiqueta, revisarMacros, marcarSeco, mantenimientoReal, esGrande, gramosDeConsumo, gramosDe, mismoProducto, metas, buscar, cantidadDeTexto, desempacar, sinAcentos };
+           normalizarEtiqueta, leerEtiqueta, revisarMacros, marcarSeco, mantenimientoReal, esGrande, escalarItem, sumarIngredientes, cantidadIngrediente, gramosDeConsumo, gramosDe, mismoProducto, metas, buscar, cantidadDeTexto, desempacar, sinAcentos };
 })();
 if (typeof module !== 'undefined') module.exports = NUT;
