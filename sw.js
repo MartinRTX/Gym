@@ -1,6 +1,6 @@
 // Guarda la app en el celular para que abra rápido y funcione sin señal.
 // Cuando subas una versión nueva de la app, cambia el número de VERSION.
-const VERSION = 'gym-v9.7';
+const VERSION = 'gym-v9.8';
 // Miniaturas de YouTube, GIF e imágenes de técnica: caché aparte que NO se borra al cambiar de versión
 const MEDIA = 'gym-media';
 const MEDIA_MAX = 150;
@@ -47,8 +47,11 @@ function deMedia(req) {
   })));
 }
 
-// Archivos de la app: responde con lo guardado y actualiza en segundo plano.
-// Las llamadas a Google (tus datos) nunca se guardan aquí.
+// Archivos de la app: SIEMPRE los de la versión instalada, todos juntos (todo o nada).
+// Antes se actualizaban uno por uno en segundo plano y, justo después de publicar, podían mezclarse archivos
+// de dos versiones. Ahora una versión nueva llega completa cuando cambia este archivo (VERSION): el navegador
+// la baja entera en 'install' (si falla un archivo, no se instala nada) y la app se recarga una vez al activarse.
+// Lo que no está en la lista se pide a la red. Las llamadas a Google (tus datos) nunca se guardan aquí.
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
@@ -63,17 +66,7 @@ self.addEventListener('fetch', e => {
     }))));
     return;
   }
-  e.respondWith(
-    caches.open(VERSION).then(cache =>
-      cache.match(e.request, { ignoreSearch: true }).then(guardado => {
-        const red = fetch(e.request).then(resp => {
-          if (resp && resp.ok) cache.put(e.request, resp.clone());
-          return resp;
-        }).catch(() => guardado);
-        return guardado || red;
-      })
-    )
-  );
+  e.respondWith(caches.open(VERSION).then(cache => cache.match(e.request, { ignoreSearch: true }).then(guardado => guardado || fetch(e.request))));
 });
 
 // La app manda la lista de miniaturas y GIF del catálogo: se bajan con señal para tenerlos en el gym

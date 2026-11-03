@@ -1028,6 +1028,23 @@ const CSS_V86 = `
 /* v8.9: animación de cada ejercicio (colores del tema: tú en morado, el músculo en naranja, el equipo en gris) */
 /* v9.5: un solo color para lo que se toca (cian, con buen contraste en claro y oscuro) y el color del día solo para el día
    (el nombre grande, el rack y las pestañas de grupo). --rut queda como el color de acción; --dia es el del día. */
+/* v9.8: contraste. En modo claro los acentos van un tono más oscuro para que el texto chico se lea (≥ 4.5:1);
+   en modo oscuro ya pasaban. Medido en todas las pantallas con tests/e2e/contraste-v98.prueba.js */
+const CSS_V98 = `
+  @media (prefers-color-scheme: light) {
+    :root { --acc: #C2410C; --ok: #15803D; --leg: #8A6400; --cyan: #0E7490; --red: #BE123C; --muted: #5B5570; }
+    #nav button { color: #4F4A60; }
+    .chip .cht small, .chip.on .cht small { opacity: 1; }
+    /* Texto verde o cian sobre su fondo clarito: un tono más */
+    .food b, .pill.ok, .btn.verde, .ruta li .n, .rapido { color: #116030; }
+    .mod, .equipo { color: #0B5F75; }
+    .unit.paso button.on { color: #fff; }
+  }
+  @media (prefers-color-scheme: dark) {
+    /* Sobre morado o rojo claro, texto oscuro */
+    .dias button.on, .pills button.on, .pills.c-pri button.on, .pills.c-red button.on { color: #0E0C14; }
+  }
+`;
 const CSS_V95 = `
   :root { --act: #0E7490; --on-act: #FFFFFF; --act-weak: #E0F5FA; --on-dia: #FFFFFF; --dia: var(--pri); }
   @media (prefers-color-scheme: dark) { :root { --act: #22C3E6; --on-act: #06222A; --act-weak: #0B2A33; --on-dia: #120F1C; } }
@@ -1257,7 +1274,7 @@ function avisoErrores() {
 
 /* ===================== Arranque ===================== */
 function arrancar() {
-  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72 + CSS_V75 + CSS_V8 + CSS_V85 + CSS_V86 + CSS_V89 + CSS_V95; document.head.appendChild(st);
+  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72 + CSS_V75 + CSS_V8 + CSS_V85 + CSS_V86 + CSS_V89 + CSS_V95 + CSS_V98; document.head.appendChild(st);
   aplicarSencillo(); cargarFotosMaq();
   // Link de configuración: ?api=…&k=… o #api=…&k=… (también acepta key=)
   const p = new URLSearchParams(location.search), ph = new URLSearchParams(location.hash.slice(1));
@@ -1324,7 +1341,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v9.7';
+const VERSION_APP = 'v9.8';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
