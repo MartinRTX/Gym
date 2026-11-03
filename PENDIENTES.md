@@ -41,10 +41,9 @@ actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
 1. Gym-script: `claude/tempo-encabezado` → `main` (8.6). Primero el script.
 2. Gym: rama de trabajo → `main` (v9.8). Al abrirla, el celular baja la versión nueva completa y recarga una vez.
 3. Panel: `claude/carrera` → `main` (1.6).
-4. Script de Comidas con clasp (cuando Martin quiera dejar de pegarlo a mano): en el Apps Script de "Comidas 2026",
-   ⚙️ Configuración del proyecto › Propiedades del script: `CLAVE` = su clave; y pasar el "ID de secuencia de comandos"
-   para ponerlo en `COMIDAS_SCRIPT_ID` (`Gym-script/.github/workflows/comidas.yml`). Si falta la propiedad, el workflow
-   regresa la implementación a la versión anterior.
+4. ✅ (03/11) Script de Comidas con clasp: propiedad `CLAVE` puesta y `COMIDAS_SCRIPT_ID` en
+   `Gym-script/.github/workflows/comidas.yml`. Publicado (versión 2, "✓ responde"). Se publica solo desde GitHub
+   (cada día o a mano, "Publicar Comidas (Panel)"): nunca pegarlo a mano.
 
 ## v9.8 / script 8.6 / Panel 1.6 (en las ramas, 03/11/2026)
 
@@ -186,8 +185,8 @@ Mejoras propuestas (en orden):
    localStorage (Panel puede leer `gym_key`; por eso existe "Usar la conexión de tu app") y el mismo espacio de ~5 MB.
    ✅ Panel 1.6 ya no usa `onclick` en texto y en Chrome tiene CSP estricta.
 8. La URL `/exec` de Gym ya es pública (está en `Panel/config.js`): la única protección es la clave. Usar una clave larga.
-9. Script de Comidas con clasp: listo el workflow (`Gym-script/.github/workflows/comidas.yml`); falta la propiedad `CLAVE`
-   y el ID del script (ver "Para publicar" arriba).
+9. ✅ (03/11) Script de Comidas con clasp: ya se publica solo desde GitHub (`Gym-script/.github/workflows/comidas.yml`).
+   Nunca pegarlo a mano en el Apps Script.
 
 ## Lo que le toca a Martin (recomendado, no urgente)
 
