@@ -43,7 +43,7 @@ actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
 3. Panel: `claude/carrera` → `main` (1.6).
 4. ✅ (03/11) Script de Comidas con clasp: propiedad `CLAVE` puesta y `COMIDAS_SCRIPT_ID` en
    `Gym-script/.github/workflows/comidas.yml`. Publicado (versión 2, "✓ responde"). Se publica solo desde GitHub
-   (cada día o a mano, "Publicar Comidas (Panel)"): nunca pegarlo a mano.
+   (cada hora o a mano, "Publicar Comidas (Panel)"): nunca pegarlo a mano.
 
 ## v9.8 / script 8.6 / Panel 1.6 (en las ramas, 03/11/2026)
 
