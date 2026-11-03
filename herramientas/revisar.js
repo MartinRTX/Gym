@@ -6,6 +6,8 @@
 //  5. Ningún on*="…" en el HTML: los botones usan on('accion', …) (data-click) y la política de seguridad bloquea el JS en línea.
 //  4. La versión de la app (VERSION_APP en app.js) y la del service worker (VERSION en sw.js) son la misma:
 //     si no, los celulares no bajan la versión nueva (o la bajan a medias).
+//  6. Todo lo que carga index.html está en la lista del service worker.
+//  7. Solo el bloque LS de app.js toca localStorage.
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -41,6 +43,23 @@ const vApp = (fs.readFileSync(path.join(RAIZ, 'app.js'), 'utf8').match(/const VE
 const vSw = (fs.readFileSync(path.join(RAIZ, 'sw.js'), 'utf8').match(/const VERSION = 'gym-v([\d.]+)'/) || [])[1];
 if (!vApp || vApp !== vSw) { errores++; console.error('✗ versiones distintas: app.js v' + vApp + ' y sw.js gym-v' + vSw + ' (cambia las dos)'); }
 else console.log('✓ app.js y sw.js en la misma versión (v' + vApp + ')');
+
+// 6. Todo lo que carga index.html (scripts y app.css) va en la lista del service worker: si falta uno, sin señal la app
+//    queda a medias (y con el todo-o-nada se pediría a la red cada vez)
+const hojas = [...html.matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(m => m[1]).filter(f => !/^https?:/.test(f));
+const enSw = (fs.readFileSync(path.join(RAIZ, 'sw.js'), 'utf8').match(/const ARCHIVOS = \[([\s\S]*?)\];/) || [])[1] || '';
+const faltan = scripts.concat(hojas).filter(f => !enSw.includes("'./" + f + "'"));
+if (faltan.length) { errores++; console.error('✗ faltan en ARCHIVOS de sw.js: ' + faltan.join(', ')); }
+else console.log('✓ sw.js guarda los ' + (scripts.length + hojas.length) + ' archivos que carga index.html');
+
+// 7. Una sola capa de guardado: solo el bloque LS de app.js toca localStorage
+const directo = scripts.filter(f => {
+  let t = fs.readFileSync(path.join(RAIZ, f), 'utf8');
+  if (f === 'app.js') t = t.replace(/const LS = \{[\s\S]*?\n\};/, '');
+  return /\blocalStorage\s*[.\[)]/.test(t.replace(/\/\/.*$/gm, ''));
+});
+if (directo.length) { errores++; console.error('✗ localStorage directo en ' + directo.join(', ') + ': usa LS.get / LS.set / LS.del / LS.claves'); }
+else console.log('✓ todo el guardado pasa por LS');
 
 const conCodigo = scripts.concat(['index.html']).filter(f => /\son[a-z]+=\\?["']/.test(fs.readFileSync(path.join(RAIZ, f), 'utf8')));
 if (conCodigo.length) { errores++; console.error('✗ código en el HTML (on…="…") en ' + conCodigo.join(', ') + ': usa on(\'accion\', …) o ev(\'input\', …)'); }

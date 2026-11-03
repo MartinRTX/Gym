@@ -8,7 +8,7 @@ const MEDIA_MAX = 150;
 // (la app lo pide con ?v=N: si el catálogo cambia, sube N y se baja el nuevo)
 const DATOS = 'gym-datos';
 const ARCHIVOS = [
-  './', './index.html', './seguridad.js', './motor.js', './nutricion.js', './comida.js', './animaciones.js', './app.js', './manifest.webmanifest', './fonts/archivo.woff2',
+  './', './index.html', './seguridad.js', './motor.js', './nutricion.js', './comida.js', './animaciones.js', './app.js', './entrenar.js', './series.js', './sesion.js', './trote.js', './comida-dia.js', './coach.js', './progreso.js', './ajustes.js', './inicio.js', './app.css', './manifest.webmanifest', './fonts/archivo.woff2',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'
 ];
 
