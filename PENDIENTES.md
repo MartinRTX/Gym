@@ -167,8 +167,7 @@ Mejoras propuestas (en orden):
 1. ✅ v9.8: partir `app.js`, `app.css`, una capa de guardado, contraste, service worker todo o nada, hash del catálogo, Tempo.
 2. Opcional: pasar más pantallas a la plantilla ``html`…` `` (hoy el escapado se cuida con `esc()` y lo vigila `escapar-v98`).
 3. Animaciones: ajustes según lo que Martin vea en el celular real (posturas, colores, velocidad).
-4. Opcional: Panel tiene el mismo service worker de antes (puede mezclar dos versiones un momento después de publicar);
-   pasarlo a "todo o nada" como Gym (cuidando que `config.js` siga yendo primero por la red).
+4. ✅ Panel 1.6: service worker "todo o nada" como Gym (`config.js` sigue yendo primero por la red).
 
 ## Pendientes de Panel ↔ Gym (ver detalle abajo)
 
