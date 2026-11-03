@@ -1026,6 +1026,37 @@ const CSS_V86 = `
   .falla small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
 `;
 /* v8.9: animación de cada ejercicio (colores del tema: tú en morado, el músculo en naranja, el equipo en gris) */
+/* v9.5: un solo color para lo que se toca (cian, con buen contraste en claro y oscuro) y el color del día solo para el día
+   (el nombre grande, el rack y las pestañas de grupo). --rut queda como el color de acción; --dia es el del día. */
+const CSS_V95 = `
+  :root { --act: #0E7490; --on-act: #FFFFFF; --act-weak: #E0F5FA; --on-dia: #FFFFFF; --dia: var(--pri); }
+  @media (prefers-color-scheme: dark) { :root { --act: #22C3E6; --on-act: #06222A; --act-weak: #0B2A33; --on-dia: #120F1C; } }
+  body[data-rut=Push] { --dia: var(--acc); } body[data-rut=Pull] { --dia: var(--cyan); } body[data-rut=Legs] { --dia: var(--leg); }
+  body[data-rut=Core] { --dia: var(--ok); } body[data-rut=Trote] { --dia: var(--red); }
+  body[data-rut], body:not([data-rut]) { --rut: var(--act); --rut-g: var(--act); --rut-weak: var(--act-weak); --on-rut: var(--on-act); }
+  .hoy .grupo b { color: var(--dia); }
+  .rack .mancuerna rect { fill: var(--dia); }
+  .rack .falta rect { fill: color-mix(in srgb, var(--dia) 8%, transparent); stroke: color-mix(in srgb, var(--dia) 65%, var(--line)); }
+  .chip.on, .chip.r-Trote.on { color: var(--on-dia); }
+  .btn, .iacard .btn { background: var(--act); color: var(--on-act); box-shadow: none; }
+  .btn.ghost, .iacard .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  .btn.acc { background: var(--acc); color: var(--on-acc); }
+  .btn.verde { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+  .link { color: var(--act); }
+  #nav, body[data-tab=Entrenar] #nav { --tabc: var(--act); --on-tabc: var(--on-act); }
+  .iitem button.mini.on { background: var(--act); border-color: var(--act); color: var(--on-act); }
+  .seg button.on { --c: var(--act); }
+  .ex.sig { border-color: color-mix(in srgb, var(--act) 55%, var(--line)); }
+  .sigtxt { margin: -2px 0 -6px 14px; padding-top: 8px; font-size: 11.5px; font-weight: 800; letter-spacing: .04em; color: var(--act); }
+  .mic { background: var(--act-weak); color: var(--act); }
+  .ruta ol { grid-template-columns: minmax(0, 1fr); }
+  .ex-meta .pill.sube { display: inline-flex; margin: 0 6px 2px 0; padding: 2px 8px; font-size: 12px; vertical-align: middle; }
+  .ex-meta .pill.sube svg { width: 13px; height: 13px; }
+  .comidas3 button.on { border-color: var(--act); box-shadow: 0 0 0 1px var(--act); }
+  .iacard .acts .btn.ghost { flex: 0 0 auto; padding-left: 18px; padding-right: 18px; }
+  .iacard .acts .btn:not(.ghost) { white-space: nowrap; font-size: 15px; }
+  .ex-head .empezar { flex: none; padding: 9px 14px; font-size: 14px; border-radius: 12px; margin-left: 6px; }
+`;
 const CSS_V89 = `
   .anim-ej { --persona: var(--pri); --persona2: var(--pri-2, var(--pri)); --musculo: var(--acc); --maq: color-mix(in srgb, var(--muted) 70%, var(--card));
     --maq2: color-mix(in srgb, var(--muted) 32%, var(--card)); --peso: color-mix(in srgb, var(--text) 62%, var(--card)); --piso: var(--line); --guia: var(--muted);
@@ -1191,7 +1222,7 @@ function pintarSync() {
   if (!el) return;
   if (flushing) { el.className = 'sync'; el.textContent = 'Subiendo…'; }
   else if (n) { el.className = 'sync pend'; el.textContent = n + ' sin subir' + (navigator.onLine ? '' : ' · sin señal') + (COLA_MEM ? ' · sin espacio' : ''); }
-  else { el.className = 'sync ok'; el.textContent = '✓ Al día'; }
+  else { el.className = 'sync ok'; el.textContent = '✓ Guardado'; }
 }
 function avisoErrores() {
   const e = LS.get('gym_errores', []);
@@ -1205,7 +1236,7 @@ function avisoErrores() {
 
 /* ===================== Arranque ===================== */
 function arrancar() {
-  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72 + CSS_V75 + CSS_V8 + CSS_V85 + CSS_V86 + CSS_V89; document.head.appendChild(st);
+  const st = document.createElement('style'); st.textContent = CSS_V53 + CSS_V7 + CSS_V72 + CSS_V75 + CSS_V8 + CSS_V85 + CSS_V86 + CSS_V89 + CSS_V95; document.head.appendChild(st);
   aplicarSencillo(); cargarFotosMaq();
   // Link de configuración: ?api=…&k=… o #api=…&k=… (también acepta key=)
   const p = new URLSearchParams(location.search), ph = new URLSearchParams(location.hash.slice(1));
@@ -1272,7 +1303,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v9.4';
+const VERSION_APP = 'v9.5';
 let ULT_LECTURA = 0;
 // Al volver a la app o recuperar la señal: lee la hoja si pasó más de un minuto desde la última vez
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
@@ -1616,15 +1647,16 @@ function resumenSets(sets) {
 
 /* ----- Hoy (v8): el grupo en grande y un rack con una mancuerna por ejercicio; las que guardas se llenan ----- */
 const DISCOS_VISTOS = {};
+// Lo que trabaja cada día, en palabras de todos
+const QUE_TRABAJA = { Push: 'pecho, hombros y tríceps', Pull: 'espalda y bíceps', Legs: 'piernas y glúteos', Core: 'abdomen y zona media' };
 function tarjetaHoy() {
   const secs = ordenGrupo(GRUPO), todos = secs.flat(), hechosL = todos.filter(e => cardDone(e.name));
   // Lo planeado: la primera sección (tu ruta o el bloque recomendado) más lo que ya hiciste de otras
   const total = Math.max(1, new Set((secs[0] || []).map(e => e.name).concat(hechosL.map(e => e.name))).size), hechos = hechosL.length;
   const clave = hoy() + GRUPO, antes = DISCOS_VISTOS[clave] === undefined ? hechos : Math.min(DISCOS_VISTOS[clave], hechos);
   DISCOS_VISTOS[clave] = hechos;
-  const bloque = GRUPOS3.includes(GRUPO) && DATA.bloquePara ? DATA.bloquePara[GRUPO] : '';
   const lado = hechos ? '<strong>' + hechos + ' de ' + total + '</strong>' + (hechos >= total ? 'completo' : 'hechos')
-    : '<strong>' + total + ' ejercicio' + (total === 1 ? '' : 's') + '</strong>' + (bloque ? 'bloque ' + bloque : 'para hoy');
+    : '<strong>' + total + ' ejercicio' + (total === 1 ? '' : 's') + '</strong>' + (QUE_TRABAJA[GRUPO] || 'para hoy');
   return '<div class="hoy"><div class="grupo"><b>' + esc(GRUPO) + '</b><span>' + lado + '</span></div>' + rack(hechos, total, antes) + '</div>';
 }
 // Rack de mancuernas: una por ejercicio; las que faltan, punteadas. Las recién guardadas caen en su lugar
@@ -1732,7 +1764,7 @@ function pintarEntrenar() {
   h += tarjetaRuta();
   const hechos = ordenGrupo(GRUPO).flat().filter(e => cardDone(e.name));
   if (hechos.length) h += '<details class="sec hechos"' + (PLEG['hechos' + GRUPO] || hechos.some(e => e.name === OPEN) ? ' open' : '') +
-    ' ' + ev('toggle', 'plegar', 'hechos' + GRUPO, ABIERTO) + '><summary>✓ Completados · ' + hechos.length + '</summary>' + hechos.map(tarjetaEjercicio).join('') + '</details>';
+    ' ' + ev('toggle', 'plegar', 'hechos' + GRUPO, ABIERTO) + '><summary>✓ Ejercicios hechos hoy · ' + hechos.length + '</summary>' + hechos.map(tarjetaEjercicio).join('') + '</details>';
   // Lo que estás haciendo (tú o tu compañero) sube aquí y se queda abierto: no tienes que buscarlo
   const ahora = ordenGrupo(GRUPO).flat().filter(e => !cardDone(e.name) && enMarcha(e.name));
   if (ahora.length) h += '<h2>Ahora</h2>' + ahora.map(tarjetaEjercicio).join('');
@@ -1740,14 +1772,16 @@ function pintarEntrenar() {
   if (hechos.length && !ahora.length && !secs.some(x => x.length)) h += '<div class="tip">' + ICO.check + ' Terminaste todo ' + esc(GRUPO) + '. Toca «Terminar» arriba para ver tu resumen.</div>';
   const acep = rutaAceptada(GRUPO), hR = acep ? acep.filter(x => cardDone(x.name)).length : 0;
   const titulos = (acep ? ['<span>🧭 Tu ruta de hoy: ' + hR + ' de ' + acep.length + '</span><button class="link" ' + on('quitarRuta') + '>Quitar</button>'] : []).concat(GRUPO === 'Core' ? ['Elige 1 o 2 al final de cualquier día']
-    : ['Recomendado · bloque ' + DATA.bloquePara[GRUPO], 'Bloque ' + (DATA.bloquePara[GRUPO] === 'A' ? 'B' : 'A'), 'Más ejercicios']);
+    : ['Recomendados para hoy', 'Otros ejercicios del plan', 'Más ejercicios']);
   let primera = true;
   secs.forEach((items, i) => {
     if (!items.length) return;
     // La primera sección con ejercicios va abierta; las demás plegadas salvo que tengan algo en curso o las abras
     const activa2 = items.some(e => e.name === OPEN || state[e.name].done || state[e.name].sets.some(s => s.ok));
     const abierta = primera || activa2 || PLEG[GRUPO + i];
-    if (primera) h += '<h2' + (acep && i === 0 ? ' class="conboton"' : '') + '>' + titulos[i] + '</h2>' + items.map(tarjetaEjercicio).join('');
+    // La que sigue lleva "Empezar" (solo si no hay nada en curso ni abierto; en modo sencillo ya está "Hoy te toca")
+    if (primera) { SIG_NAME = !ahora.length && !OPEN && !sencillo() && !FECHA ? items[0].name : null;
+      h += '<h2' + (acep && i === 0 ? ' class="conboton"' : '') + '>' + titulos[i] + '</h2>' + items.map(tarjetaEjercicio).join(''); SIG_NAME = null; }
     else h += '<details class="sec"' + (abierta ? ' open' : '') + ' ' + ev('toggle', 'plegar', GRUPO + i, ABIERTO) + '><summary>' + titulos[i] + ' · ' + items.length + '</summary>' +
       items.map(tarjetaEjercicio).join('') + '</details>';
     primera = false;
@@ -1878,6 +1912,7 @@ function abiertaTarjeta(name) {
   const p = companero(name);
   return !!(p && OPEN === p);
 }
+let SIG_NAME = null;   // la tarjeta que sigue en la lista (solo mientras se pinta la lista)
 function tarjetaEjercicio(ex) {
   if (parOn() && state[parKey(ex.name)]) return tarjetaPareja(ex);
   const st = state[ex.name], abierto = abiertaTarjeta(ex.name);
@@ -1901,10 +1936,11 @@ function tarjetaEjercicio(ex) {
   else if (enCurso || abierto) ico = anillo(hechas, trabajo.length, false) + '<span class="rt num">' + hechas + '/' + trabajo.length + '</span>';
   else ico = '<span class="num">' + trabajo.length + '</span>';
   const n = jsq(ex.name);
-  let h = '<div class="ex' + (abierto ? ' open' : '') + (st.done ? ' done' : '') + (enCurso ? ' prog' : '') + '" id="ex-' + esc(ex.name) + '" style="view-transition-name:ex' + DATA.exercises.indexOf(ex) + '">' +
+  let h = '<div class="ex' + (abierto ? ' open' : '') + (st.done ? ' done' : '') + (enCurso ? ' prog' : '') + (SIG_NAME === ex.name ? ' sig' : '') + '" id="ex-' + esc(ex.name) + '" style="view-transition-name:ex' + DATA.exercises.indexOf(ex) + '">' +
+    (SIG_NAME === ex.name && !abierto ? '<div class="sigtxt">Siguiente</div>' : '') +
     '<div class="ex-head" ' + on('abrir', ex.name) + '><div class="ex-ico">' + ico + '</div>' +
-    '<div style="flex:1;min-width:0"><div class="ex-name">' + esc(ex.ejercicio) + botonTecnica(ex) + (par && !st.done ? '<span class="sstag">Superserie</span>' : '') + '</div><div class="ex-meta">' + badgeMod(ex) + meta + '</div></div>' +
-    (ex.up && !st.done && (FECHA || esPar(ex.name) || !descargaActiva()) ? '<span class="pill acc">' + ICO.up + 'Sube</span>' : '') +
+    '<div style="flex:1;min-width:0"><div class="ex-name">' + esc(ex.ejercicio) + botonTecnica(ex) + (par && !st.done ? '<span class="sstag">Alternado</span>' : '') + '</div><div class="ex-meta">' + (ex.up && !st.done && (FECHA || esPar(ex.name) || !descargaActiva()) ? '<span class="pill acc sube">' + ICO.up + 'Sube peso</span>' : '') + badgeMod(ex) + meta + '</div></div>' +
+    (SIG_NAME === ex.name && !abierto && !st.done ? '<button class="btn sm empezar" ' + on('abrir', ex.name) + '>Empezar</button>' : '') +
     (abierto ? '<button class="swapbtn" ' + on('elegirCambio', ex.name) + ' aria-label="Máquina ocupada: cambiar ejercicio">⇄</button>' +
       '<button class="menubtn" ' + on('menuEjercicio', ex.name) + ' aria-label="Más opciones">⋮</button>' : '') + '</div>';
   if (st.done && OPEN === ex.name) {
@@ -2217,7 +2253,7 @@ function tarjetaFoco() {
   if (!planAplica()) return '';
   if (pideReady()) return tarjetaReady();
   const p = planHoy();
-  if (p && p.foco) return '<div class="foco' + (ANIM_PLAN ? ' entra' : '') + '"><span class="i">✨</span><div><b>Foco de hoy:</b> ' + esc(p.foco) + '</div></div>';
+  if (p && p.foco) return '<div class="foco' + (ANIM_PLAN ? ' entra' : '') + '"><span class="i">✨</span><div><b>Lo importante hoy:</b> ' + esc(p.foco) + '</div></div>';
   if (PLAN_CARGANDO) return '<div class="foco"><span class="i">✨</span><div style="flex:1"><div class="muted" style="font-size:13px">Tu coach está preparando el plan de hoy…</div>' +
     '<div class="brillo linea-esq" style="width:90%"></div><div class="brillo linea-esq" style="width:60%"></div></div></div>';
   return '';
@@ -2237,7 +2273,7 @@ function menuEjercicio(k) {
   h += item('⚖️', 'Paso del equipo: ' + pasoEj(ex, st) + ' ' + st.unit + (ex.pasoFijo ? '' : ' (supuesto)'), 'El cambio de peso más chico que permite; toca para cambiarlo', on('menuPaso', k));
   h += item('📝', st.notas ? 'Editar nota de hoy' : 'Nota de hoy', st.notas || 'Solo de esta sesión: «hombro cargado», «dormí mal»', on('notaDeHoy', k));
   if (!esPar(k)) h += par ? item('⇆', 'Quitar superserie', 'Con ' + exDe(par).ejercicio, on('cerrarY', 'quitarSuper'))
-                          : item('⇆', 'Superserie', 'Alterna con otro ejercicio y descansa al final del par', on('elegirSuper', k));
+                          : item('⇆', 'Alternar con otro', 'Una serie de cada uno (superserie) y descansas al final del par', on('elegirSuper', k));
   h += item('⇄', 'Cambiar ejercicio', (variantesDe(base).length ? 'Otro equipo, ' : '') + 'máquina ocupada o molestia' + (parOn() ? ' (para los dos o solo uno)' : ''), on('elegirCambio', base));
   if (originalDe(base)) h += item('↩', 'Volver a ' + exDe(originalDe(base)).ejercicio.split(' (')[0], 'Solo hoy lo cambiaste por este', on('volverOriginal', base));
   if (parejaDisponible()) { const a = asignadoDe(base); h += item('👥', 'Quién lo hace: ' + (a ? 'solo ' + a : 'los dos'), 'En pareja, al otro se le marca «no lo hace hoy» de entrada', on('menuAsignado', base)); }
@@ -2275,7 +2311,7 @@ function tarjetaPareja(ex) {
   const n = jsq(base);
   let h = '<div class="ex' + (abierto ? ' open' : '') + (hecho ? ' done' : '') + (enCurso ? ' prog' : '') + '" id="ex-' + esc(base) + '" style="view-transition-name:ex' + DATA.exercises.indexOf(ex) + '">' +
     '<div class="ex-head" ' + on('abrir', base) + '><div class="ex-ico">' + ico + '</div>' +
-    '<div style="flex:1;min-width:0"><div class="ex-name">' + esc(ex.ejercicio) + botonTecnica(ex) + '</div><div class="ex-meta">' + meta + '</div></div>' +
+    '<div style="flex:1;min-width:0"><div class="ex-name">' + esc(ex.ejercicio) + botonTecnica(ex) + '</div><div class="ex-meta">' + (abierto && !hecho ? badgeMod(ex) : meta) + '</div></div>' +
     (abierto && !hecho ? '<button class="swapbtn" ' + on('elegirCambio', base) + ' aria-label="Máquina ocupada: cambiar ejercicio">⇄</button>' : '') +
     (abierto && exV && !st.done ? '<button class="menubtn" ' + on('menuEjercicio', k) + ' aria-label="Más opciones">⋮</button>' : '') + '</div>';
   if (!abierto) return h + '</div>';
@@ -2319,7 +2355,7 @@ function cuerpoEjercicio(ex, st) {
   else if (ex.hint && /al fallo/.test(ex.hint)) h += '<div class="tip">' + esc(ex.hint) + '</div>';
   else if (ex.sugerido && (pesoAnt === null || ex.sugerido.w > pesoAnt)) h += '<div class="sug">Sugerido hoy: ' + ex.sugerido.w + ' ' + ex.unit + ' × ' + ex.sugerido.r + ' (RPE 8)' +
     '<button class="btn" ' + on('usarSugerido', ex.name) + '>Usar</button></div>';
-  else if (!trabAnt.length) h += '<div class="tip">Elige un peso que te deje ' + ex.min + '–' + ex.max + ' reps con 1–2 de reserva</div>';
+  else if (!trabAnt.length) h += '<div class="tip">Elige un peso que te deje ' + ex.min + '–' + ex.max + ' reps y que te queden 1 o 2 por hacer</div>';
   else if (!/Semana de carrera/.test(ex.hint || '')) h += '<div class="tip">Meta de hoy: mismo peso y 1 rep más en alguna serie (la última vez: ' + trabAnt.map(a => a.r).join(', ') + ')</div>';
   else h += '<div class="tip">' + esc(ex.hint) + '</div>';
   if (st.editAjuste) h += '<div class="ajuste-ed"><input id="aj-' + esc(ex.name) + '" maxlength="120" placeholder="Ej. banco a 30°, asiento en 4, agarre neutro" value="' + esc(BORR['aj-' + ex.name] !== undefined ? BORR['aj-' + ex.name] : (ex.ajuste || '')) + '" ' + ev('input', 'borrador', 'aj-' + ex.name, VALOR) + '>' +
@@ -2353,7 +2389,7 @@ function cuerpoEjercicio(ex, st) {
     '<button class="btn ghost sm" ' + on('delSet', ex.name) + '' + (st.sets.length <= 1 ? ' disabled' : '') + '>− Serie</button></div>';
   // Lo secundario (calentamiento, ajuste, superserie, nota) vive en el menú ⋮; aquí solo se muestra si ya existe
   const par = esPar(ex.name) ? null : companero(ex.name);
-  if (par) h += '<div class="muted" style="font-size:13px;margin-top:8px">' + ICO.swap + ' Superserie con <b>' + esc(exDe(par).ejercicio) + '</b></div>';
+  if (par) h += '<div class="muted" style="font-size:13px;margin-top:8px">' + ICO.swap + ' Alternado con <b>' + esc(exDe(par).ejercicio) + '</b></div>';
   if (st.notas) h += '<button class="nota" style="margin-top:8px" ' + on('notaDeHoy', ex.name) + '>📝 ' + esc(st.notas) + '<span class="ed">Editar</span></button>';
 
   const hechas = st.sets.filter(s => s.ok).length;
@@ -2661,7 +2697,7 @@ function volverOriginal(a) {
 function elegirSuper(name) {
   const ex = exDe(name);
   const opciones = DATA.exercises.filter(e => e.group === ex.group && e.name !== name && !state[e.name].done);
-  $('sheet').innerHTML = '<div class="t2">Superserie con…</div><div class="muted" style="margin:4px 0 8px">Haces una serie de cada uno, alternando. El descanso se sugiere al terminar el par.</div>' +
+  $('sheet').innerHTML = '<div class="t2">Alternar con…</div><div class="muted" style="margin:4px 0 8px">Haces una serie de cada uno, alternando. El descanso se sugiere al terminar el par.</div>' +
     '<div class="lista">' + opciones.map(e => '<button ' + on('ponerSuper', name, e.name) + '><b style="flex:1">' + esc(e.ejercicio) + '</b><span class="muted">' + esc(e.musculo) + '</span></button>').join('') + '</div>' +
     '<div class="acts"><button class="btn ghost" ' + on('cerrarModal') + '>Cancelar</button></div>';
   abrirModal();
@@ -2795,7 +2831,7 @@ function marcar(name, i) {
 }
 /* ----- Coach IA: después de cada serie de trabajo te dice qué hacer en la siguiente ----- */
 const RIR_DE = { 'Al fallo': 0, 'Casi (1–2 más)': 1.5, 'Sobraban 3+': 3 };
-const ETQ_E = { 'Al fallo': 'FALLO', 'Casi (1–2 más)': 'RIR 1–2', 'Sobraban 3+': 'RIR 3+' };
+const ETQ_E = { 'Al fallo': 'AL FALLO', 'Casi (1–2 más)': 'QUEDABAN 1–2', 'Sobraban 3+': 'SOBRABAN 3+' };
 const IA_TIMER = {};
 let IA_AVISADO = false;
 // i = índice de la serie que acabas de marcar en state[name].sets
@@ -3915,7 +3951,7 @@ function tarjetaComidaIA() {
       '<button class="mini" ' + on('ajustarItem', i, 2) + ' aria-label="Más">+</button>' +
       '<button class="mini' + (x.fav ? ' on' : '') + '" ' + on('guardarFav', i) + ' aria-label="Guardar en mis comidas">⭐</button></div>').join('') + '</div>';
     if (c.consejo) h += '<div class="muted" style="margin:8px 0 0;font-size:13.5px">💡 ' + esc(c.consejo) + '</div>';
-    if (c.items.length > 1) h += '<button class="link" style="margin:8px 2px 0" ' + on('guardarRecetaIA') + '>💾 Guardar como receta (para la próxima, sin IA)</button>';
+    if (c.items.length > 1) h += '<button class="link" style="margin:8px 2px 0" ' + on('guardarRecetaIA') + '>💾 Guardar como receta</button>';
     h += '<div class="acts"><button class="btn ghost" ' + on('descartarComidaIA') + '>Descartar</button>' +
       '<button class="btn"' + (tot || kcal ? '' : ' disabled') + ' ' + on('agregarComidaIA') + '>Agregar +' + tot + ' g' + (kcal ? ' · ' + kcal + ' kcal' : '') + '</button></div>';
   }
@@ -4168,7 +4204,7 @@ function pintarCoach() {
   if (ocultos) h += '<button class="chatmas" ' + on('verTodoChat') + '>Ver ' + ocultos + ' mensaje' + (ocultos === 1 ? '' : 's') + ' anterior' + (ocultos === 1 ? '' : 'es') + ' de hoy</button>';
   h += '<div class="chat">' + lista.slice(ocultos).map(burbuja).join('') +
     (CHAT_CARGANDO ? '<div class="msg coach pensando" aria-label="Pensando"><span></span><span></span><span></span></div>' : '') + '</div>';
-  h += '<div class="chatin">' + botonMic('chatTxt', 'preguntar') + '<textarea id="chatTxt" rows="1" maxlength="1500" placeholder="Escribe o dicta tu pregunta…" ' + ev('input', 'borrador', 'chatTxt', VALOR) + '>' + esc(BORR.chatTxt || '') + '</textarea>' +
+  h += '<div class="chatin">' + botonMic('chatTxt', 'preguntar') + '<textarea id="chatTxt" rows="1" maxlength="1500" placeholder="Escribe tu pregunta…" ' + ev('input', 'borrador', 'chatTxt', VALOR) + '>' + esc(BORR.chatTxt || '') + '</textarea>' +
     '<button class="btn"' + (CHAT_CARGANDO ? ' disabled' : '') + ' ' + on('preguntar') + '>Enviar</button></div>' +
     '<p class="muted" style="font-size:12px;margin-top:8px">Respuestas de IA (Gemini): pueden equivocarse. Si tienes dolor o una lesión, consulta a un médico.</p>';
   $('vCoach').innerHTML = h;
@@ -4508,7 +4544,7 @@ function svgCuerpo(z, espalda, clase, accion) {
   const lado = espalda ? 'espalda' : 'frente';
   clase = clase || ((m, v) => 'mz' + zonaZ(v, m) + (MUS_SEL === m ? ' sel' : ''));
   accion = accion || (m => on('verMusculo', m));
-  const pieza = (m, d) => m ? '<path class="' + clase(m, z[m] || 0) + '" data-m="' + m + '" d="' + d + '" ' + accion(m) + '><title>' + m + '</title></path>'
+  const pieza = (m, d) => m ? '<path class="' + clase(m, z[m] || 0) + '" data-m="' + m + '" d="' + d + '" ' + accion(m) + '><title>' + znL(m) + '</title></path>'
     : '<path class="nz" d="' + d + '"/>';
   const mitad = ANAT[lado].map(x => pieza(x[0], x[1])).join('') + ANAT.fibras[lado].map(d => '<path class="fib" d="' + d + '"/>').join('');
   const espejo = c => '<g' + (c ? ' transform="matrix(-1 0 0 1 200 0)"' : '') + '>';
@@ -4517,6 +4553,11 @@ function svgCuerpo(z, espalda, clase, accion) {
   return '<svg viewBox="18 4 164 448" role="img" aria-label="' + (espalda ? 'Espalda' : 'Frente') + '">' + sil('sil borde') + sil('sil') +
     espejo(false) + mitad + '</g>' + espejo(true) + mitad + '</g><text x="100" y="449">' + (espalda ? 'ESPALDA' : 'FRENTE') + '</text></svg>';
 }
+// Nombre para mostrar (las claves de ZONAS, de la hoja y del correo no cambian). zn: corto; znL: con el técnico entre paréntesis
+const ZONA_NOM = { 'Deltoide frontal': 'Hombro de enfrente', 'Deltoide lateral': 'Hombro de lado', 'Deltoide posterior': 'Hombro de atrás', 'Dorsal': 'Espalda ancha',
+  'Lumbar': 'Espalda baja', 'Cuádriceps': 'Muslo de adelante', 'Isquiosurales': 'Muslo de atrás', 'Glúteo medio': 'Glúteo de lado', 'Aductores': 'Entrepierna', 'Oblicuos': 'Costados' };
+const zn = m => ZONA_NOM[m] || m;
+const znL = m => ZONA_NOM[m] ? ZONA_NOM[m] + ' (' + m.toLowerCase() + ')' : m;
 const ZONAS = ['Pecho superior', 'Pecho medio', 'Deltoide frontal', 'Deltoide lateral', 'Deltoide posterior', 'Trapecio', 'Dorsal', 'Espalda media', 'Lumbar',
   'Bíceps', 'Tríceps', 'Antebrazo', 'Abdomen', 'Oblicuos', 'Cuádriceps', 'Isquiosurales', 'Glúteo', 'Glúteo medio', 'Aductores', 'Pantorrilla'];
 /* ----- Metas por zona según tu objetivo (Ajustes → Objetivo de músculo) -----
@@ -4699,7 +4740,7 @@ function opcionesZona(m) {
 function porQue(e, m, o) {
   const p = [];
   if (e.anterior.length) p.push('la última vez (' + e.lastWhen + '): ' + resumenSets(e.anterior) + ' ' + e.unit);
-  else p.push('nuevo para ti: empieza ligero, 1–2 en reserva');
+  else p.push('nuevo para ti: empieza ligero, que te queden 1 o 2 por hacer');
   if ((e.zonas || []).length <= 2) p.push('trabaja directo ' + m.toLowerCase());
   if (o.rojo(e)) p.push('ojo: también carga una zona que ya va alta');
   return p.join(' · ');
@@ -4712,7 +4753,7 @@ function panelZona(m, modal) {
   const sel = x => modal ? on('elegirMusculo', x) : on('verMusculo', x);
   const col = ['var(--muted)', 'var(--acc)', 'var(--ok)', 'var(--bad)'];
   const barra = (x, w) => '<span class="zbar' + (w ? ' w' : '') + '"><i style="width:' + Math.min(100, Math.round((z[x] || 0) / metaZona(x).meta * 100)) + '%;background:' + col[zonaZ(z[x] || 0, x)] + '"></i></span>';
-  let h = '<div class="msel entra"><div class="row between" style="align-items:baseline"><b>' + esc(m) + '</b><span class="num">' + fmtSer(v) + ' / ' + t.meta + ' series</span></div>' +
+  let h = '<div class="msel entra"><div class="row between" style="align-items:baseline"><b>' + esc(znL(m)) + '</b><span class="num">' + fmtSer(v) + ' / ' + t.meta + ' series</span></div>' +
     barra(m, true) + '<div class="muted" style="font-size:13px;margin-top:4px">' + ZONA_TXT[est] + (focoMus() !== 'balanceado' ? ' · meta con tu objetivo «' + FOCOS[focoMus()][0] + '»' : '') + '</div>';
   const r = regionDe(m);
   if (r) h += '<div class="region"><div class="muted">' + r + '</div>' + REGIONES[r].map(x => '<button class="' + (x === m ? 'on' : '') + '" ' + sel(x) + '>' +
@@ -4867,7 +4908,7 @@ function tarjetaRuta() {
     '<div class="msg">' + esc(textoRuta(r)) + '</div><ol>' + r.items.map((x, i) => {
       const e = exDe(x.name), w = (e.zonas.find(y => y.z === x.zona) || { w: 1 }).w, t = metaZona(x.zona);
       return '<li><button ' + on('irAEjercicio', x.name) + '><span class="n num">' + (i + 1) + '</span><span style="flex:1;min-width:0"><b>' + esc(e.ejercicio) + '</b><small>' +
-        x.n + ' series · ' + esc(x.zona.toLowerCase()) + ' ' + fmtSer(x.antes) + ' → ' + fmtSer(x.antes + x.n * w) + ' de ' + t.meta + '</small></span>' + badgeMod(e) + '</button></li>';
+        x.n + ' series · ' + esc(zn(x.zona).toLowerCase()) + ' ' + fmtSer(x.antes) + ' → ' + fmtSer(x.antes + x.n * w) + ' de ' + t.meta + '</small></span>' + badgeMod(e) + '</button></li>';
     }).join('') + '</ol><button class="btn block" ' + on('seguirRuta') + '>Seguir esta ruta</button></div>';
 }
 function seguirRuta() {
@@ -5010,7 +5051,7 @@ function tarjetaMusculos(ms) {
     esc(x.m) + ' ' + fmtSer(x.v) + '/' + x.meta + '</button>').join(' · ') + '</div>';
   if (MUS_SEL) h += panelZona(MUS_SEL, false);
   h += '<div class="mchips">' + ZONAS.slice().sort((a, b) => (z[a] || 0) / metaZona(a).meta - (z[b] || 0) / metaZona(b).meta).map(m => '<button class="' + (m === MUS_SEL ? 'on' : '') + '" ' + on('verMusculo', m) + '><i style="background:' + col[zonaZ(z[m] || 0, m)] + '"></i>' +
-    esc(m) + ' <b class="num">' + fmtSer(z[m] || 0) + '/' + metaZona(m).meta + '</b></button>').join('') + '</div>';
+    esc(zn(m)) + ' <b class="num">' + fmtSer(z[m] || 0) + '/' + metaZona(m).meta + '</b></button>').join('') + '</div>';
   // Resumen por músculo completo (el que usa el correo semanal), en una línea
   const g = (ms || []).filter(x => x.series7 > 0).sort((a, b) => b.series7 - a.series7);
   if (g.length) h += '<div class="muted" style="font-size:12.5px;margin-top:10px">Por músculo completo: ' + g.map(x => esc(x.m) + ' ' + String(x.series7).replace('.5', '½')).join(' · ') + '</div>';
@@ -5040,7 +5081,7 @@ function pintarMusculos() {
   const faltan = deHoy.filter(m => (zh[m] || 0) < metaHoy(m)), listas = ZONAS.filter(m => zonaHoyZ(zh[m] || 0, m) >= 2);
   const barra = m => '<span class="zbar w"><i style="width:' + Math.min(100, Math.round((zh[m] || 0) / metaHoy(m) * 100)) + '%;background:' + col[zonaHoyZ(zh[m] || 0, m)] + '"></i></span>';
   let h = '<div class="card hoycard"><div class="row between"><div><div class="t2">Músculos de hoy</div><div class="muted">' + esc(g) +
-    (DATA.bloquePara && DATA.bloquePara[g] ? ' · bloque ' + DATA.bloquePara[g] : '') + ' · ' + fmtSer(total) + ' series efectivas</div></div>' +
+    (QUE_TRABAJA[g] ? ' · ' + QUE_TRABAJA[g] : '') + ' · ' + fmtSer(total) + (Number(total) === 1 ? ' serie efectiva' : ' series efectivas') + '</div></div>' +
     '<span class="pill ' + (faltan.length ? 'acc' : 'ok') + '">' + (faltan.length ? faltan.length + ' por cubrir' : '✓ Todo cubierto') + '</span></div>' +
     '<div class="cuerpo">' + svgCuerpo(zh, false, (m, v) => 'mz' + zonaHoyZ(v, m), m => on('elegirMusculo', m)) +
     svgCuerpo(zh, true, (m, v) => 'mz' + zonaHoyZ(v, m), m => on('elegirMusculo', m)) + '</div>' +
@@ -5050,14 +5091,14 @@ function pintarMusculos() {
   if (faltan.length) {
     h += '<h2>Te falta hoy · ' + esc(g) + '</h2><div class="card">' + faltan.map(m => {
       const ej = rutina.find(e => (e.zonas || []).some(x => x.z === m && x.w >= 1) && !(state[e.name] && state[e.name].done));
-      return '<div class="zfila"><div class="zt"><div class="row between"><b>' + esc(m) + '</b><span class="num muted cnt">' + fmtSer(zh[m] || 0) + ' / ' + metaHoy(m) + ' series</span></div>' + barra(m) +
+      return '<div class="zfila"><div class="zt"><div class="row between"><b>' + esc(znL(m)) + '</b><span class="num muted cnt">' + fmtSer(zh[m] || 0) + ' / ' + metaHoy(m) + ' series</span></div>' + barra(m) +
         '<div class="muted ej">' + (ej ? 'Con: ' + esc(ej.ejercicio.split(' (')[0]) : 'No está en tu rutina de hoy') + '</div></div>' +
         (ej ? '<button class="btn sm" ' + on('irAEjercicio', ej.name) + '>Ir →</button>'
             : '<button class="btn ghost sm" ' + on('elegirMusculo', m) + '>＋ Añadir</button>') + '</div>';
     }).join('') + '</div>';
   }
   if (listas.length) h += '<h2>Ya cubriste hoy</h2><div class="mchips">' + listas.map(m => '<button ' + on('elegirMusculo', m) + '><i style="background:' + col[zonaHoyZ(zh[m] || 0, m)] + '"></i>' +
-    esc(m) + ' <b class="num">' + fmtSer(zh[m] || 0) + '</b></button>').join('') + '</div>';
+    esc(zn(m)) + ' <b class="num">' + fmtSer(zh[m] || 0) + '</b></button>').join('') + '</div>';
   // Lo que va atrasado en la semana y no toca hoy: por si te sobra tiempo
   const atr = zonasAtrasadas(4).filter(x => !deHoy.includes(x.m));
   if (atr.length) h += '<h2>Si te sobra tiempo · atrasado en la semana</h2><div class="mchips">' + atr.map(x => '<button ' + on('elegirMusculo', x.m) + '><i style="background:var(--acc)"></i>' +

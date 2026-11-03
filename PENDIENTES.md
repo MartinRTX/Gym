@@ -98,6 +98,18 @@ Mejoras propuestas (en orden):
 6. "💾 Guardar como receta" lo que contestó la IA: cada cosa queda como producto y la receta sale en Mis comidas (se quita con Editar).
 7. Cosas de más de 900 kcal salen ⚠️ en el día y en la respuesta de la IA.
 
+## v9.5 (en la rama, falta "publica"): diseño y textos
+
+- Un solo color para lo que se toca (`--act`: cian #0E7490 en claro, #22C3E6 en oscuro, contraste ≥ 4.5:1); el color del día
+  (`--dia`) solo en el nombre grande, el rack y las pestañas de grupo. `--rut` ahora es el color de acción (`CSS_V95`).
+- Textos: "✓ Guardado", "Ejercicios hechos hoy", "Recomendados para hoy / Otros ejercicios del plan", "Lo importante hoy",
+  "Alternado", "Sube peso" (en la línea de abajo), sin RIR ni "reserva"; encabezado con lo que trabaja el día (sin "bloque").
+- Músculos: `zn()` corto y `znL()` con el técnico entre paréntesis (solo al mostrar; claves sin cambio).
+- "Siguiente · Empezar" en la primera tarjeta pendiente (no en modo sencillo, ni con algo abierto o en curso, ni en la búsqueda).
+- Pareja: con la tarjeta abierta no se repite "Tú 0/4 · …" (está en las pestañas).
+- Arreglos: "Descartar" de la IA ya se ve como botón secundario; la Ruta de hoy ya no se sale de la tarjeta.
+- El documento "CAMBIOS v8.4" de otro chat era sobre la v8.3: NO aplicar sus archivos (borraría v8.5–v9.4).
+
 ## Pendientes de la app (refactor y auditoría)
 
 1. Partir `app.js` (~5,300 líneas) en ~10 archivos y juntar los `CSS_V53…CSS_V89` en un `app.css`.
