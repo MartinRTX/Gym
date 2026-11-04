@@ -44,7 +44,8 @@ actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
 4. ✅ (03/11) Script de Comidas con clasp: propiedad `CLAVE` puesta y `COMIDAS_SCRIPT_ID` en
    `Gym-script/.github/workflows/comidas.yml`. Publicado (versión 2, "✓ responde"). Se publica solo desde GitHub
    (cada 3 horas o a mano, "Publicar Comidas (Panel)"): nunca pegarlo a mano.
-5. Panel 1.7 (hábitos, objetivos, revisión de la semana y avisos), en ramas desde el 03/11:
+5. ✅ (04/11) Publicado Panel 1.7 (hábitos, objetivos, revisión de la semana y avisos); Comidas script 2 "✓ responde";
+   Panel.apk compilación 7 en Releases (firmada con la llave de siempre). Lo que se hizo:
    - Gym-script `claude/semanas-panel` → `main` (agrega `resumen.diasSemanas`; sin él Panel usa lo que va anotando).
    - Panel `claude/semana-habitos-avisos` → `main`. El script de Comidas 2 (pestañas Hábitos y Objetivos) sale solo en
      menos de 3 h, o al correr "Publicar Comidas (Panel)"; mientras, los hábitos esperan en la cola del celular.
