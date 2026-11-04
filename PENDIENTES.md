@@ -64,8 +64,11 @@ propiedad, el workflow regresa la implementación a la versión anterior.
   mucha proteína por gramo es lo normal (las otras revisiones siguen). Prueba `comida-v99`.
 - Mi licuado (Martin, 04/11): la soya texturizada SÍ va todos los días; la linaza es 1 cucharada copeteada (~10–12 g), no 22 g:
   Martin la corrige en Comida › Mi licuado. Sigue pendiente pesar avena, plátano y fresas.
-- Comidas de la IA que no cuadraban (revisadas 04/11): estimaciones propuestas en el chat del 04/11, esperando el sí de Martin
-  para corregirlas en la hoja.
+- ✅ Comidas de la IA que no cuadraban: corregidas en la hoja el 04/11 con el sí de Martin (pestañas Comidas y Peso diario):
+  dogo 26/10, tres leches 28/10, Cheerios 29/10 (45 g), pizza de carnes frías 30/10 y 2 hot dogs 02/11. Los 3 chiles del 25/10 y
+  la pizza del 01/11 (6 rebanadas = 660 g) estaban bien. En el celular esos días siguen con lo viejo; si se editan ahí, el
+  celular vuelve a mandar sus números a la hoja.
+- Al corregir la hoja a mano: leer el renglón JUSTO antes de escribir (el 04/11 se escribió un renglón abajo y hubo que regresarlo).
 
 ## v9.8 / script 8.6 / Panel 1.6 (publicado 03/11/2026)
 
