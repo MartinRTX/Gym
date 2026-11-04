@@ -6,7 +6,7 @@ Actualizado: 04/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | v9.8 publicada (03/11); **v9.9 en la rama** (falta "publica") |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v9.9 publicada** (04/11); `main` = rama de trabajo |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
 | Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **8.6 publicado** (03/11); `main` = rama de trabajo |
@@ -38,7 +38,7 @@ actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
 
 ## Cómo publicar (cuando Martin diga "publica")
 
-Pendiente de publicar: **Gym v9.9** (solo la app; el script y Panel no cambian). En Gym-script y Panel, `main` = rama de trabajo.
+Hoy no hay nada pendiente de publicar: en Gym, Gym-script y Panel, `main` está igual que la rama de trabajo.
 Cuando haya cambios, este orden:
 
 1. Gym-script: rama → `main`. Primero el script (si la app pide un `SCRIPT_ESPERADO` nuevo).
@@ -50,7 +50,7 @@ en el Apps Script de "Comidas 2026", ⚙️ Configuración del proyecto › Prop
 "ID de secuencia de comandos" para ponerlo en `COMIDAS_SCRIPT_ID` (`Gym-script/.github/workflows/comidas.yml`). Si falta la
 propiedad, el workflow regresa la implementación a la versión anterior.
 
-## v9.9 (en la rama, falta "publica"): plantilla en 3 archivos y avisos de Comida
+## v9.9 (publicada 04/11): plantilla en 3 archivos y avisos de Comida
 
 - **Plantilla ``html`…` ``** en `coach.js`, `trote.js` y `sesion.js` (todo lo que pintan). Comparado contra la v9.8 en 38 estados:
   con datos normales el HTML sale idéntico carácter por carácter; con datos raros lo único distinto es la fecha de las salidas de
@@ -62,8 +62,10 @@ propiedad, el workflow regresa la implementación a la versión anterior.
   (antes el total, sin gramos: un licuado de más de 60 g de proteína salía "¿es algo seco o en polvo?"); tus recetas y el tupper no se
   marcan por pasar de 900 kcal (lo de la IA sí). `NUT.revisarMacros(m, gramos, nombre)`: si el nombre dice polvo/seco/whey/scoop,
   mucha proteína por gramo es lo normal (las otras revisiones siguen). Prueba `comida-v99`.
-- Pendiente de Martin (04/11): confirmar si la soya texturizada va en Mi licuado (es lo que más lo sube) y revisar las
-  comidas de la IA que no cuadraban (ver el chat del 04/11).
+- Mi licuado (Martin, 04/11): la soya texturizada SÍ va todos los días; la linaza es 1 cucharada copeteada (~10–12 g), no 22 g:
+  Martin la corrige en Comida › Mi licuado. Sigue pendiente pesar avena, plátano y fresas.
+- Comidas de la IA que no cuadraban (revisadas 04/11): estimaciones propuestas en el chat del 04/11, esperando el sí de Martin
+  para corregirlas en la hoja.
 
 ## v9.8 / script 8.6 / Panel 1.6 (publicado 03/11/2026)
 
