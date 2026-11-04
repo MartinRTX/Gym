@@ -37,11 +37,20 @@ function abrirItemDia(i) {
   asegurarProt();
   const k = prot[i]; if (k === undefined) return;
   const r = regDe(k), m = macrosDe(k);
-  ITEM_ED = { i: i, k: k, n: tDe(k), q: r ? r.q : null, u: r ? r.u || 'g' : 'g', p: m.p || 0, c: m.c, f: m.f, k2: m.k, fib: m.fib, partes: r && r.partes ? JSON.parse(JSON.stringify(r.partes)) : null };
+  ITEM_ED = { i: i, k: k, n: tDe(k), q: r ? r.q : null, u: r ? r.u || 'g' : 'g', p: m.p || 0, c: m.c, f: m.f, k2: m.k, fib: m.fib, partes: r && r.partes ? JSON.parse(JSON.stringify(r.partes)) : null,
+    src: r ? r.src : esRec(k) ? 'receta' : '' };
   pintarItemDia(); abrirModal();
 }
+// ¿Qué no cuadra de algo que ya anotaste? Si trae ingredientes (receta, tupper, platillo de la IA) se revisa cada uno con sus
+// gramos: el total no trae gramos, y "más de 60 g de proteína" sin peso parecía polvo aunque fuera un licuado de 700 g.
+// Tus recetas y el tupper son cantidades tuyas: no se marcan por grandes (un licuado de 900 kcal puede estar bien).
+function avisosItem(m, q, src, partes, nombre) {
+  const av = partes && partes.length ? [].concat.apply([], partes.map(x => NUT.revisarMacros(x, x.q, x.n).map(a => x.n + ': ' + a))) : NUT.revisarMacros(m, q, nombre);
+  if (NUT.esGrande(m) && src !== 'receta' && src !== 'tupper') av.push(Math.round(m.k).toLocaleString('es-MX') + ' kcal en una sola cosa: si fue menos (2 rebanadas y no la pizza entera), corrígelo');
+  return av;
+}
 function pintarItemDia() {
-  const E = ITEM_ED, av = NUT.revisarMacros({ p: E.p, c: E.c, f: E.f, k: E.k2 }, E.q).concat(NUT.esGrande({ k: E.k2 }) ? [Math.round(E.k2).toLocaleString('es-MX') + ' kcal en una sola cosa: si fue menos (2 rebanadas y no la pizza entera), corrígelo'] : []);
+  const E = ITEM_ED, av = avisosItem({ p: E.p, c: E.c, f: E.f, k: E.k2 }, E.q, E.src, E.partes, E.n);
   const campo = (k, nom, v) => '<label class="pc"><span>' + nom + '</span><input class="num" inputmode="decimal" value="' + (v === null || v === undefined ? '' : NUT.r1(v)) + '" ' + ev('change', 'itemDiaCampo', k, VALOR) + '></label>';
   $('sheet').innerHTML = '<div class="row between"><div class="t2" style="padding-right:8px">' + esc(E.n) + '</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
     avisosHtml(av) +
@@ -597,7 +606,7 @@ function pintarCantidad() {
   $('sheet').innerHTML = '<div class="row between"><div class="t2" style="padding-right:8px">' + esc(al.n) + '</div><button class="cerrar" ' + on('cerrarCantidad') + ' aria-label="Volver">✕</button></div>' +
     '<div class="muted" style="margin:2px 0 10px">' + fuenteTxt(al) + (al.crudo ? ' · valores del alimento crudo: pésalo antes de cocinar' : '') + (al.nota ? ' · ' + esc(al.nota) : '') + '</div>' +
     (al.seco ? '<div class="tip acc" style="margin:0 0 10px">⚠️ Esta ficha es de alimento seco o en polvo (' + NUT.r1(al.p) + ' g de proteína por 100 g). Si lo comiste preparado (frijoles de la olla, leche líquida…), busca el preparado.</div>' : '') +
-    '<div id="cantAvisos">' + avisosHtml(NUT.revisarMacros(m, c.q)) + '</div>' +
+    '<div id="cantAvisos">' + avisosHtml(NUT.revisarMacros(m, c.q, al.n)) + '</div>' +
     (c.dijo && c.q === c.dijo.q ? '<div class="tip" style="margin:0 0 10px">Escribiste ' + esc(c.dijo.texto) + ' = <b class="num">' + NUT.r1(c.q) + ' ' + (al.u || 'g') + '</b>. Si fue otra cantidad, cámbiala.</div>' : '') +
     (al.por && al.por.length ? '<div class="tchips">' + al.por.concat(al.por.filter(p => p[0] === 'Todo el envase').map(p => ['La mitad del envase', NUT.r1(p[1] / 2)])).map(p => '<button class="tch' + (c.q === p[1] ? ' on' : '') + '" ' + on('cantFija', p[1]) + '>' + esc(p[0]) + ' · ' + p[1] + ' ' + (al.u || 'g') + '</button>').join('') + '</div>' : '') +
     '<div class="cantfila"><button class="mini" ' + on('cantPaso', -1) + ' aria-label="Menos">−</button>' +

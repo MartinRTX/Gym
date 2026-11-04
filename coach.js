@@ -34,34 +34,33 @@ function rotarChat() {
 let CHAT_TODO = false, CHAT_ANT = false;
 const CHAT_VISIBLES = 6;   // mensajes a la vista; los anteriores se abren con un botón
 function burbuja(m) {
-  return '<div class="msg ' + (m.rol === 'yo' ? 'yo' : 'coach') + (m.err ? ' err' : '') + '">' +
-    (m.rol === 'yo' ? esc(m.texto).replace(/\n/g, '<br>') : formatoChat(m.texto)) +
-    (m.aprendio && m.aprendio.length ? '<span class="aprendio">🧠 Lo anoté: ' + esc(m.aprendio.join(' · ')) + '</span>' : '') +
-    (m.err ? '<br><button class="link" ' + on('reintentarChat') + '>Reintentar</button>' : '') + '</div>';
+  return html`<div class="msg ${m.rol === 'yo' ? 'yo' : 'coach'}${m.err ? ' err' : ''}">${crudo(m.rol === 'yo' ? esc(m.texto).replace(/\n/g, '<br>') : formatoChat(m.texto))}${
+    m.aprendio && m.aprendio.length ? html`<span class="aprendio">🧠 Lo anoté: ${m.aprendio.join(' · ')}</span>` : ''}${
+    m.err ? html`<br><button class="link" ${on('reintentarChat')}>Reintentar</button>` : ''}</div>`;
 }
 function pintarCoach() {
   rotarChat();
   const lista = chatLista(), ant = LS.get('gym_chat_ant', []);
-  let h = '<div class="row between" style="margin:4px 0 6px"><div class="t1">Pregúntale a tu coach</div>' +
-    (lista.length ? '<button class="link" ' + on('nuevaCharla') + '>Nueva conversación</button>' : '') + '</div>';
+  let h = html`<div class="row between" style="margin:4px 0 6px"><div class="t1">Pregúntale a tu coach</div>${
+    lista.length ? html`<button class="link" ${on('nuevaCharla')}>Nueva conversación</button>` : ''}</div>`;
   const mem = DATA.memoria || [];
-  h += '<details class="mem"' + (MEM_ABIERTA ? ' open' : '') + ' ' + ev('toggle', 'memAbierta', ABIERTO) + '><summary>🧠 Lo que tu coach ha aprendido de ti · ' + mem.length + '</summary>' +
-    (mem.length ? '<ul>' + mem.map((m, i) => '<li><span>' + esc(m) + '</span><button ' + on('borrarMemoria', i) + ' aria-label="Olvidar esto">✕</button></li>').join('') + '</ul>'
-      : '<div class="muted" style="font-size:13.5px;margin-top:6px">Todavía nada. Aprende al terminar cada sesión y cuando le cuentas algo duradero (una molestia, un cambio de horario).</div>') +
-    '<div class="muted" style="font-size:12px;margin-top:4px">Lo usa en cada consejo entre series, en el plan del día y en el chat. Toca ✕ para que lo olvide.</div></details>';
-  if (!lista.length) h += '<div class="muted" style="margin-bottom:10px">Conoce tus pesos, tu proteína, tu cintura, tus trotes y tu plan. Pregúntale lo que quieras.</div>' +
-    '<div class="sugs">' + SUGS_CHAT.map(q => '<button ' + on('preguntar', q) + '>' + esc(q) + '</button>').join('') + '</div>';
+  h += html`<details class="mem"${MEM_ABIERTA ? ' open' : ''} ${ev('toggle', 'memAbierta', ABIERTO)}><summary>🧠 Lo que tu coach ha aprendido de ti · ${mem.length}</summary>${
+    mem.length ? html`<ul>${mem.map((m, i) => html`<li><span>${m}</span><button ${on('borrarMemoria', i)} aria-label="Olvidar esto">✕</button></li>`)}</ul>`
+      : html`<div class="muted" style="font-size:13.5px;margin-top:6px">Todavía nada. Aprende al terminar cada sesión y cuando le cuentas algo duradero (una molestia, un cambio de horario).</div>`
+    }<div class="muted" style="font-size:12px;margin-top:4px">Lo usa en cada consejo entre series, en el plan del día y en el chat. Toca ✕ para que lo olvide.</div></details>`;
+  if (!lista.length) h += html`<div class="muted" style="margin-bottom:10px">Conoce tus pesos, tu proteína, tu cintura, tus trotes y tu plan. Pregúntale lo que quieras.</div>` +
+    html`<div class="sugs">${SUGS_CHAT.map(q => html`<button ${on('preguntar', q)}>${q}</button>`)}</div>`;
   // La conversación anterior (de otro día) se puede abrir, pero no estorba
-  if (ant.length) h += '<button class="chatmas" ' + on('alternarChatAnt') + '>' + (CHAT_ANT ? 'Ocultar' : 'Ver') + ' la conversación anterior · ' +
-    diaCorto(claveDia(new Date(ant[ant.length - 1].ts || Date.now()))) + '</button>' +
-    (CHAT_ANT ? '<div class="chat anterior">' + ant.map(burbuja).join('') + '</div>' : '');
+  if (ant.length) h += html`<button class="chatmas" ${on('alternarChatAnt')}>${CHAT_ANT ? 'Ocultar' : 'Ver'} la conversación anterior · ${
+    diaCorto(claveDia(new Date(ant[ant.length - 1].ts || Date.now())))}</button>${
+    CHAT_ANT ? html`<div class="chat anterior">${ant.map(burbuja)}</div>` : ''}`;
   const ocultos = CHAT_TODO ? 0 : Math.max(0, lista.length - CHAT_VISIBLES);
-  if (ocultos) h += '<button class="chatmas" ' + on('verTodoChat') + '>Ver ' + ocultos + ' mensaje' + (ocultos === 1 ? '' : 's') + ' anterior' + (ocultos === 1 ? '' : 'es') + ' de hoy</button>';
-  h += '<div class="chat">' + lista.slice(ocultos).map(burbuja).join('') +
-    (CHAT_CARGANDO ? '<div class="msg coach pensando" aria-label="Pensando"><span></span><span></span><span></span></div>' : '') + '</div>';
-  h += '<div class="chatin">' + botonMic('chatTxt', 'preguntar') + '<textarea id="chatTxt" rows="1" maxlength="1500" placeholder="Escribe tu pregunta…" ' + ev('input', 'borrador', 'chatTxt', VALOR) + '>' + esc(BORR.chatTxt || '') + '</textarea>' +
-    '<button class="btn"' + (CHAT_CARGANDO ? ' disabled' : '') + ' ' + on('preguntar') + '>Enviar</button></div>' +
-    '<p class="muted" style="font-size:12px;margin-top:8px">Respuestas de IA (Gemini): pueden equivocarse. Si tienes dolor o una lesión, consulta a un médico.</p>';
+  if (ocultos) h += html`<button class="chatmas" ${on('verTodoChat')}>Ver ${ocultos} mensaje${ocultos === 1 ? '' : 's'} anterior${ocultos === 1 ? '' : 'es'} de hoy</button>`;
+  h += html`<div class="chat">${lista.slice(ocultos).map(burbuja)}${
+    CHAT_CARGANDO ? html`<div class="msg coach pensando" aria-label="Pensando"><span></span><span></span><span></span></div>` : ''}</div>`;
+  h += html`<div class="chatin">${crudo(botonMic('chatTxt', 'preguntar'))}<textarea id="chatTxt" rows="1" maxlength="1500" placeholder="Escribe tu pregunta…" ${ev('input', 'borrador', 'chatTxt', VALOR)}>${BORR.chatTxt || ''}</textarea>` +
+    html`<button class="btn"${CHAT_CARGANDO ? ' disabled' : ''} ${on('preguntar')}>Enviar</button></div>` +
+    html`<p class="muted" style="font-size:12px;margin-top:8px">Respuestas de IA (Gemini): pueden equivocarse. Si tienes dolor o una lesión, consulta a un médico.</p>`;
   $('vCoach').innerHTML = h;
   if (lista.length || CHAT_CARGANDO) setTimeout(() => window.scrollTo({ top: document.body.scrollHeight }), 30);
 }

@@ -1,12 +1,12 @@
 # Pendientes y contexto (para seguir en un chat nuevo)
 
-Actualizado: 03/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
+Actualizado: 04/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 ## Dónde está todo
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v9.8 publicada** (03/11); `main` = rama de trabajo |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | v9.8 publicada (03/11); **v9.9 en la rama** (falta "publica") |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
 | Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **8.6 publicado** (03/11); `main` = rama de trabajo |
@@ -29,7 +29,7 @@ Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` 
 ```bash
 node herramientas/revisar.js            # versiones, sin onclick en texto, etc.
 node --test tests/*.test.js              # 79 pruebas de lógica
-NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 275 pruebas de pantalla (Playwright)
+NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 294 pruebas de pantalla (Playwright)
 ```
 
 En GitHub corren solas: "Pruebas" (revisar + unidad + pantalla), "APK Android" (desde `main`) y Pages.
@@ -38,7 +38,7 @@ actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
 
 ## Cómo publicar (cuando Martin diga "publica")
 
-Hoy no hay nada pendiente de publicar: en Gym, Gym-script y Panel, `main` está igual que la rama de trabajo.
+Pendiente de publicar: **Gym v9.9** (solo la app; el script y Panel no cambian). En Gym-script y Panel, `main` = rama de trabajo.
 Cuando haya cambios, este orden:
 
 1. Gym-script: rama → `main`. Primero el script (si la app pide un `SCRIPT_ESPERADO` nuevo).
@@ -49,6 +49,21 @@ Script de Comidas con clasp: **lo está terminando otro chat; no tocarlo desde a
 en el Apps Script de "Comidas 2026", ⚙️ Configuración del proyecto › Propiedades del script: `CLAVE` = su clave; y pasar el
 "ID de secuencia de comandos" para ponerlo en `COMIDAS_SCRIPT_ID` (`Gym-script/.github/workflows/comidas.yml`). Si falta la
 propiedad, el workflow regresa la implementación a la versión anterior.
+
+## v9.9 (en la rama, falta "publica"): plantilla en 3 archivos y avisos de Comida
+
+- **Plantilla ``html`…` ``** en `coach.js`, `trote.js` y `sesion.js` (todo lo que pintan). Comparado contra la v9.8 en 38 estados:
+  con datos normales el HTML sale idéntico carácter por carácter; con datos raros lo único distinto es la fecha de las salidas de
+  trote (`t.d`), que antes iba sin escapar. Prueba `plantilla-v99`.
+- **Ojo al pasar más archivos**: ``html`a` + html`b` `` ya es TEXTO (un `+` de dos plantillas da un string); si eso se mete en otro
+  `${…}` se escapa y sale "<div…" en pantalla. Lo que se arma en varios pedazos y va dentro de otra plantilla: `crudo(…)`.
+  La prueba `plantilla-v99` revisa que no salgan etiquetas como texto.
+- **Avisos de Comida** (`avisosItem` en `comida.js`): una receta o un tupper se revisa ingrediente por ingrediente con sus gramos
+  (antes el total, sin gramos: un licuado de más de 60 g de proteína salía "¿es algo seco o en polvo?"); tus recetas y el tupper no se
+  marcan por pasar de 900 kcal (lo de la IA sí). `NUT.revisarMacros(m, gramos, nombre)`: si el nombre dice polvo/seco/whey/scoop,
+  mucha proteína por gramo es lo normal (las otras revisiones siguen). Prueba `comida-v99`.
+- Pendiente de Martin (04/11): confirmar si la soya texturizada va en Mi licuado (es lo que más lo sube) y revisar las
+  comidas de la IA que no cuadraban (ver el chat del 04/11).
 
 ## v9.8 / script 8.6 / Panel 1.6 (publicado 03/11/2026)
 
@@ -170,9 +185,9 @@ Mejoras propuestas (en orden):
 
 1. ✅ v9.8: partir `app.js`, `app.css`, una capa de guardado, contraste, service worker todo o nada, hash del catálogo, Tempo.
 2. Opcional: pasar más pantallas a la plantilla ``html`…` `` (hoy el escapado se cuida con `esc()` y lo vigila `escapar-v98`).
-   Hoy la usan solo `progreso.js`, `ajustes.js` y `app.js`. Plan propuesto (03/11): un archivo por versión, sin cambios
-   visuales, empezando por los chicos (`coach.js`, `trote.js`, `sesion.js`) y dejando `series.js` y `comida.js` al final.
-   **En espera: Martin dirá cuándo empezar.**
+   Plan (03/11): un archivo por versión, sin cambios visuales. ✅ v9.9: `coach.js`, `trote.js`, `sesion.js`.
+   Siguen: `ajustes.js` (completar), `inicio.js`/`app.js`, `comida-dia.js`, `entrenar.js`, `progreso.js`, y al final `series.js` y `comida.js`.
+   Método: guardar el HTML de la versión anterior en muchos estados y comparar (debe salir idéntico con datos normales).
 3. Animaciones: ajustes según lo que Martin vea en el celular real (posturas, colores, velocidad).
 4. ✅ Panel 1.6: service worker "todo o nada" como Gym (`config.js` sigue yendo primero por la red).
 

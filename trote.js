@@ -50,10 +50,10 @@ function tarjetaPolar() {
     msg = 'Semana intensa: solo ' + p.pct + ' % de tus km fueron fáciles. Está bien si hubo prueba o calidad; los próximos trotes, fáciles (menos de ' + FC_FACIL + ' ppm).';
     cls = 'tip acc';
   } else msg = 'Bien polarizado: ' + p.pct + ' % fácil. Así se construye la base sin acumular fatiga.';
-  return '<div class="card"><div class="row between"><div class="t1">Fácil vs. intenso · 7 días</div><span class="num muted">' + (Math.round(p.total * 10) / 10) + ' km</span></div>' +
-    '<div class="polar"><div class="f" style="width:' + (p.facil / p.total * 100) + '%"></div><div class="i" style="width:' + (p.intenso / p.total * 100) + '%"></div><div class="meta"></div></div>' +
-    '<div class="leyenda"><span><i style="background:var(--cyan)"></i>Fácil ' + p.pct + ' %</span><span><i style="background:var(--acc)"></i>Intenso ' + (100 - p.pct) + ' %</span><span>| meta: 80 / 20</span></div>' +
-    '<div class="' + cls + '" style="margin:10px 0 0">' + esc(msg) + '</div></div>';
+  return crudo(html`<div class="card"><div class="row between"><div class="t1">Fácil vs. intenso · 7 días</div><span class="num muted">${Math.round(p.total * 10) / 10} km</span></div>` +
+    html`<div class="polar"><div class="f" style="width:${p.facil / p.total * 100}%"></div><div class="i" style="width:${p.intenso / p.total * 100}%"></div><div class="meta"></div></div>` +
+    html`<div class="leyenda"><span><i style="background:var(--cyan)"></i>Fácil ${p.pct} %</span><span><i style="background:var(--acc)"></i>Intenso ${100 - p.pct} %</span><span>| meta: 80 / 20</span></div>` +
+    html`<div class="${cls}" style="margin:10px 0 0">${msg}</div></div>`);
 }
 // Hidratación al guardar: temperatura actual de Hermosillo (Open-Meteo, gratis y sin clave) + duración + intensidad
 async function climaHermosillo() {
@@ -115,17 +115,18 @@ async function leerCapturas(files) {
   TROTE.leyendo = false; pintarEntrenar();
 }
 function tarjetaLectura() {
-  if (TROTE.leyendo) return '<div class="foco"><span class="i">✨</span><div style="flex:1"><div class="muted" style="font-size:13px">Leyendo tu captura…</div><div class="brillo linea-esq" style="width:85%"></div><div class="brillo linea-esq" style="width:55%"></div></div></div>';
+  if (TROTE.leyendo) return html`<div class="foco"><span class="i">✨</span><div style="flex:1"><div class="muted" style="font-size:13px">Leyendo tu captura…</div><div class="brillo linea-esq" style="width:85%"></div><div class="brillo linea-esq" style="width:55%"></div></div></div>`;
   const r = TROTE.ia;
   if (!r) return '';
   const z = r.zonas || {}, zs = ['z1', 'z2', 'z3', 'z4', 'z5'].map(k => Number(z[k]) || 0), zt = zs.reduce((a, b) => a + b, 0);
-  return '<div class="foco entra" style="display:block"><b>✨ Leído de tu captura</b>' +
-    '<div class="datos">' + [[r.km, 'km'], [r.min ? mmss(r.min * 60) : null, 'tiempo'], [r.fc, 'ppm prom.'], [r.cad, 'cadencia'], [r.desnivel !== null && r.desnivel !== undefined ? r.desnivel + ' m' : null, 'desnivel'], [r.temp !== null && r.temp !== undefined ? r.temp + ' °C' : null, 'clima']]
-      .filter(x => x[0] !== null && x[0] !== undefined).map(x => '<div><b class="num">' + esc(String(x[0])) + '</b><span>' + x[1] + '</span></div>').join('') + '</div>' +
-    (zt ? '<div class="muted" style="font-size:12px">Tiempo por zona (Z1 → Z5)</div><div class="zonas">' + zs.map(v => '<div style="width:' + (v / zt * 100) + '%"></div>').join('') + '</div>' : '') +
-    (r.vueltas && r.vueltas.length ? '<div class="muted" style="font-size:12.5px;margin-top:6px">Vueltas: ' + r.vueltas.map(v => esc(v.ritmo)).join(' → ') + '/km</div>' : '') +
-    (r.analisis ? '<div style="margin-top:8px;font-size:14px">' + esc(r.analisis) + '</div>' : '') +
-    '<div class="muted" style="font-size:12px;margin-top:6px">Ya llené el registro de abajo: revisa y toca Guardar.</div></div>';
+  const datos = [[r.km, 'km'], [r.min ? mmss(r.min * 60) : null, 'tiempo'], [r.fc, 'ppm prom.'], [r.cad, 'cadencia'], [r.desnivel !== null && r.desnivel !== undefined ? r.desnivel + ' m' : null, 'desnivel'], [r.temp !== null && r.temp !== undefined ? r.temp + ' °C' : null, 'clima']]
+    .filter(x => x[0] !== null && x[0] !== undefined);
+  return crudo(html`<div class="foco entra" style="display:block"><b>✨ Leído de tu captura</b>` +
+    html`<div class="datos">${datos.map(x => html`<div><b class="num">${String(x[0])}</b><span>${x[1]}</span></div>`)}</div>` +
+    (zt ? html`<div class="muted" style="font-size:12px">Tiempo por zona (Z1 → Z5)</div><div class="zonas">${zs.map(v => html`<div style="width:${v / zt * 100}%"></div>`)}</div>` : '') +
+    (r.vueltas && r.vueltas.length ? html`<div class="muted" style="font-size:12.5px;margin-top:6px">Vueltas: ${r.vueltas.map(v => v.ritmo).join(' → ')}/km</div>` : '') +
+    (r.analisis ? html`<div style="margin-top:8px;font-size:14px">${r.analisis}</div>` : '') +
+    html`<div class="muted" style="font-size:12px;margin-top:6px">Ya llené el registro de abajo: revisa y toca Guardar.</div></div>`);
 }
 function trotesPendientes() { return cola().filter(op => op.action === 'saveTrote').map(op => op.args[0]); }
 /* ----- Después de la carrera: al día siguiente la app sale sola del modo carrera y pregunta qué sigue ----- */
@@ -133,11 +134,11 @@ function carreraTerminada() { const c = DATA.carrera; return !!(c && c.fecha && 
 const nombreCarrera = c => c.nombre || c.km + 'K';
 function tarjetaPostCarrera() {
   if (!carreraTerminada()) return '';
-  return '<div class="card postcarrera"><div class="t1">🏅 Ya pasó tu ' + esc(nombreCarrera(DATA.carrera)) + ' del ' + diaCorto(DATA.carrera.fecha) + '. ¿Qué sigue?</div>' +
-    '<div class="muted" style="margin:4px 0 12px">El plan de carrera terminó. Elige tu siguiente objetivo:</div>' +
-    '<button class="btn block" ' + on('elegirMantenimiento') + '>💪 Músculo + trote de mantenimiento</button>' +
-    '<button class="btn ghost block" style="margin-top:8px" ' + on('otraCarrera') + '>🏃 Otra carrera</button>' +
-    '<div class="muted" style="font-size:12.5px;margin-top:10px">Mantenimiento: 2 trotes fáciles de 25–30 min por semana para no perder la condición, y la prioridad pasa al gym.</div></div>';
+  return crudo(html`<div class="card postcarrera"><div class="t1">🏅 Ya pasó tu ${nombreCarrera(DATA.carrera)} del ${diaCorto(DATA.carrera.fecha)}. ¿Qué sigue?</div>` +
+    html`<div class="muted" style="margin:4px 0 12px">El plan de carrera terminó. Elige tu siguiente objetivo:</div>` +
+    html`<button class="btn block" ${on('elegirMantenimiento')}>💪 Músculo + trote de mantenimiento</button>` +
+    html`<button class="btn ghost block" style="margin-top:8px" ${on('otraCarrera')}>🏃 Otra carrera</button>` +
+    html`<div class="muted" style="font-size:12.5px;margin-top:10px">Mantenimiento: 2 trotes fáciles de 25–30 min por semana para no perder la condición, y la prioridad pasa al gym.</div></div>`);
 }
 function elegirMantenimiento() {
   DATA.carrera = null; DATA.plan = null; setAjuste('troteMant', true); LS.set('gym_data', DATA);
@@ -157,9 +158,9 @@ const enMantenimiento = () => !DATA.plan && !DATA.carrera && ajuste('troteMant',
 function tarjetaMantenimiento() {
   if (!enMantenimiento()) return '';
   const n = trotesSemana();
-  return '<div class="card"><div class="row between"><div class="t1">Trote de mantenimiento</div><span class="pill ' + (n >= 2 ? 'ok' : 'pri') + ' num">' + Math.min(n, 2) + ' de 2</span></div>' +
-    '<div class="muted" style="margin-top:4px">2 salidas fáciles de 25–30 min por semana, a ritmo en el que puedas platicar. Mantienen tu condición sin quitarle piernas al gym.' +
-    (n >= 2 ? ' Esta semana ya cumpliste ✓' : '') + '</div></div>';
+  return crudo(html`<div class="card"><div class="row between"><div class="t1">Trote de mantenimiento</div><span class="pill ${n >= 2 ? 'ok' : 'pri'} num">${Math.min(n, 2)} de 2</span></div>` +
+    html`<div class="muted" style="margin-top:4px">2 salidas fáciles de 25–30 min por semana, a ritmo en el que puedas platicar. Mantienen tu condición sin quitarle piernas al gym.${
+      n >= 2 ? ' Esta semana ya cumpliste ✓' : ''}</div></div>`);
 }
 // Sesiones del plan de esta semana, marcando también lo que hiciste y aún no se sube
 function sesionesPlan() {
@@ -182,38 +183,38 @@ function vistaTrote() {
   if (TROTE.tipo === null) { const sig = ses && ses.find(s => !s.hecho); TROTE.tipo = sig ? sig.tipo : 'Libre'; }
   let h = tarjetaMantenimiento();   // la de "¿qué sigue?" ya sale arriba, con las demás tarjetas de Entrenar
   if (p) {
-    h += '<div class="card plan5k"><div class="row between" style="align-items:flex-start"><div><div class="count num">' + p.faltan + '<span> día' + (p.faltan === 1 ? '' : 's') + ' para tu ' + esc(p.carrera.nombre) + '</span></div>' +
-      '<div class="muted">Fecha objetivo: <b style="color:var(--red)">' + diaCorto(p.carrera.fecha) + '</b></div></div>' +
-      (ses ? '<span class="pill pri">Semana ' + p.semana + ' de ' + p.total + '</span>' : '') + '</div>';
+    h += html`<div class="card plan5k"><div class="row between" style="align-items:flex-start"><div><div class="count num">${p.faltan}<span> día${p.faltan === 1 ? '' : 's'} para tu ${p.carrera.nombre}</span></div>` +
+      html`<div class="muted">Fecha objetivo: <b style="color:var(--red)">${diaCorto(p.carrera.fecha)}</b></div></div>` +
+      (ses ? html`<span class="pill pri">Semana ${p.semana} de ${p.total}</span>` : '') + '</div>';
     if (ses) {
       const minHechos = ses.filter(s => s.hecho).reduce((a, s) => a + (s.real || s.min), 0);
-      h += '<div class="pseslist">' + ses.map((s, i) => '<div class="pses' + (s.hecho ? ' ok' : '') + '"><div class="ck">' + (s.hecho ? ICO.check.replace('class="icon"', 'class="icon" style="width:16px;height:16px"') : i + 1) + '</div>' +
-        '<div style="flex:1"><div class="t1" style="font-size:15px">' + s.tipo + (s.ritmo ? ' <span class="num ritmo">· ' + s.ritmo + '/km</span>' : '') + '</div><div class="muted">' + esc(s.txt) + '</div></div>' +
-        '<span class="estado">' + (s.hecho ? 'Listo' : 'Pendiente') + '</span></div>').join('') + '</div>' +
-        '<div class="muted" style="margin-top:12px">Esta semana: <b class="num" style="color:var(--text)">' + Math.round(minHechos) + ' de ~' + p.minMeta + ' min</b>' +
-        (p.ritmos ? (p.ritmos.fijos ? ' · ritmos de tu plan; meta de carrera ' + p.ritmos.carrera + '/km' : ' · ritmos según tu mejor salida reciente (' + p.ritmos.ref + '/km)')
-                  : ' · aún sin salidas de 4 km o más para calcular tus ritmos') + '</div>' +
-        '<div class="minbar"><div style="width:' + Math.min(100, minHechos / p.minMeta * 100) + '%"></div></div>';
-    } else if (p.empieza) h += '<div class="muted" style="margin-top:8px">Tu plan de 6 semanas empieza el ' + diaCorto(p.empieza) + '. Mientras, trota como siempre.</div>';
+      const paloma = crudo(ICO.check.replace('class="icon"', 'class="icon" style="width:16px;height:16px"'));
+      h += html`<div class="pseslist">${ses.map((s, i) => crudo(html`<div class="pses${s.hecho ? ' ok' : ''}"><div class="ck">${s.hecho ? paloma : i + 1}</div>` +
+        html`<div style="flex:1"><div class="t1" style="font-size:15px">${s.tipo}${s.ritmo ? html` <span class="num ritmo">· ${s.ritmo}/km</span>` : ''}</div><div class="muted">${s.txt}</div></div>` +
+        html`<span class="estado">${s.hecho ? 'Listo' : 'Pendiente'}</span></div>`))}</div>` +
+        html`<div class="muted" style="margin-top:12px">Esta semana: <b class="num" style="color:var(--text)">${Math.round(minHechos)} de ~${p.minMeta} min</b>${
+          p.ritmos ? (p.ritmos.fijos ? ' · ritmos de tu plan; meta de carrera ' + p.ritmos.carrera + '/km' : ' · ritmos según tu mejor salida reciente (' + p.ritmos.ref + '/km)')
+                  : ' · aún sin salidas de 4 km o más para calcular tus ritmos'}</div>` +
+        html`<div class="minbar"><div style="width:${Math.min(100, minHechos / p.minMeta * 100)}%"></div></div>`;
+    } else if (p.empieza) h += html`<div class="muted" style="margin-top:8px">Tu plan de 6 semanas empieza el ${diaCorto(p.empieza)}. Mientras, trota como siempre.</div>`;
     h += '</div>';
   }
   const ritmo = TROTE.km && TROTE.min ? mmss(TROTE.min * 60 / TROTE.km) + ' min/km' : '—';
   const hid = LS.get('gym_hidrata_' + hoy(), null);
-  if (hid && !FECHA) h += '<div class="tip" style="margin:0 0 12px">💧 ' + esc(hid) + '</div>';
-  h += '<div class="card trote"><div class="row between" style="margin-bottom:12px"><div class="cap-t">Registrar trote' + (FECHA ? ' · ' + diaCorto(FECHA) : '') + '</div>' +
-    (DATA.ia ? '<span class="sincro">⚡ Sync auto</span>' : '') + '</div>' +
-    (DATA.ia ? '<button class="cap" ' + on('elegirCapturas') + '' + (TROTE.leyendo ? ' disabled' : '') + '>' + ICO_CAM + ' Leer captura de Samsung Health</button>' : '') + tarjetaLectura() +
-    '<div class="row datos3" style="gap:10px">' +
-    '<div style="flex:1"><div class="muted">Kilómetros</div><button class="val num' + (TROTE.km === '' ? ' vacio' : '') + '" style="margin-top:4px" ' + on('tecladoTrote', 'km') + '>' + (TROTE.km === '' ? 'km' : TROTE.km) + '</button></div>' +
-    '<div style="flex:1"><div class="muted">Minutos</div><button class="val num' + (TROTE.min === '' ? ' vacio' : '') + '" style="margin-top:4px" ' + on('tecladoTrote', 'min') + '>' + (TROTE.min === '' ? 'min' : Number(TROTE.min) % 1 ? mmss(TROTE.min * 60) : TROTE.min) + '</button></div>' +
-    '<div style="flex:1"><div class="muted">FC prom.</div><button class="val num' + (TROTE.fc === '' ? ' vacio' : '') + '" style="margin-top:4px" ' + on('tecladoTrote', 'fc') + '>' + (TROTE.fc === '' ? 'ppm' : TROTE.fc) + '</button></div></div>' +
-    '<div class="muted" style="margin:10px 0 4px">Ritmo: <b class="num" style="color:var(--text)">' + ritmo + '</b>' +
-    (TROTE.fc !== '' ? ' · ' + (Number(TROTE.fc) <= FC_FACIL ? '<b style="color:var(--ok)">zona fácil</b>' : '<b style="color:var(--acc)">intenso</b>') : '') + '</div>' +
-    '<div class="pills">' + TIPOS_TROTE.map(t => '<button class="' + (TROTE.tipo === t ? 'on' : '') + '" ' + on('troteTipo', t) + '>' + t + '</button>').join('') + '</div>' +
+  if (hid && !FECHA) h += html`<div class="tip" style="margin:0 0 12px">💧 ${hid}</div>`;
+  // Un dato del registro (km, minutos, pulso): el botón abre el teclado; vacío enseña la unidad en gris
+  const dato = (campo, nombre, vacio, valor) => html`<div style="flex:1"><div class="muted">${nombre}</div><button class="val num${TROTE[campo] === '' ? ' vacio' : ''}" style="margin-top:4px" ${on('tecladoTrote', campo)}>${TROTE[campo] === '' ? vacio : valor}</button></div>`;
+  h += html`<div class="card trote"><div class="row between" style="margin-bottom:12px"><div class="cap-t">Registrar trote${FECHA ? ' · ' + diaCorto(FECHA) : ''}</div>${
+    DATA.ia ? html`<span class="sincro">⚡ Sync auto</span>` : ''}</div>${
+    DATA.ia ? html`<button class="cap" ${on('elegirCapturas')}${TROTE.leyendo ? ' disabled' : ''}>${crudo(ICO_CAM)} Leer captura de Samsung Health</button>` : ''}${tarjetaLectura()}` +
+    html`<div class="row datos3" style="gap:10px">${dato('km', 'Kilómetros', 'km', TROTE.km)}${dato('min', 'Minutos', 'min', Number(TROTE.min) % 1 ? mmss(TROTE.min * 60) : TROTE.min)}${dato('fc', 'FC prom.', 'ppm', TROTE.fc)}</div>` +
+    html`<div class="muted" style="margin:10px 0 4px">Ritmo: <b class="num" style="color:var(--text)">${ritmo}</b>${
+      TROTE.fc !== '' ? html` · ${Number(TROTE.fc) <= FC_FACIL ? html`<b style="color:var(--ok)">zona fácil</b>` : html`<b style="color:var(--acc)">intenso</b>`}` : ''}</div>` +
+    html`<div class="pills">${TIPOS_TROTE.map(t => html`<button class="${TROTE.tipo === t ? 'on' : ''}" ${on('troteTipo', t)}>${t}</button>`)}</div>` +
     ((TROTE.tipo === 'Larga' || TROTE.tipo === 'Calidad') && proximoGrupo() === 'Legs' && !FECHA
-      ? '<div class="tip acc" style="margin:4px 0 8px">⚠️ Tu siguiente día de gym es Legs. Si es mañana, hoy mejor una salida fácil: la larga o la de calidad te dejan las piernas cansadas para Legs.</div>' : '') +
-    '<input class="buscar" id="troteNotas" placeholder="Notas (opcional)" style="margin:4px 0 10px" value="' + esc(BORR.troteNotas || '') + '" ' + ev('input', 'borrador', 'troteNotas', VALOR) + '>' +
-    '<button class="btn block" ' + on('guardarTrote') + '>Guardar trote</button></div>';
+      ? html`<div class="tip acc" style="margin:4px 0 8px">⚠️ Tu siguiente día de gym es Legs. Si es mañana, hoy mejor una salida fácil: la larga o la de calidad te dejan las piernas cansadas para Legs.</div>` : '') +
+    html`<input class="buscar" id="troteNotas" placeholder="Notas (opcional)" style="margin:4px 0 10px" value="${BORR.troteNotas || ''}" ${ev('input', 'borrador', 'troteNotas', VALOR)}>` +
+    html`<button class="btn block" ${on('guardarTrote')}>Guardar trote</button></div>`;
   h += tarjetaPolar();
   // Récords de trote (incluye lo que no se ha subido)
   let mejor = DATA.trotes.mejorRitmo ? Object.assign({}, DATA.trotes.mejorRitmo) : null, larga = DATA.trotes.masLarga ? Object.assign({}, DATA.trotes.masLarga) : null;
@@ -222,23 +223,24 @@ function vistaTrote() {
     if (t.min && t.km >= 3 && (!mejor || t.min / t.km < mejor.ritmo)) mejor = { ritmo: t.min / t.km, km: t.km, d: d };
     if (!larga || t.km > larga.km) larga = { km: t.km, d: d };
   });
-  h += '<div class="minis"><div class="kpi"><div class="v num">' + (mejor ? mmss(mejor.ritmo * 60) : '—') + '</div><div class="l">Mejor ritmo (3 km o más)</div>' + (mejor ? '<div class="d">' + mejor.km + ' km · ' + mejor.d + '</div>' : '') + '</div>' +
-    '<div class="kpi"><div class="v num">' + (larga ? larga.km + ' km' : '—') + '</div><div class="l">Salida más larga</div>' + (larga ? '<div class="d">' + larga.d + '</div>' : '') + '</div></div>';
-  if (DATA.trotes.semanas && DATA.trotes.semanas.some(s => s.km)) h += '<div class="card chart"><div class="row between"><div class="t1">Km por semana</div><span class="muted">Últimos 7 días: <b class="num" style="color:var(--text)">' + Math.round(km7 * 10) / 10 + '</b></span></div>' + barras(DATA.trotes.semanas) + '</div>';
-  if (lista.length) h += '<h2>Últimas salidas</h2><div class="card">' + lista.slice(0, 6).map(t =>
-    '<div class="rec"><div class="medal ' + (intensidad(t) === 'intenso' ? 'int' : 'fac') + '">' + ICO.pausa + '</div><div style="flex:1"><div class="t1 num" style="font-size:15px">' + t.km + ' km' +
-    (t.min ? ' · ' + mmss(t.min * 60) + ' · <span class="' + (intensidad(t) === 'intenso' ? 'rojo' : 'cian') + '">' + mmss(t.min * 60 / t.km) + '/km</span>' : '') + '</div><div class="muted">' + t.d + (t.tipo ? ' · ' + esc(t.tipo) : '') +
-    (t.fc ? ' · ' + t.fc + ' ppm' + (intensidad(t) === 'facil' ? ' (fácil)' : ' (intenso)') : '') + (t.pend ? ' · sin subir' : '') + '</div></div>' +
-    (t.uid ? '<button class="btn ghost sm" ' + on('borrarTrote', t.uid) + '>Borrar</button>' : '') + '</div>').join('') + '</div>';
+  h += html`<div class="minis"><div class="kpi"><div class="v num">${mejor ? mmss(mejor.ritmo * 60) : '—'}</div><div class="l">Mejor ritmo (3 km o más)</div>${mejor ? html`<div class="d">${mejor.km} km · ${mejor.d}</div>` : ''}</div>` +
+    html`<div class="kpi"><div class="v num">${larga ? larga.km + ' km' : '—'}</div><div class="l">Salida más larga</div>${larga ? html`<div class="d">${larga.d}</div>` : ''}</div></div>`;
+  if (DATA.trotes.semanas && DATA.trotes.semanas.some(s => s.km)) h += html`<div class="card chart"><div class="row between"><div class="t1">Km por semana</div><span class="muted">Últimos 7 días: <b class="num" style="color:var(--text)">${Math.round(km7 * 10) / 10}</b></span></div>${crudo(barras(DATA.trotes.semanas))}</div>`;
+  if (lista.length) h += html`<h2>Últimas salidas</h2><div class="card">${lista.slice(0, 6).map(t => {
+    const int = intensidad(t) === 'intenso';
+    return html`<div class="rec"><div class="medal ${int ? 'int' : 'fac'}">${crudo(ICO.pausa)}</div><div style="flex:1"><div class="t1 num" style="font-size:15px">${t.km} km${
+      t.min ? html` · ${mmss(t.min * 60)} · <span class="${int ? 'rojo' : 'cian'}">${mmss(t.min * 60 / t.km)}/km</span>` : ''}</div><div class="muted">${t.d}${t.tipo ? ' · ' + t.tipo : ''}${
+      t.fc ? ' · ' + t.fc + ' ppm' + (intensidad(t) === 'facil' ? ' (fácil)' : ' (intenso)') : ''}${t.pend ? ' · sin subir' : ''}</div></div>${
+      t.uid ? html`<button class="btn ghost sm" ${on('borrarTrote', t.uid)}>Borrar</button>` : ''}</div>`;
+  })}</div>`;
   return h;
 }
 function tecladoTrote(f) {
   KP = { trote: f, val: TROTE[f] === '' ? '' : String(TROTE[f]), nuevo: true, f: f === 'km' ? 'w' : 'r' };
   const quick = f === 'km' ? [-1, -0.5, 0.5, 1] : f === 'fc' ? [-10, -1, 1, 10] : [-5, -1, 1, 5];
-  $('kpSheet').innerHTML = '<div class="row between"><div class="t1">Trote · ' + (f === 'km' ? 'kilómetros' : f === 'fc' ? 'pulso promedio (ppm)' : 'minutos') + '</div><button class="btn ghost sm" ' + on('cerrarTeclado') + '>✕</button></div>' +
-    '<div class="disp num" id="kpDisp"></div><div class="quick" style="grid-template-columns:repeat(4,1fr)">' +
-    quick.map(v => '<button ' + on('kpSumar', v) + '>' + (v > 0 ? '+' : '−') + Math.abs(v) + '</button>').join('') + '</div>' + teclas() +
-    '<div class="acts"><button class="btn" ' + on('kpTrote') + '>Listo</button></div>';
+  $('kpSheet').innerHTML = html`<div class="row between"><div class="t1">Trote · ${f === 'km' ? 'kilómetros' : f === 'fc' ? 'pulso promedio (ppm)' : 'minutos'}</div><button class="btn ghost sm" ${on('cerrarTeclado')}>✕</button></div>` +
+    html`<div class="disp num" id="kpDisp"></div><div class="quick" style="grid-template-columns:repeat(4,1fr)">${quick.map(v => html`<button ${on('kpSumar', v)}>${v > 0 ? '+' : '−'}${Math.abs(v)}</button>`)}</div>${crudo(teclas())}` +
+    html`<div class="acts"><button class="btn" ${on('kpTrote')}>Listo</button></div>`;
   kpPintar(); $('kp').classList.add('show');
 }
 function kpTrote() { TROTE[KP.trote] = KP.val === '' ? '' : Number(KP.val); cerrarTeclado(); pintarEntrenar(); }

@@ -190,6 +190,11 @@ test('revisarMacros y marcarSeco: lo que no puede ser sale marcado', () => {
   assert.ok(NUT.revisarMacros({ p: 71.4, c: 57.6, f: 1.8, k: 533 }, 150).some(a => /mucho/.test(a)));
   assert.ok(NUT.revisarMacros({ p: 10, c: 10, f: 10, k: 500 }, 100).some(a => /no cuadran/.test(a)));
   assert.deepStrictEqual(NUT.revisarMacros({ p: 0.1, c: 0, f: 8.1, k: 72 }, 10), []);
+  // v9.9: si el nombre dice que es polvo o seco, mucha proteína por gramo es lo normal (las otras revisiones siguen)
+  assert.deepStrictEqual(NUT.revisarMacros({ p: 23.4, c: 1.9, f: 0.5, k: 106 }, 30, 'Proteína en polvo (whey, genérica)'), []);
+  assert.deepStrictEqual(NUT.revisarMacros({ p: 13, c: 10.3, f: 0.7, k: 93 }, 30, 'Soya texturizada (seca)'), []);
+  assert.ok(NUT.revisarMacros({ p: 23.4, c: 1.9, f: 0.5, k: 106 }, 30, 'Licuado').some(a => /mucho/.test(a)), 'sin decir polvo, sí avisa');
+  assert.ok(NUT.revisarMacros({ p: 40, c: 0, f: 0, k: 160 }, 30, 'Proteína en polvo').some(a => /pesan más/.test(a)), 'aunque sea polvo, no puede pesar más');
   assert.ok(NUT.marcarSeco({ n: 'Soja (Soya) Frijol, Proteína', p: 47.6, c: 38.4, f: 1.2 }).seco);
   assert.ok(NUT.marcarSeco({ n: 'Leche De Vaca, Entera', p: 29.4, c: 38, f: 26 }).seco);
   assert.ok(!NUT.marcarSeco({ n: 'Leche De Vaca, En Polvo Entera', p: 24.9, c: 38, f: 27 }).seco, 'ya dice que es polvo');

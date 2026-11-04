@@ -149,7 +149,7 @@ function pintarComida() {
     h += '<h2>' + (COMIDA_DIA ? 'Ese día comiste' : 'Hoy comiste') + ' · toca para corregir o quitar</h2>' + COMIDAS.concat([[null, 'Sin comida marcada', '•']]).map(c => {
       const idx = prot.map((k, i) => i).filter(i => (t[i] || null) === c[0]);
       return idx.length ? '<div class="muted comida-l">' + c[2] + ' ' + c[1] + '</div><div class="eaten">' + idx.map(i => { const m = macrosDe(prot[i]), r = regDe(prot[i]);
-        const ojo = NUT.esGrande(m) || NUT.revisarMacros(m, r && r.q).length;
+        const ojo = avisosItem(m, r && r.q, r ? r.src : esRec(prot[i]) ? 'receta' : '', r && (r.partes || partesSiNoCambio(r)), tDe(prot[i])).length;
         return '<button' + (ojo ? ' class="grande"' : '') + ' ' + on('abrirItemDia', i) + '>' + (ojo ? '⚠️ ' : '') + esc(tDe(prot[i])) + ' ✏️' +
         '<span class="mac">' + Math.round(m.p || 0) + ' g prot' + (m.k !== null && m.k !== undefined ? ' · ' + Math.round(m.k) + ' kcal' : '') + '</span></button>'; }).join('') + '</div>' : '';
     }).join('');
@@ -353,7 +353,7 @@ function tarjetaComidaIA() {
       // Toca el nombre para corregir gramos y macros; lo que no cuadra sale marcado
       '<button class="nm" ' + on('editarItemIA', i) + '>' + esc(x.nombre) + (x.fijo && x.fijo.length ? ' 🔒' : '') + ' ✏️' + (x.nota ? '<small>' + esc(x.nota) + '</small>' : '') +
         '<span class="mac"><b>' + x.g + ' g prot</b> · ' + (x.gramos && x.piezas ? Math.round(x.gramos) + ' g · ' : '') + 'C ' + Math.round(x.c || 0) + ' · G ' + Math.round(x.f || 0) + ' · ' + Math.round(x.k || 0) + ' kcal</span>' +
-        NUT.revisarMacros({ p: x.g, c: x.c, f: x.f, k: x.k }, x.gramos).concat(NUT.esGrande(x) ? [Math.round(x.k).toLocaleString('es-MX') + ' kcal en una sola cosa: ¿fue todo? Tócala para corregir'] : []).map(a => '<span class="av">⚠️ ' + esc(a) + '</span>').join('') + '</button>' +
+        NUT.revisarMacros({ p: x.g, c: x.c, f: x.f, k: x.k }, x.gramos, x.nombre).concat(NUT.esGrande(x) ? [Math.round(x.k).toLocaleString('es-MX') + ' kcal en una sola cosa: ¿fue todo? Tócala para corregir'] : []).map(a => '<span class="av">⚠️ ' + esc(a) + '</span>').join('') + '</button>' +
       // − / + cambian la PORCIÓN (piezas o gramos) y todo sube parejo; la proteína se ve abajo del nombre
       '<button class="mini" ' + on('porcionItemIA', i, -1) + ' aria-label="Menos">−</button><span class="g num">' + cantidadItemIA(x) + '</span>' +
       '<button class="mini" ' + on('porcionItemIA', i, 1) + ' aria-label="Más">+</button>' +
@@ -454,7 +454,7 @@ function editarItemIA(i) {
   $('sheet').innerHTML = '<div class="row between"><div class="t2">' + esc(x.nombre) + '</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
     '<div class="muted" style="margin:2px 0 6px">Cambiar los gramos ajusta todo en proporción. Si cambias proteína, carbos o grasa, las kcal se recalculan.</div>' +
     '<div class="iedit"><div class="pcs">' + campo('gramos', 'Gramos', x.gramos) + campo('g', 'Proteína', x.g) + campo('c', 'Carbos', x.c) + campo('f', 'Grasa', x.f) + campo('k', 'kcal', x.k) + '</div></div>' +
-    '<div id="iaEdAv">' + avisosHtml(NUT.revisarMacros({ p: x.g, c: x.c, f: x.f, k: x.k }, x.gramos)) + '</div>' +
+    '<div id="iaEdAv">' + avisosHtml(NUT.revisarMacros({ p: x.g, c: x.c, f: x.f, k: x.k }, x.gramos, x.nombre)) + '</div>' +
     '<div class="acts"><button class="btn" ' + on('cerrarYPintarIA') + '>Listo</button></div>';
   abrirModal();
 }

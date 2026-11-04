@@ -453,14 +453,16 @@ const NUT = (() => {
   function cantidadIngrediente(i, gramos) { const f = i.gramos > 0 ? gramos / i.gramos : 0; if (f > 0) { const g = i.gramos; escalarItem(Object.assign(i, { gramos: g }), f); } return i; }
   // Una sola cosa con muchas calorías (una pizza entera, 660 g): puede estar bien, pero conviene revisarla
   const esGrande = m => (Number(m.k) || 0) > 900;
-  // ¿Los números tienen sentido? (lo que la IA o una ficha dicen de una cantidad). Regresa avisos para corregir antes de agregar
-  function revisarMacros(m, gramos) {
+  // ¿Los números tienen sentido? (lo que la IA o una ficha dicen de una cantidad). Regresa avisos para corregir antes de agregar.
+  // Con el nombre: si dice que es polvo o seco (la proteína del licuado, un scoop), mucha proteína por gramo es lo normal
+  const ES_POLVO = /polvo|whey|scoop|\bseca?\b|deshidrat|concentrad|aislad/;
+  function revisarMacros(m, gramos, nombre) {
     const av = [], p = Number(m.p) || 0, c = Number(m.c) || 0, f = Number(m.f) || 0, k = Number(m.k), q = Number(gramos) || 0;
     if (q > 0 && p + c + f > q * 1.03) av.push('Proteína + carbos + grasa (' + Math.round(p + c + f) + ' g) pesan más que la comida (' + Math.round(q) + ' g)');
     const calc = 4 * p + 4 * c + 9 * f;
     if (k > 30 && calc > 0 && Math.abs(calc - k) / k > 0.3) av.push('Las calorías (' + Math.round(k) + ') no cuadran con los macros (~' + Math.round(calc) + ')');
     // Más de 35 g de proteína por cada 100 g ya comidos solo pasa con polvos o algo seco (la carne cocida anda en 25–31)
-    if (q > 0 ? p > 20 && p / q > 0.35 : p > 60) av.push(Math.round(p) + ' g de proteína' + (q > 0 ? ' en ' + Math.round(q) + ' g' : '') + ' es mucho: ¿es algo seco o en polvo? Revisa la cantidad');
+    if ((q > 0 ? p > 20 && p / q > 0.35 : p > 60) && !ES_POLVO.test(sinAcentos(nombre || ''))) av.push(Math.round(p) + ' g de proteína' + (q > 0 ? ' en ' + Math.round(q) + ' g' : '') + ' es mucho: ¿es algo seco o en polvo? Revisa la cantidad');
     return av;
   }
 

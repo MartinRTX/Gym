@@ -44,8 +44,7 @@ function chipsVolumen() {
   const v = volumenSesion();
   if (!v.length) return '';
   const medio = n => (Math.floor(n) || '') + (n % 1 ? '½' : '');
-  return '<div class="vol">' + v.map(x => '<span><b>' + esc(x.musculo) + '</b>' + medio(x.series) + (x.series <= 1 ? ' serie' : ' series') +
-    (x.ej ? ' · ' + x.ej + ' ej.' : ' (apoyo)') + '</span>').join('') + '</div>';
+  return html`<div class="vol">${v.map(x => html`<span><b>${x.musculo}</b>${medio(x.series)}${x.series <= 1 ? ' serie' : ' series'}${x.ej ? ' · ' + x.ej + ' ej.' : ' (apoyo)'}</span>`)}</div>`;
 }
 function resumenSesion() {
   const s = sesion();
@@ -59,18 +58,15 @@ function resumenSesion() {
 function terminarSesion() {
   guardarPendientes(null, true);
   const r = resumenSesion();
-  let h = '<div class="t2">' + (r.s.log.length ? '¡Buena sesión!' : 'Sesión sin ejercicios') + '</div>' +
-    '<div class="muted">' + esc(DATA.today) + '</div>' +
-    '<div class="stats"><div><b class="num">' + r.min + '</b><span class="muted">minuto' + (r.min === 1 ? '' : 's') + '</span></div>' +
-    '<div><b class="num">' + r.s.log.length + '</b><span class="muted">ejercicios</span></div>' +
-    '<div><b class="num">' + r.series + '</b><span class="muted">series</span></div></div>';
-  if (r.vol) h += '<div class="muted" style="margin-bottom:10px">Volumen: <b class="num" style="color:var(--text)">' + r.vol.toLocaleString('es-MX') +
-    ' lb</b> (carga real × reps, sin calentamientos)</div>';
-  if (r.prs.length) h += '<div class="card" style="background:var(--acc-weak);border-color:transparent">' + r.prs.map(l =>
-    '<div class="row" style="color:var(--acc);font-weight:700;margin:4px 0">' + ICO.trophy + '<span>Récord de ' + l.prs.join(' y ') + ' en ' + esc(l.ej) + '</span></div>').join('') + '</div>';
-  if (r.s.log.length) h += '<button class="btn ghost block" style="margin-top:4px" ' + on('compartirSesion') + '>' + ICO.share.replace('class="icon"', 'class="icon" style="vertical-align:-4px;margin-right:6px"') + 'Compartir resumen</button>';
-  h += '<div class="acts"><button class="btn ghost" ' + on('cerrarModal') + '>Seguir entrenando</button>' +
-    '<button class="btn" ' + on('cerrarSesion') + '>Terminar</button></div>';
+  let h = html`<div class="t2">${r.s.log.length ? '¡Buena sesión!' : 'Sesión sin ejercicios'}</div><div class="muted">${DATA.today}</div>` +
+    html`<div class="stats"><div><b class="num">${r.min}</b><span class="muted">minuto${r.min === 1 ? '' : 's'}</span></div>` +
+    html`<div><b class="num">${r.s.log.length}</b><span class="muted">ejercicios</span></div>` +
+    html`<div><b class="num">${r.series}</b><span class="muted">series</span></div></div>`;
+  if (r.vol) h += html`<div class="muted" style="margin-bottom:10px">Volumen: <b class="num" style="color:var(--text)">${r.vol.toLocaleString('es-MX')} lb</b> (carga real × reps, sin calentamientos)</div>`;
+  if (r.prs.length) h += html`<div class="card" style="background:var(--acc-weak);border-color:transparent">${r.prs.map(l =>
+    html`<div class="row" style="color:var(--acc);font-weight:700;margin:4px 0">${crudo(ICO.trophy)}<span>Récord de ${l.prs.join(' y ')} en ${l.ej}</span></div>`)}</div>`;
+  if (r.s.log.length) h += html`<button class="btn ghost block" style="margin-top:4px" ${on('compartirSesion')}>${crudo(ICO.share.replace('class="icon"', 'class="icon" style="vertical-align:-4px;margin-right:6px"'))}Compartir resumen</button>`;
+  h += html`<div class="acts"><button class="btn ghost" ${on('cerrarModal')}>Seguir entrenando</button><button class="btn" ${on('cerrarSesion')}>Terminar</button></div>`;
   $('sheet').innerHTML = h; abrirModal();
 }
 function abrirModal(clase) {
@@ -109,10 +105,10 @@ function pintarTour() {
   document.documentElement.classList.add('conmodal');
   const r = el.getBoundingClientRect(), paso = TOUR[TOUR_I], ultimo = TOUR_I === TOUR.length - 1, abajo = r.top + r.height / 2 < innerHeight / 2;
   const t = document.createElement('div'); t.id = 'tour';
-  t.innerHTML = '<div class="tour-tapa"></div><div class="tour-luz" style="left:' + (r.left - 6) + 'px;top:' + (r.top - 6) + 'px;width:' + (r.width + 12) + 'px;height:' + (r.height + 12) + 'px"></div>' +
-    '<div class="tour-burbuja" style="' + (abajo ? 'top:' + Math.min(innerHeight - 220, r.bottom + 16) : 'bottom:' + Math.min(innerHeight - 220, innerHeight - r.top + 16)) + 'px">' +
-    '<div class="muted" style="font-size:13px">Paso ' + (TOUR_I + 1) + ' de ' + TOUR.length + '</div><div class="t2" style="margin:2px 0 4px">' + paso.t + '</div><div>' + paso.d + '</div>' +
-    '<div class="row between" style="margin-top:12px"><button class="link" ' + on('terminarTour') + '>Saltar</button><button class="btn" ' + on('tourSiguiente') + '>' + (ultimo ? '¡Listo!' : 'Siguiente') + '</button></div></div>';
+  t.innerHTML = html`<div class="tour-tapa"></div><div class="tour-luz" style="left:${r.left - 6}px;top:${r.top - 6}px;width:${r.width + 12}px;height:${r.height + 12}px"></div>` +
+    html`<div class="tour-burbuja" style="${abajo ? 'top:' + Math.min(innerHeight - 220, r.bottom + 16) : 'bottom:' + Math.min(innerHeight - 220, innerHeight - r.top + 16)}px">` +
+    html`<div class="muted" style="font-size:13px">Paso ${TOUR_I + 1} de ${TOUR.length}</div><div class="t2" style="margin:2px 0 4px">${paso.t}</div><div>${paso.d}</div>` +
+    html`<div class="row between" style="margin-top:12px"><button class="link" ${on('terminarTour')}>Saltar</button><button class="btn" ${on('tourSiguiente')}>${ultimo ? '¡Listo!' : 'Siguiente'}</button></div></div>`;
   document.body.appendChild(t);
 }
 function quitarTour() { const t = $('tour'); if (t) t.remove(); document.documentElement.classList.remove('conmodal'); }
@@ -224,8 +220,8 @@ function sugerirDescanso() {
   if (ajuste('autoDescanso', false)) return iniciarRest(def);
   const el = $('rest');
   el.className = 'rest show';
-  el.innerHTML = '<div class="rrow">' + ICO.timer + DESCANSOS.map(s => '<button class="rbtn' + (s === def ? ' def' : '') + '" ' + on('iniciarRest', s) + '>' + mmss(s) + '</button>').join('') +
-    '<button class="rbtn x" ' + on('ocultarRest') + ' aria-label="Cerrar">✕</button></div>';
+  el.innerHTML = html`<div class="rrow">${crudo(ICO.timer)}${DESCANSOS.map(s => html`<button class="rbtn${s === def ? ' def' : ''}" ${on('iniciarRest', s)}>${mmss(s)}</button>`)}` +
+    html`<button class="rbtn x" ${on('ocultarRest')} aria-label="Cerrar">✕</button></div>`;
   clearTimeout(sugTimer); sugTimer = setTimeout(() => { if (!LS.get('gym_rest', null)) ocultarRest(); }, 12000);
 }
 function iniciarRest(seg) {
@@ -286,14 +282,13 @@ function tickRest() {
   if (left <= 0) {
     if (!r.fired) { r.fired = true; LS.set('gym_rest', r); hap('fin'); beep(); if (!NATIVO) avisoReloj(r.dur); }
     el.className = 'rest show fin';
-    el.innerHTML = '<div class="rrow"><div style="flex:1"><div class="big">¡Siguiente serie!</div></div>' +
-      '<button class="rbtn" style="flex:none;padding:10px 16px" ' + on('detenerRest') + '>OK</button></div>';
+    el.innerHTML = html`<div class="rrow"><div style="flex:1"><div class="big">¡Siguiente serie!</div></div><button class="rbtn" style="flex:none;padding:10px 16px" ${on('detenerRest')}>OK</button></div>`;
     if (left < -20) detenerRest();
     return;
   }
   el.className = 'rest show';
-  el.innerHTML = '<div class="rrow">' + ICO.timer + '<div class="big num" style="min-width:64px">' + mmss(left) + '</div>' +
-    '<div style="flex:1"></div><button class="rbtn" style="flex:none;padding:10px 12px" ' + on('sumarRest', 30) + '>+30 s</button>' +
-    '<button class="rbtn" style="flex:none;padding:10px 12px" ' + on('detenerRest') + '>Omitir</button></div>' +
-    '<div class="rbar"><div style="width:' + Math.max(0, Math.min(100, 100 - left / r.dur * 100)) + '%"></div></div>';
+  el.innerHTML = html`<div class="rrow">${crudo(ICO.timer)}<div class="big num" style="min-width:64px">${mmss(left)}</div>` +
+    html`<div style="flex:1"></div><button class="rbtn" style="flex:none;padding:10px 12px" ${on('sumarRest', 30)}>+30 s</button>` +
+    html`<button class="rbtn" style="flex:none;padding:10px 12px" ${on('detenerRest')}>Omitir</button></div>` +
+    html`<div class="rbar"><div style="width:${Math.max(0, Math.min(100, 100 - left / r.dur * 100))}%"></div></div>`;
 }
