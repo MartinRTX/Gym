@@ -8,6 +8,8 @@
 //     si no, los celulares no bajan la versión nueva (o la bajan a medias).
 //  6. Todo lo que carga index.html está en la lista del service worker.
 //  7. Solo el bloque LS de app.js toca localStorage.
+//  8. Todo el HTML sale de la plantilla html`…` (v10.2): nada de innerHTML = '<…' a mano, esc() solo donde se permite y
+//     ningún texto con comillas o < dentro de ${…} (se escaparía y saldría &quot; o "<div" en pantalla).
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -64,5 +66,21 @@ else console.log('✓ todo el guardado pasa por LS');
 const conCodigo = scripts.concat(['index.html']).filter(f => /\son[a-z]+=\\?["']/.test(fs.readFileSync(path.join(RAIZ, f), 'utf8')));
 if (conCodigo.length) { errores++; console.error('✗ código en el HTML (on…="…") en ' + conCodigo.join(', ') + ': usa on(\'accion\', …) o ev(\'input\', …)'); }
 else console.log('✓ sin on…="…" en el HTML');
+
+// 8. La plantilla: una vez que todo pasó a html`…`, que nadie regrese a armar HTML a mano
+//    esc() se permite en app.js (la plantilla misma) y en coach.js (el formato del chat escapa primero y luego pone negritas)
+const ESC_OK = ['app.js', 'coach.js'];
+const plantilla = [];
+scripts.forEach(f => {
+  const lineas = fs.readFileSync(path.join(RAIZ, f), 'utf8').split('\n');
+  lineas.forEach((l, i) => {
+    const donde = f + ':' + (i + 1);
+    if (/(innerHTML\s*=|insertAdjacentHTML\([^,]*,)\s*(['"])[^'"]*</.test(l)) plantilla.push(donde + ' arma HTML a mano (usa html`…`)');
+    if (!ESC_OK.includes(f) && /\besc\(/.test(l)) plantilla.push(donde + ' usa esc(): con html`…` se escapa solo');
+    if (/html`/.test(l) && /[?:] '[^']*["<>][^']*'/.test(l)) plantilla.push(donde + ' texto con comillas o < dentro de ${…}: se escapa (usa html`…`)');
+  });
+});
+if (plantilla.length) { errores++; console.error('✗ plantilla html`…`:\n  ' + plantilla.slice(0, 10).join('\n  ')); }
+else console.log('✓ todo el HTML sale de la plantilla html`…`');
 
 if (errores) process.exit(1);

@@ -6,7 +6,7 @@ Actualizado: 05/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.2 publicada** (05/11); `main` = rama de trabajo |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.3 publicada** (05/11); `main` = rama de trabajo |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
 | Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **8.6 publicado** (03/11); `main` = rama de trabajo |
@@ -27,7 +27,7 @@ Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` 
 ## Cómo probar
 
 ```bash
-node herramientas/revisar.js            # versiones, sin onclick en texto, etc.
+node herramientas/revisar.js            # versiones, sin onclick en texto, todo el HTML con la plantilla, etc.
 node --test tests/*.test.js              # 79 pruebas de lógica
 NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 310 pruebas de pantalla (Playwright)
 NODE_PATH=/opt/node-tools/node_modules node herramientas/comparar-pantallas.js [ref] [filtro]   # antes y después: ¿se pinta igual?
@@ -50,6 +50,12 @@ Script de Comidas con clasp: **lo está terminando otro chat; no tocarlo desde a
 en el Apps Script de "Comidas 2026", ⚙️ Configuración del proyecto › Propiedades del script: `CLAVE` = su clave; y pasar el
 "ID de secuencia de comandos" para ponerlo en `COMIDAS_SCRIPT_ID` (`Gym-script/.github/workflows/comidas.yml`). Si falta la
 propiedad, el workflow regresa la implementación a la versión anterior.
+
+## v10.3 (publicada 05/11): la plantilla queda vigilada
+
+- `revisar.js` (corre en cada push) falla si alguien vuelve a armar HTML a mano (`innerHTML = '…<…'`), usa `esc()` fuera de
+  `app.js`/`coach.js`, o mete texto con comillas o `<` dentro de `${…}`. Se probó metiendo a propósito los dos errores de la v10.1.
+- El ícono de Coach de la barra también pasó a la plantilla (se ve igual; lo confirmó `comparar-pantallas`).
 
 ## v10.2 (publicada 05/11): toda la app con la plantilla
 

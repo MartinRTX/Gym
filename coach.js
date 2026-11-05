@@ -18,7 +18,7 @@ function asegurarTabCoach() {
   $('vProgreso').after(v);
   const b = document.createElement('button'); b.id = 'nCoach';
   b.setAttribute('data-click', 'verTab'); b.setAttribute('data-click-a', '["Coach"]'); ACCIONES_OK.add('verTab');
-  b.innerHTML = '<span class="bola"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></svg></span>Coach';
+  b.innerHTML = html`<span class="bola"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h.01M12 11h.01M15.5 11h.01"/></svg></span>Coach`;
   // Con Coach la barra queda simétrica: Comida · Progreso · ENTRENAR · Músculos · Coach
   $('nMusculos').after(b);
 }
