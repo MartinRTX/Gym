@@ -6,7 +6,7 @@ Actualizado: 05/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ v9.9 publicada (04/11); **v10.0 en la rama** (falta "publica") |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ **v10.0 publicada** (05/11); `main` = rama de trabajo |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
 | Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **8.6 publicado** (03/11); `main` = rama de trabajo |
@@ -38,7 +38,7 @@ actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
 
 ## Cómo publicar (cuando Martin diga "publica")
 
-Pendiente de publicar: **Gym v10.0** (solo la app; el script y Panel no cambian). En Gym-script y Panel, `main` = rama de trabajo.
+Hoy no hay nada pendiente de publicar: en Gym, Gym-script y Panel, `main` está igual que la rama de trabajo.
 Cuando haya cambios, este orden:
 
 1. Gym-script: rama → `main`. Primero el script (si la app pide un `SCRIPT_ESPERADO` nuevo).
@@ -50,7 +50,7 @@ en el Apps Script de "Comidas 2026", ⚙️ Configuración del proyecto › Prop
 "ID de secuencia de comandos" para ponerlo en `COMIDAS_SCRIPT_ID` (`Gym-script/.github/workflows/comidas.yml`). Si falta la
 propiedad, el workflow regresa la implementación a la versión anterior.
 
-## v10.0 (en la rama, falta "publica"): plantilla en Ajustes
+## v10.0 (publicada 05/11): plantilla en Ajustes
 
 - `ajustes.js` completo con la plantilla: bienvenida, Ajustes, Diagnóstico (Lo que falló ya la usaba). Los íconos de Ajustes
   (`svgA`/`AIC`) ya son `crudo(…)`; tarjetas repetidas con `tarjeta(…)`. Comparado contra la v9.9 en 51 estados (navegador y APK,
