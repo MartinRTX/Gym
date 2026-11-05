@@ -6,7 +6,7 @@ Actualizado: 05/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ **v10.0 publicada** (05/11); `main` = rama de trabajo |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | v10.0 publicada (05/11); **v10.1 en la rama** (falta "publica") |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
 | Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **8.6 publicado** (03/11); `main` = rama de trabajo |
@@ -29,7 +29,7 @@ Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` 
 ```bash
 node herramientas/revisar.js            # versiones, sin onclick en texto, etc.
 node --test tests/*.test.js              # 79 pruebas de lógica
-NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 299 pruebas de pantalla (Playwright)
+NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 309 pruebas de pantalla (Playwright)
 ```
 
 En GitHub corren solas: "Pruebas" (revisar + unidad + pantalla), "APK Android" (desde `main`) y Pages.
@@ -38,7 +38,7 @@ actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
 
 ## Cómo publicar (cuando Martin diga "publica")
 
-Hoy no hay nada pendiente de publicar: en Gym, Gym-script y Panel, `main` está igual que la rama de trabajo.
+Pendiente de publicar: **Gym v10.1** (solo la app; el script y Panel no cambian). En Gym-script y Panel, `main` = rama de trabajo.
 Cuando haya cambios, este orden:
 
 1. Gym-script: rama → `main`. Primero el script (si la app pide un `SCRIPT_ESPERADO` nuevo).
@@ -49,6 +49,18 @@ Script de Comidas con clasp: **lo está terminando otro chat; no tocarlo desde a
 en el Apps Script de "Comidas 2026", ⚙️ Configuración del proyecto › Propiedades del script: `CLAVE` = su clave; y pasar el
 "ID de secuencia de comandos" para ponerlo en `COMIDAS_SCRIPT_ID` (`Gym-script/.github/workflows/comidas.yml`). Si falta la
 propiedad, el workflow regresa la implementación a la versión anterior.
+
+## v10.1 (en la rama, falta "publica"): plantilla en Comida, Entrenar y Progreso
+
+- `app.js` (aviso de abajo y errores de la hoja), `comida-dia.js`, `entrenar.js` y `progreso.js` (Músculos y gráficas incluidos)
+  con la plantilla. Martin pidió los 3 de una vez.
+- **Comparación nueva** (más completa que estados a mano): se corren las pruebas de pantalla registrando cada HTML que la app
+  pinta (innerHTML / insertAdjacentHTML), con la versión anterior y la nueva, y se comparan por archivo de prueba. Dos corridas de
+  la misma versión difieren solo en 2–4 pintadas (la barra del descanso y una carrera del anillo): ese es el ruido.
+- Dos trampas nuevas (las detectaron las pruebas): un texto con comillas dentro de `${…}` también se escapa
+  (`${ojo ? ' class="grande"' : ''}` salía `&quot;`: usar ``html` class="grande"` ``), y `html`a` + html`b`` dentro de un ternario
+  de otra plantilla sale como texto. `plantilla.prueba.js` revisa Comida, Entrenar, Progreso y Músculos.
+- Arreglo: en "¿Quién lo hace normalmente?" (pareja) una variable local `on` tapaba `on()` y los 3 botones no hacían nada.
 
 ## v10.0 (publicada 05/11): plantilla en Ajustes
 
@@ -198,7 +210,7 @@ Mejoras propuestas (en orden):
 1. ✅ v9.8: partir `app.js`, `app.css`, una capa de guardado, contraste, service worker todo o nada, hash del catálogo, Tempo.
 2. Opcional: pasar más pantallas a la plantilla ``html`…` `` (hoy el escapado se cuida con `esc()` y lo vigila `escapar-v98`).
    Plan (03/11): un archivo por versión, sin cambios visuales. ✅ v9.9: `coach.js`, `trote.js`, `sesion.js`. ✅ v10.0: `ajustes.js`.
-   Siguen: `inicio.js`/`app.js`, `comida-dia.js`, `entrenar.js`, `progreso.js`, y al final `series.js` y `comida.js`.
+   ✅ v10.1: `app.js`, `comida-dia.js`, `entrenar.js`, `progreso.js` (`inicio.js` no arma HTML). Siguen: `series.js` y `comida.js`.
    Método: guardar el HTML de la versión anterior en muchos estados y comparar (debe salir idéntico con datos normales).
 3. Animaciones: ajustes según lo que Martin vea en el celular real (posturas, colores, velocidad).
 4. ✅ Panel 1.6: service worker "todo o nada" como Gym (`config.js` sigue yendo primero por la red).

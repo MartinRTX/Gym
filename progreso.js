@@ -8,9 +8,9 @@ function fmt(v, signo) {
   const n = Math.round(v * 10) / 10;
   return (signo && n > 0 ? '+' : '') + n.toFixed(1);
 }
-const kpi = (v, l, d, good) => '<div class="kpi"><div class="v num">' + v + '</div><div class="l">' + l + '</div>' + (d ? '<div class="d' + (good ? ' good' : '') + '">' + d + '</div>' : '') + '</div>';
+const kpi = (v, l, d, good) => html`<div class="kpi"><div class="v num">${v}</div><div class="l">${l}</div>${d ? html`<div class="d${good ? ' good' : ''}">${d}</div>` : ''}</div>`;
 function pintarProgreso() {
-  let h = '<div class="seg s4">' + ['Semana', 'Fuerza', 'Cuerpo', 'Logros'].map(t => '<button class="' + (PTAB === t ? 'on' : '') + '" ' + on('verPTab', t) + '>' + t + '</button>').join('') + '</div>';
+  let h = html`<div class="seg s4">${['Semana', 'Fuerza', 'Cuerpo', 'Logros'].map(t => html`<button class="${PTAB === t ? 'on' : ''}" ${on('verPTab', t)}>${t}</button>`)}</div>`;
   if (PTAB === 'Semana') h += progresoSemana();
   else if (PTAB === 'Fuerza') h += tarjetaFuerza() + tarjetaMusculos(DATA.resumen.musculos || []);
   else if (PTAB === 'Logros') h += progresoLogros();
@@ -26,28 +26,28 @@ function progresoSemana() {
   let diasSemana = r.diasSemana || 0;
   if (hoyLocal && !semana[hoyIdx]) { semana[hoyIdx] = true; diasSemana++; }
   const subir = (r.subir || []).filter(s => !DATA.exercises.some(e => e.ejercicio === s.ej && state[e.name] && state[e.name].done));
-  let h = '<div class="card"><div class="row between"><div><div class="t2">' + (diasSemana >= META_DIAS ? diasSemana + ' días ✓' : diasSemana + ' de ' + META_DIAS + ' días') + '</div><div class="muted">esta semana · ' + fmt(r.km7) + ' km trotados</div></div>' +
-    (r.racha ? '<span class="pill acc" style="font-size:13px;padding:6px 10px">' + ICO.flame + r.racha + ' semana' + (r.racha === 1 ? '' : 's') + '</span>' : '') + '</div>' +
-    '<div class="week">' + dias.map((d, i) => '<div class="' + (semana[i] ? 'y' : '') + (i === hoyIdx ? ' hoy' : '') + '"><i></i>' + d + '</div>').join('') + '</div>' +
-    '<div class="muted" style="margin-top:8px">La racha cuenta semanas seguidas con 3 o más días de gym.</div>' +
-    (DATA.logros ? '<button class="link" style="margin-top:10px" ' + on('verPTab', 'Logros') + '>' +
-      ICO.trophy.replace('class="icon"', 'class="icon" style="width:16px;height:16px;vertical-align:-3px"') + ' Llevas ' + DATA.logros.semana.pts + ' puntos esta semana · ver logros</button>' : '') + '</div>';
-  if (r.descarga) h += '<div class="card" style="background:var(--acc-weak);border-color:transparent"><div class="t1" style="color:var(--acc)">Considera una semana de descarga</div>' +
-    '<div class="muted" style="margin-top:4px">Estos ejercicios no mejoraron en sus últimas 3 sesiones: ' + esc(r.descarga.estancados.join(', ')) +
-    '. Una semana con la mitad de series y el mismo peso suele destrabarlos.</div></div>';
-  if (subir.length) h += '<h2>Te toca subir peso</h2><div class="card">' + subir.map(s => '<div class="rec"><div class="medal">' + ICO.up + '</div><div style="flex:1">' +
-    '<div class="t1" style="font-size:15px">' + esc(s.ej) + '</div><div class="muted">Próxima vez</div></div><b class="num" style="color:var(--acc)">' + s.peso + ' ' + s.unit + '</b></div>').join('') + '</div>';
-  if (r.records && r.records.length) h += '<h2>Récords recientes</h2><div class="card">' + r.records.map(x =>
-    '<div class="rec"><div class="medal">' + ICO.trophy + '</div><div style="flex:1;min-width:0"><div class="t1" style="font-size:15px">' + esc(x.ej) + '</div>' +
-    '<div class="muted num">' + x.w + ' ' + x.unit + ' × ' + x.r + ' · ' + x.k.slice(8, 10) + '/' + x.k.slice(5, 7) + (/peso/.test(x.tipo) ? ' · más peso que nunca' : '') + '</div></div>' +
-    (x.pct > 0 ? '<b class="num up">+' + x.pct + '%</b>' : '') + '</div>').join('') + '</div>';
-  h += '<h2>Hábitos</h2><div class="kpis">' +
-    (DATA.plan && DATA.plan.sesiones
+  let h = html`<div class="card"><div class="row between"><div><div class="t2">${diasSemana >= META_DIAS ? diasSemana + ' días ✓' : diasSemana + ' de ' + META_DIAS + ' días'}</div><div class="muted">esta semana · ${fmt(r.km7)} km trotados</div></div>` +
+    (r.racha ? html`<span class="pill acc" style="font-size:13px;padding:6px 10px">${crudo(ICO.flame)}${r.racha} semana${r.racha === 1 ? '' : 's'}</span>` : '') + '</div>' +
+    html`<div class="week">${dias.map((d, i) => html`<div class="${semana[i] ? 'y' : ''}${i === hoyIdx ? ' hoy' : ''}"><i></i>${d}</div>`)}</div>` +
+    html`<div class="muted" style="margin-top:8px">La racha cuenta semanas seguidas con 3 o más días de gym.</div>` +
+    (DATA.logros ? html`<button class="link" style="margin-top:10px" ${on('verPTab', 'Logros')}>` +
+      html`${crudo(ICO.trophy.replace('class="icon"', 'class="icon" style="width:16px;height:16px;vertical-align:-3px"'))} Llevas ${DATA.logros.semana.pts} puntos esta semana · ver logros</button>` : '') + '</div>';
+  if (r.descarga) h += html`<div class="card" style="background:var(--acc-weak);border-color:transparent"><div class="t1" style="color:var(--acc)">Considera una semana de descarga</div>` +
+    html`<div class="muted" style="margin-top:4px">Estos ejercicios no mejoraron en sus últimas 3 sesiones: ${r.descarga.estancados.join(', ')}` +
+    html`. Una semana con la mitad de series y el mismo peso suele destrabarlos.</div></div>`;
+  if (subir.length) h += html`<h2>Te toca subir peso</h2><div class="card">${subir.map(s => html`<div class="rec"><div class="medal">${crudo(ICO.up)}</div><div style="flex:1">` +
+    html`<div class="t1" style="font-size:15px">${s.ej}</div><div class="muted">Próxima vez</div></div><b class="num" style="color:var(--acc)">${s.peso} ${s.unit}</b></div>`).map(crudo)}</div>`;
+  if (r.records && r.records.length) h += html`<h2>Récords recientes</h2><div class="card">${r.records.map(x =>
+    crudo(html`<div class="rec"><div class="medal">${crudo(ICO.trophy)}</div><div style="flex:1;min-width:0"><div class="t1" style="font-size:15px">${x.ej}</div>` +
+    html`<div class="muted num">${x.w} ${x.unit} × ${x.r} · ${x.k.slice(8, 10)}/${x.k.slice(5, 7)}${/peso/.test(x.tipo) ? ' · más peso que nunca' : ''}</div></div>` +
+    html`${x.pct > 0 ? html`<b class="num up">+${x.pct}%</b>` : ''}</div>`))}</div>`;
+  h += html`<h2>Hábitos</h2><div class="kpis">${
+    DATA.plan && DATA.plan.sesiones
       ? kpi(DATA.plan.sesiones.filter(x => x.hecho).length + '/' + DATA.plan.sesiones.length, 'Trotes del plan', 'Semana ' + DATA.plan.semana + ' de ' + DATA.plan.total, DATA.plan.sesiones.every(x => x.hecho))
-      : kpi(fmt(r.km7), 'Km trotados (7 días)', '', false)) +
-    kpi(r.protProm7 !== null ? r.protProm7 + ' g' : '—', 'Proteína promedio', 'Meta: ' + metaProt() + ' g', r.protProm7 !== null && r.protProm7 >= metaProt()) + kpisSalud() + '</div>';
-  h += '<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none;margin-top:6px" href="' + esc(urlSegura(r.sheetUrl)) + '" target="_blank" rel="noopener">Abrir dashboard completo</a>';
-  const boton = '<button class="btn block reporte" ' + on('copiarReporte') + '>📋 COPIAR REPORTE DEL DOMINGO</button>';
+      : kpi(fmt(r.km7), 'Km trotados (7 días)', '', false)}${
+    kpi(r.protProm7 !== null ? r.protProm7 + ' g' : '—', 'Proteína promedio', 'Meta: ' + metaProt() + ' g', r.protProm7 !== null && r.protProm7 >= metaProt())}${kpisSalud()}</div>`;
+  h += html`<a class="btn ghost block" style="display:block;text-align:center;text-decoration:none;margin-top:6px" href="${urlSegura(r.sheetUrl)}" target="_blank" rel="noopener">Abrir dashboard completo</a>`;
+  const boton = html`<button class="btn block reporte" ${on('copiarReporte')}>📋 COPIAR REPORTE DEL DOMINGO</button>`;
   return new Date().getDay() === 0 ? boton + h : h + boton;
 }
 // Texto para pegar donde quieras: promedios de los últimos 7 días; lo que la app no tiene se queda en blanco
@@ -85,8 +85,8 @@ function kpisSalud() {
   if (!s) return '';
   const prom = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
   const p = prom((s.pasos || []).filter(x => x.k < hoy()).map(x => x.v)), h = prom((s.sueno || []).map(x => x.h));   // hoy va a medias: no cuenta
-  return (p !== null ? kpi(Math.round(p).toLocaleString('es-MX'), 'Pasos promedio', 'Health Connect · 7 días', p >= 8000) : '') +
-    (h !== null ? kpi(Math.round(h * 10) / 10 + ' h', 'Sueño promedio', 'Health Connect · 7 días', h >= 7) : '');
+  return html`${p !== null ? kpi(Math.round(p).toLocaleString('es-MX'), 'Pasos promedio', 'Health Connect · 7 días', p >= 8000) : ''}${
+    h !== null ? kpi(Math.round(h * 10) / 10 + ' h', 'Sueño promedio', 'Health Connect · 7 días', h >= 7) : ''}`;
 }
 /* ----- Ritmo de peso: bajar 0.25–0.5 % por semana, medido con el promedio de 7 días ----- */
 const signo = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
@@ -109,66 +109,66 @@ function ritmoPeso() {
 }
 function tarjetaRitmoPeso() {
   const x = ritmoPeso();
-  if (!x) return '<div class="card"><div class="t1">Ritmo de peso semanal</div><div class="muted" style="margin-top:4px">Aparece con 2 semanas de pesajes. La meta: bajar 0.25–0.5 % de tu peso por semana.</div></div>';
+  if (!x) return html`<div class="card"><div class="t1">Ritmo de peso semanal</div><div class="muted" style="margin-top:4px">Aparece con 2 semanas de pesajes. La meta: bajar 0.25–0.5 % de tu peso por semana.</div></div>`;
   // Escala de −1.5 % a +1 %: la zona verde es el ritmo ideal
   const pos = v => Math.max(0, Math.min(100, (v + 1.5) / 2.5 * 100));
-  return '<div class="card ritmo"><div class="row between"><div class="t1">Ritmo de peso semanal</div><span class="pill ' + x.estado + ' num">' + signo(x.pct) + ' %/sem</span></div>' +
-    '<div class="escala"><div class="zona" style="left:' + pos(-0.5) + '%;width:' + (pos(-0.25) - pos(-0.5)) + '%"></div><i style="left:' + pos(x.pct) + '%"></i></div>' +
-    '<div class="escala-l"><span>−1.5 %</span><span>ideal −0.25 a −0.5 %</span><span>+1 %</span></div>' +
-    '<div class="muted" style="margin:8px 0 6px">Promedio de 7 días: <b class="num" style="color:var(--text)">' + signo(x.kg) + ' kg</b> vs la semana anterior. Para ti, ideal: bajar ' + x.ideal[0] + '–' + x.ideal[1] + ' kg por semana.</div>' +
-    '<div style="font-size:14.5px">' + esc(x.txt) + '</div>' +
-    (x.n7 !== null && x.n7 < 3 ? '<div class="muted" style="font-size:12.5px;margin-top:6px">Esta semana llevas ' + x.n7 + ' pesaje' + (x.n7 === 1 ? '' : 's') + ': con 3 o más mañanas el promedio es confiable.</div>' : '') + '</div>';
+  return crudo(html`<div class="card ritmo"><div class="row between"><div class="t1">Ritmo de peso semanal</div><span class="pill ${x.estado} num">${signo(x.pct)} %/sem</span></div>` +
+    html`<div class="escala"><div class="zona" style="left:${pos(-0.5)}%;width:${pos(-0.25) - pos(-0.5)}%"></div><i style="left:${pos(x.pct)}%"></i></div>` +
+    html`<div class="escala-l"><span>−1.5 %</span><span>ideal −0.25 a −0.5 %</span><span>+1 %</span></div>` +
+    html`<div class="muted" style="margin:8px 0 6px">Promedio de 7 días: <b class="num" style="color:var(--text)">${signo(x.kg)} kg</b> vs la semana anterior. Para ti, ideal: bajar ${x.ideal[0]}–${x.ideal[1]} kg por semana.</div>` +
+    html`<div style="font-size:14.5px">${x.txt}</div>` +
+    (x.n7 !== null && x.n7 < 3 ? html`<div class="muted" style="font-size:12.5px;margin-top:6px">Esta semana llevas ${x.n7} pesaje${x.n7 === 1 ? '' : 's'}: con 3 o más mañanas el promedio es confiable.</div>` : '') + '</div>');
 }
 function progresoCuerpo() {
   const r = DATA.resumen;
-  let h = '<div class="kpis">' +
-    kpi(fmt(r.promedio7), 'Peso promedio 7 días (kg)', r.cambioSemana !== null ? fmt(r.cambioSemana, true) + ' vs semana anterior' : '', r.cambioSemana !== null && r.cambioSemana <= 0) +
-    kpi(fmt(r.cintura), 'Cintura (cm)', r.cambioCintura !== null ? fmt(r.cambioCintura, true) + ' desde el inicio' : '', r.cambioCintura !== null && r.cambioCintura < 0) + '</div>';
+  let h = html`<div class="kpis">${
+    kpi(fmt(r.promedio7), 'Peso promedio 7 días (kg)', r.cambioSemana !== null ? fmt(r.cambioSemana, true) + ' vs semana anterior' : '', r.cambioSemana !== null && r.cambioSemana <= 0)}${
+    kpi(fmt(r.cintura), 'Cintura (cm)', r.cambioCintura !== null ? fmt(r.cambioCintura, true) + ' desde el inicio' : '', r.cambioCintura !== null && r.cambioCintura < 0)}</div>`;
   h += tarjetaRitmoPeso() + tarjetaMetaCintura();
   const serie = (DATA.cuerpo && DATA.cuerpo.serie) || [];
   const cs = serie.filter(x => x.cint !== null).map(x => ({ d: x.d, v: x.cint }));
   const ps = serie.filter(x => x.peso !== null).map(x => ({ d: x.d, v: x.peso }));
-  h += '<div class="card chart"><div class="t1">Cintura desde el inicio</div>' + (cs.length >= 2 ? linea(cs, false, 'var(--cyan)')
-    : '<div class="muted" style="margin-top:6px">La gráfica aparece con 2 domingos medidos. Tu cintura es el mejor indicador de la grasa de la panza.</div>') + '</div>';
-  h += '<div class="card chart"><div class="t1">Peso promedio por semana</div>' + (ps.length >= 2 ? linea(ps, false, 'var(--pri)')
-    : '<div class="muted" style="margin-top:6px">Aparece con 2 semanas de pesajes. El promedio semanal no se mueve con el agua de un día.</div>') + '</div>';
-  h += '<div class="card chart"><div class="t1">Peso, últimos 30 días</div>' + graficaPeso(r.serie30) + '</div>';
+  h += html`<div class="card chart"><div class="t1">Cintura desde el inicio</div>${cs.length >= 2 ? linea(cs, false, 'var(--cyan)')
+    : html`<div class="muted" style="margin-top:6px">La gráfica aparece con 2 domingos medidos. Tu cintura es el mejor indicador de la grasa de la panza.</div>`}</div>`;
+  h += html`<div class="card chart"><div class="t1">Peso promedio por semana</div>${ps.length >= 2 ? linea(ps, false, 'var(--pri)')
+    : html`<div class="muted" style="margin-top:6px">Aparece con 2 semanas de pesajes. El promedio semanal no se mueve con el agua de un día.</div>`}</div>`;
+  h += html`<div class="card chart"><div class="t1">Peso, últimos 30 días</div>${graficaPeso(r.serie30)}</div>`;
   if (DATA.fotos && DATA.fotos.activas) h += tarjetaFotos();
   return h;
 }
 function tarjetaMetaCintura() {
   const c = DATA.cuerpo;
   if (!c) return '';
-  if (!c.meta) return '<div class="card"><div class="t1">Tu meta de cintura</div><div class="muted" style="margin:4px 0 10px">Ponle número a la panza: con una meta ves cuánto llevas.</div>' +
-    '<button class="btn ghost sm" ' + on('abrirAjustes') + '>Ponerla en Ajustes</button></div>';
-  if (c.actual === null) return '<div class="card"><div class="t1">Meta de cintura: ' + c.meta + ' cm</div><div class="muted" style="margin-top:4px">Mide tu cintura el domingo para empezar a ver tu avance.</div></div>';
+  if (!c.meta) return crudo(html`<div class="card"><div class="t1">Tu meta de cintura</div><div class="muted" style="margin:4px 0 10px">Ponle número a la panza: con una meta ves cuánto llevas.</div>` +
+    html`<button class="btn ghost sm" ${on('abrirAjustes')}>Ponerla en Ajustes</button></div>`);
+  if (c.actual === null) return html`<div class="card"><div class="t1">Meta de cintura: ${c.meta} cm</div><div class="muted" style="margin-top:4px">Mide tu cintura el domingo para empezar a ver tu avance.</div></div>`;
   const total = c.base - c.meta, lleva = c.base - c.actual;
   const pct = total > 0 ? Math.max(0, Math.min(1, lleva / total)) : (c.actual <= c.meta ? 1 : 0);
   const fx = v => (Math.round(v * 10) / 10).toString();
-  return '<div class="card"><div class="row between"><div class="t1">Meta de cintura</div><span class="pill ' + (pct >= 1 ? 'ok' : 'pri') + '">' + Math.round(pct * 100) + '%</span></div>' +
-    '<div class="metabar"><div style="width:' + Math.max(pct * 100, 3) + '%"></div></div>' +
-    '<div class="row between muted"><span>Inicio ' + fx(c.base) + ' cm</span><b style="color:var(--text)">Hoy ' + fx(c.actual) + ' cm</b><span>Meta ' + fx(c.meta) + ' cm</span></div>' +
-    '<div class="muted" style="margin-top:8px">' + (pct >= 1 ? '¡Meta cumplida! Pon la siguiente en Ajustes.' : lleva > 0 ? 'Llevas ' + fx(lleva) + ' de ' + fx(total) + ' cm. Te faltan ' + fx(c.actual - c.meta) + '.' : 'Aún no baja: es normal las primeras semanas. Lo que cuenta es la tendencia.') + '</div></div>';
+  return crudo(html`<div class="card"><div class="row between"><div class="t1">Meta de cintura</div><span class="pill ${pct >= 1 ? 'ok' : 'pri'}">${Math.round(pct * 100)}%</span></div>` +
+    html`<div class="metabar"><div style="width:${Math.max(pct * 100, 3)}%"></div></div>` +
+    html`<div class="row between muted"><span>Inicio ${fx(c.base)} cm</span><b style="color:var(--text)">Hoy ${fx(c.actual)} cm</b><span>Meta ${fx(c.meta)} cm</span></div>` +
+    html`<div class="muted" style="margin-top:8px">${pct >= 1 ? '¡Meta cumplida! Pon la siguiente en Ajustes.' : lleva > 0 ? 'Llevas ' + fx(lleva) + ' de ' + fx(total) + ' cm. Te faltan ' + fx(c.actual - c.meta) + '.' : 'Aún no baja: es normal las primeras semanas. Lo que cuenta es la tendencia.'}</div></div>`);
 }
 function progresoLogros() {
   const L = DATA.logros;
-  if (!L) return '<div class="card muted">Los logros aparecen cuando la app se conecta.</div>';
+  if (!L) return html`<div class="card muted">Los logros aparecen cuando la app se conecta.</div>`;
   const s = L.semana;
-  const parte = (nom, v, max) => '<div><div class="l"><span>' + nom + '</span><b class="num">' + Math.min(v, max) + '/' + max + '</b></div><div class="b"><div style="width:' + Math.min(100, v / max * 100) + '%"></div></div></div>';
-  let h = '<div class="card"><div class="row between"><div><div class="muted">Esta semana</div><div class="pts"><b class="num">' + s.pts + '</b><span class="muted">/ 100 puntos</span></div></div>' +
-    (L.total > 1 ? '<span class="pill ' + (L.rank === 1 ? 'acc' : 'pri') + '" style="font-size:13px;padding:6px 10px">' + (L.rank === 1 ? '🥇 Tu mejor semana' : 'Lugar ' + L.rank + ' de ' + L.total) + '</span>' : '') + '</div>' +
-    '<div class="desglose">' + parte('Gym', s.gym, 4) + parte('Proteína en meta', s.prot, 7) + parte('Trote', s.trote, 3) + parte('Pesarte', s.peso, 7) + '</div>' +
-    '<div class="muted" style="margin-top:10px">' + (L.mejor === null ? 'Tu primera semana: esta es la marca a superar.' : (L.rank === 1 ? '¡Es tu mejor semana! Compites solo contra ti.' : 'Tu mejor semana: ' + L.mejor + ' puntos' + (L.mejor - s.pts <= 10 ? ' · te faltan ' + (L.mejor - s.pts + 1) + ' para superarla' : '') + '. Compites solo contra ti.')) + '</div></div>';
-  if (L.hist.length >= 2) h += '<div class="card chart"><div class="t1">Tus puntos por semana</div>' + barras(L.hist) + '</div>';
+  const parte = (nom, v, max) => html`<div><div class="l"><span>${nom}</span><b class="num">${Math.min(v, max)}/${max}</b></div><div class="b"><div style="width:${Math.min(100, v / max * 100)}%"></div></div></div>`;
+  let h = html`<div class="card"><div class="row between"><div><div class="muted">Esta semana</div><div class="pts"><b class="num">${s.pts}</b><span class="muted">/ 100 puntos</span></div></div>` +
+    (L.total > 1 ? html`<span class="pill ${L.rank === 1 ? 'acc' : 'pri'}" style="font-size:13px;padding:6px 10px">${L.rank === 1 ? '🥇 Tu mejor semana' : 'Lugar ' + L.rank + ' de ' + L.total}</span>` : '') + '</div>' +
+    html`<div class="desglose">${parte('Gym', s.gym, 4)}${parte('Proteína en meta', s.prot, 7)}${parte('Trote', s.trote, 3)}${parte('Pesarte', s.peso, 7)}</div>` +
+    html`<div class="muted" style="margin-top:10px">${L.mejor === null ? 'Tu primera semana: esta es la marca a superar.' : (L.rank === 1 ? '¡Es tu mejor semana! Compites solo contra ti.' : 'Tu mejor semana: ' + L.mejor + ' puntos' + (L.mejor - s.pts <= 10 ? ' · te faltan ' + (L.mejor - s.pts + 1) + ' para superarla' : '') + '. Compites solo contra ti.')}</div></div>`;
+  if (L.hist.length >= 2) h += html`<div class="card chart"><div class="t1">Tus puntos por semana</div>${barras(L.hist)}</div>`;
   // Medallas: todas las ganadas y solo la siguiente de cada tipo, con su avance
   const ganadas = L.medallas.filter(m => m.ok), vistas = {};
   const siguientes = L.medallas.filter(m => !m.ok && !vistas[m.fam] && (vistas[m.fam] = true));
-  const med = m => '<div class="med' + (m.ok ? '' : ' no') + '"><div class="i">' + m.ico + '</div><div class="n">' + esc(m.nom) + '</div>' +
-    (m.ok ? '<div class="p">' + esc(m.desc) + '</div>' : '<div class="mb"><div style="width:' + Math.round(m.val / m.meta * 100) + '%"></div></div><div class="p num">' + m.val + ' / ' + m.meta + '</div>') + '</div>';
-  h += '<h2>Medallas · ' + ganadas.length + ' de ' + L.medallas.length + '</h2>';
-  if (ganadas.length) h += '<div class="meds mini">' + ganadas.map(m => '<div class="med"><div class="i">' + m.ico + '</div><div class="n">' + esc(m.nom) + '</div></div>').join('') + '</div>';
-  else h += '<div class="muted" style="margin:0 4px 8px">Todavía ninguna: la primera llega con tu primer entrenamiento registrado.</div>';
-  h += '<h2>Siguientes</h2><div class="meds">' + siguientes.map(med).join('') + '</div>';
+  const med = m => html`<div class="med${m.ok ? '' : ' no'}"><div class="i">${m.ico}</div><div class="n">${m.nom}</div>${
+    m.ok ? html`<div class="p">${m.desc}</div>` : html`<div class="mb"><div style="width:${Math.round(m.val / m.meta * 100)}%"></div></div><div class="p num">${m.val} / ${m.meta}</div>`}</div>`;
+  h += html`<h2>Medallas · ${ganadas.length} de ${L.medallas.length}</h2>`;
+  if (ganadas.length) h += html`<div class="meds mini">${ganadas.map(m => html`<div class="med"><div class="i">${m.ico}</div><div class="n">${m.nom}</div></div>`)}</div>`;
+  else h += html`<div class="muted" style="margin:0 4px 8px">Todavía ninguna: la primera llega con tu primer entrenamiento registrado.</div>`;
+  h += html`<h2>Siguientes</h2><div class="meds">${siguientes.map(med)}</div>`;
   return h;
 }
 // Al ganar una medalla nueva: celebración (o un aviso corto si estás a media sesión)
@@ -182,23 +182,23 @@ function revisarMedallas() {
   LS.set('gym_medallas', vistas.concat(nuevas.map(m => m.id)));
   hap('pr');
   if (sesionActiva() || $('modal').classList.contains('show')) return toast('🏅 Medalla nueva: ' + nuevas.map(m => m.nom).join(', '), 'pr');
-  $('sheet').innerHTML = '<div class="celebra"><div class="i">' + nuevas[0].ico + '</div><div class="t2" style="margin-top:6px">' +
-    (nuevas.length === 1 ? '¡Medalla nueva!' : '¡' + nuevas.length + ' medallas nuevas!') + '</div>' +
-    nuevas.map(m => '<div style="margin-top:8px"><b>' + esc(m.nom) + '</b><div class="muted">' + esc(m.desc) + '</div></div>').join('') + '</div>' +
-    '<div class="acts"><button class="btn ghost" ' + on('cerrarModal') + '>Seguir</button><button class="btn" ' + on('verLogros') + '>Ver mis logros</button></div>';
+  $('sheet').innerHTML = html`<div class="celebra"><div class="i">${nuevas[0].ico}</div><div class="t2" style="margin-top:6px">${
+    nuevas.length === 1 ? '¡Medalla nueva!' : '¡' + nuevas.length + ' medallas nuevas!'}</div>${
+    nuevas.map(m => html`<div style="margin-top:8px"><b>${m.nom}</b><div class="muted">${m.desc}</div></div>`)}</div>` +
+    html`<div class="acts"><button class="btn ghost" ${on('cerrarModal')}>Seguir</button><button class="btn" ${on('verLogros')}>Ver mis logros</button></div>`;
   abrirModal();
 }
 function tarjetaFuerza() {
   const conHist = DATA.exercises.filter(e => e.hist && e.hist.length >= 2 && e.inc > 0);
   let h = '<div class="card chart">';
-  if (!conHist.length) return h + '<div class="t1">Fuerza por ejercicio</div><div class="muted" style="margin-top:6px">Aparece cuando registres un ejercicio con peso al menos 2 días.</div></div>';
+  if (!conHist.length) return h + html`<div class="t1">Fuerza por ejercicio</div><div class="muted" style="margin-top:6px">Aparece cuando registres un ejercicio con peso al menos 2 días.</div></div>`;
   if (!EJ_GRAF || !conHist.some(e => e.name === EJ_GRAF)) EJ_GRAF = conHist.slice().sort((a, b) => b.hist.length - a.hist.length)[0].name;
   const ex = exDe(EJ_GRAF);
   const pts = ex.hist, mejor = Math.max.apply(null, pts.map(p => p.e1)), cambio = (pts[pts.length - 1].e1 / pts[0].e1 - 1) * 100;
-  h += '<select ' + ev('change', 'elegirGrafica', VALOR) + '>' + conHist.map(e => '<option value="' + esc(e.name) + '"' + (e.name === EJ_GRAF ? ' selected' : '') + '>' + esc(e.ejercicio) + '</option>').join('') + '</select>' +
-    '<div class="row between" style="margin:6px 0"><div class="muted">Fuerza estimada (1RM, lb de carga real)</div><b class="num ' + (cambio >= 0 ? 'up' : 'down') + '">' + (cambio > 0 ? '+' : '') + cambio.toFixed(1) + '%</b></div>' +
-    linea(pts.map(p => ({ d: p.d, v: p.e1 })), false, 'var(--cyan)', 'var(--pri)') +
-    '<div class="muted" style="margin-top:4px">Mejor: <b class="num" style="color:var(--text)">' + mejor.toFixed(1) + ' lb</b> · ' + pts.length + ' sesiones</div></div>';
+  h += html`<select ${ev('change', 'elegirGrafica', VALOR)}>${conHist.map(e => html`<option value="${e.name}"${e.name === EJ_GRAF ? ' selected' : ''}>${e.ejercicio}</option>`)}</select>` +
+    html`<div class="row between" style="margin:6px 0"><div class="muted">Fuerza estimada (1RM, lb de carga real)</div><b class="num ${cambio >= 0 ? 'up' : 'down'}">${cambio > 0 ? '+' : ''}${cambio.toFixed(1)}%</b></div>` +
+    html`${linea(pts.map(p => ({ d: p.d, v: p.e1 })), false, 'var(--cyan)', 'var(--pri)')}` +
+    html`<div class="muted" style="margin-top:4px">Mejor: <b class="num" style="color:var(--text)">${mejor.toFixed(1)} lb</b> · ${pts.length} sesiones</div></div>`;
   return h;
 }
 /* ----- Mapa muscular por zonas específicas (Catálogo T): cada ejercicio suma a sus zonas (principal 1, apoyo ½) ----- */
@@ -271,14 +271,14 @@ function svgCuerpo(z, espalda, clase, accion) {
   const lado = espalda ? 'espalda' : 'frente';
   clase = clase || ((m, v) => 'mz' + zonaZ(v, m) + (MUS_SEL === m ? ' sel' : ''));
   accion = accion || (m => on('verMusculo', m));
-  const pieza = (m, d) => m ? '<path class="' + clase(m, z[m] || 0) + '" data-m="' + m + '" d="' + d + '" ' + accion(m) + '><title>' + znL(m) + '</title></path>'
-    : '<path class="nz" d="' + d + '"/>';
-  const mitad = ANAT[lado].map(x => pieza(x[0], x[1])).join('') + ANAT.fibras[lado].map(d => '<path class="fib" d="' + d + '"/>').join('');
-  const espejo = c => '<g' + (c ? ' transform="matrix(-1 0 0 1 200 0)"' : '') + '>';
+  const pieza = (m, d) => m ? html`<path class="${clase(m, z[m] || 0)}" data-m="${m}" d="${d}" ${accion(m)}><title>${znL(m)}</title></path>`
+    : html`<path class="nz" d="${d}"/>`;
+  const mitad = html`${ANAT[lado].map(x => pieza(x[0], x[1]))}${ANAT.fibras[lado].map(d => html`<path class="fib" d="${d}"/>`)}`;
+  const espejo = c => html`<g${c ? html` transform="matrix(-1 0 0 1 200 0)"` : ''}>`;
   // La silueta va dos veces: con borde abajo y sin borde encima, para que no se vea la costura del centro
-  const sil = cls => espejo(false) + '<path class="' + cls + '" d="' + ANAT.sil + '"/></g>' + espejo(true) + '<path class="' + cls + '" d="' + ANAT.sil + '"/></g>';
-  return '<svg viewBox="18 4 164 448" role="img" aria-label="' + (espalda ? 'Espalda' : 'Frente') + '">' + sil('sil borde') + sil('sil') +
-    espejo(false) + mitad + '</g>' + espejo(true) + mitad + '</g><text x="100" y="449">' + (espalda ? 'ESPALDA' : 'FRENTE') + '</text></svg>';
+  const sil = cls => html`${espejo(false)}<path class="${cls}" d="${ANAT.sil}"/></g>${espejo(true)}<path class="${cls}" d="${ANAT.sil}"/></g>`;
+  return crudo(html`<svg viewBox="18 4 164 448" role="img" aria-label="${espalda ? 'Espalda' : 'Frente'}">${sil('sil borde')}${sil('sil')}` +
+    html`${espejo(false)}${mitad}</g>${espejo(true)}${mitad}</g><text x="100" y="449">${espalda ? 'ESPALDA' : 'FRENTE'}</text></svg>`);
 }
 // Nombre para mostrar (las claves de ZONAS, de la hoja y del correo no cambian). zn: corto; znL: con el técnico entre paréntesis
 const ZONA_NOM = { 'Deltoide frontal': 'Hombro de enfrente', 'Deltoide lateral': 'Hombro de lado', 'Deltoide posterior': 'Hombro de atrás', 'Dorsal': 'Espalda ancha',
@@ -378,10 +378,10 @@ let MAQ = null;
 function abrirMaquina() {
   if (!DATA.ia) return toast('La IA no está activada en tu hoja');
   MAQ = null;
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">¿Qué máquina es?</div><button class="btn ghost sm" ' + on('cerrarModal') + '>✕</button></div>' +
-    '<div class="muted" style="margin:6px 0 12px">Tómale foto a la máquina (o a alguien usándola) y te digo qué ejercicio es, qué trabaja y si ya lo tienes.</div>' +
-    '<div class="camopts"><button ' + on('fotoMaquina', false) + '><span>📷</span><b>Tomar foto</b><small>Que se vea completa, con el asiento y los agarres</small></button>' +
-    '<button ' + on('fotoMaquina', true) + '><span>🖼️</span><b>Elegir de la galería</b><small>Una foto que ya tomaste</small></button></div>';
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2">¿Qué máquina es?</div><button class="btn ghost sm" ${on('cerrarModal')}>✕</button></div>` +
+    html`<div class="muted" style="margin:6px 0 12px">Tómale foto a la máquina (o a alguien usándola) y te digo qué ejercicio es, qué trabaja y si ya lo tienes.</div>` +
+    html`<div class="camopts"><button ${on('fotoMaquina', false)}><span>📷</span><b>Tomar foto</b><small>Que se vea completa, con el asiento y los agarres</small></button>` +
+    html`<button ${on('fotoMaquina', true)}><span>🖼️</span><b>Elegir de la galería</b><small>Una foto que ya tomaste</small></button></div>`;
   if (!$('modal').classList.contains('show')) abrirModal();
 }
 function fotoMaquina(galeria) {
@@ -479,45 +479,45 @@ function panelZona(m, modal) {
   const z = zonasVivas(), v = z[m] || 0, t = metaZona(m), est = zonaZ(v, m), falta = Math.max(0, t.meta - v);
   const sel = x => modal ? on('elegirMusculo', x) : on('verMusculo', x);
   const col = ['var(--muted)', 'var(--acc)', 'var(--ok)', 'var(--bad)'];
-  const barra = (x, w) => '<span class="zbar' + (w ? ' w' : '') + '"><i style="width:' + Math.min(100, Math.round((z[x] || 0) / metaZona(x).meta * 100)) + '%;background:' + col[zonaZ(z[x] || 0, x)] + '"></i></span>';
-  let h = '<div class="msel entra"><div class="row between" style="align-items:baseline"><b>' + esc(znL(m)) + '</b><span class="num">' + fmtSer(v) + ' / ' + t.meta + ' series</span></div>' +
-    barra(m, true) + '<div class="muted" style="font-size:13px;margin-top:4px">' + ZONA_TXT[est] + (focoMus() !== 'balanceado' ? ' · meta con tu objetivo «' + FOCOS[focoMus()][0] + '»' : '') + '</div>';
+  const barra = (x, w) => html`<span class="zbar${w ? ' w' : ''}"><i style="width:${Math.min(100, Math.round((z[x] || 0) / metaZona(x).meta * 100))}%;background:${col[zonaZ(z[x] || 0, x)]}"></i></span>`;
+  let h = html`<div class="msel entra"><div class="row between" style="align-items:baseline"><b>${znL(m)}</b><span class="num">${fmtSer(v)} / ${t.meta} series</span></div>` +
+    html`${barra(m, true)}<div class="muted" style="font-size:13px;margin-top:4px">${ZONA_TXT[est]}${focoMus() !== 'balanceado' ? ' · meta con tu objetivo «' + FOCOS[focoMus()][0] + '»' : ''}</div>`;
   const r = regionDe(m);
-  if (r) h += '<div class="region"><div class="muted">' + r + '</div>' + REGIONES[r].map(x => '<button class="' + (x === m ? 'on' : '') + '" ' + sel(x) + '>' +
-    '<span>' + esc(x) + '</span>' + barra(x) + '<span class="num">' + fmtSer(z[x] || 0) + '/' + metaZona(x).meta + '</span></button>').join('') + '</div>';
+  if (r) h += html`<div class="region"><div class="muted">${r}</div>${REGIONES[r].map(x => html`<button class="${x === m ? 'on' : ''}" ${sel(x)}>` +
+    html`<span>${x}</span>${barra(x)}<span class="num">${fmtSer(z[x] || 0)}/${metaZona(x).meta}</span></button>`).map(crudo)}</div>`;
   const o = opcionesZona(m), rec = zonaReciente(m);
   const boton = (e, grande) => {
     const n = Math.min(seriesDe(e), Math.max(2, Math.ceil(falta / o.peso(e)) || 3));
-    if (esExtra(e.name)) return '<button class="' + (grande ? 'btn block' : 'alt') + '" ' + on('irAEjercicio', e.name) + '>✓ Ya está en tu sesión: ' + esc(e.ejercicio.split(' (')[0]) + ' → Ir</button>';
-    return grande ? '<button class="btn block" ' + on('anadirHoy', e.name, n) + '>➕ Añadir ' + esc(e.ejercicio.split(' (')[0]) + ' a hoy · ' + n + ' series</button>' +
-      '<div class="muted porque">' + esc(porQue(e, m, o)) + '</div>'
-      : '<button class="alt" ' + on('anadirHoy', e.name, n) + '>' + (o.pendHoy.length || est === 2 ? '➕ ' : 'o ') + esc(e.ejercicio.split(' (')[0]) +
-        '<small>' + (e.anterior.length ? '✓ ya lo has hecho · ' + esc(e.lastWhen) : 'nuevo para ti') + '</small></button>';
+    if (esExtra(e.name)) return html`<button class="${grande ? 'btn block' : 'alt'}" ${on('irAEjercicio', e.name)}>✓ Ya está en tu sesión: ${e.ejercicio.split(' (')[0]} → Ir</button>`;
+    return grande ? crudo(html`<button class="btn block" ${on('anadirHoy', e.name, n)}>➕ Añadir ${e.ejercicio.split(' (')[0]} a hoy · ${n} series</button>` +
+      html`<div class="muted porque">${porQue(e, m, o)}</div>`)
+      : crudo(html`<button class="alt" ${on('anadirHoy', e.name, n)}>${o.pendHoy.length || est === 2 ? '➕ ' : 'o '}${e.ejercicio.split(' (')[0]}` +
+        html`<small>${e.anterior.length ? '✓ ya lo has hecho · ' + e.lastWhen : 'nuevo para ti'}</small></button>`);
   };
   h += '<div class="accion">';
-  if (est === 3) h += '<div>Ya pasaste el tope esta semana: no le sumes más; dale descanso para que crezca.</div>';
+  if (est === 3) h += html`<div>Ya pasaste el tope esta semana: no le sumes más; dale descanso para que crezca.</div>`;
   else {
-    if (est === 2) h += '<div class="muted" style="margin-bottom:6px">Vas en meta. Si aun así quieres darle más:</div>';
-    else h += '<div style="margin-bottom:6px">Te faltan <b>~' + Math.ceil(falta) + ' series</b> esta semana.</div>';
-    if (rec.n >= 4) h += '<div class="aviso2">⏳ Ya le diste ' + fmtSer(rec.n) + ' series ' + rec.cuando + ': si la sientes cargada, mejor en tu próxima sesión (48 h de recuperación).</div>';
-    if (o.pendHoy.length) h += '<div style="margin:2px 0 8px">Ya está en tu rutina de hoy: ' + o.pendHoy.slice(0, 2).map(e => '<button class="alt" ' + on('irAEjercicio', e.name) + '>' + esc(e.ejercicio.split(' (')[0]) + ' → Ir</button>').join(' ') + '</div>';
+    if (est === 2) h += html`<div class="muted" style="margin-bottom:6px">Vas en meta. Si aun así quieres darle más:</div>`;
+    else h += html`<div style="margin-bottom:6px">Te faltan <b>~${Math.ceil(falta)} series</b> esta semana.</div>`;
+    if (rec.n >= 4) h += html`<div class="aviso2">⏳ Ya le diste ${fmtSer(rec.n)} series ${rec.cuando}: si la sientes cargada, mejor en tu próxima sesión (48 h de recuperación).</div>`;
+    if (o.pendHoy.length) h += html`<div style="margin:2px 0 8px">Ya está en tu rutina de hoy: ${o.pendHoy.slice(0, 2).map((e, i) => html`${i ? ' ' : ''}<button class="alt" ${on('irAEjercicio', e.name)}>${e.ejercicio.split(' (')[0]} → Ir</button>`)}</div>`;
     // Si el grupo que la trabaja es tu próximo día, se cubre ahí (no hace falta adelantarlo)
     const rot = ['Push', 'Pull', 'Legs'], gHoy = rot.includes(GRUPO) ? GRUPO : DATA.sugGrupo, prox = rot[(rot.indexOf(gHoy) + 1) % 3];
-    if (est < 2 && o.top.length && o.top[0].group === prox && prox !== GRUPO) h += '<div class="muted" style="font-size:13px;margin-bottom:6px">Tu próximo día es ' + prox + ': ahí la cubres. Si quieres adelantarla o no vas a ir:</div>';
+    if (est < 2 && o.top.length && o.top[0].group === prox && prox !== GRUPO) h += html`<div class="muted" style="font-size:13px;margin-bottom:6px">Tu próximo día es ${prox}: ahí la cubres. Si quieres adelantarla o no vas a ir:</div>`;
     if (o.top.length) {
       const n0 = Math.min(seriesDe(o.top[0]), Math.max(2, Math.ceil(falta / o.peso(o.top[0])) || 3));
       // Si ya tienes uno pendiente hoy, lo demás va como alternativa chica (primero haz lo que ya está)
-      h += o.pendHoy.length || est === 2 ? '<div class="alts">' + (o.pendHoy.length ? '<span class="muted" style="font-size:13px;align-self:center">¿Quieres otro?</span>' : '') + o.top.map(e => boton(e, false)).join('') + '</div>'
-        : boton(o.top[0], true) + (o.top.length > 1 ? '<div class="alts">' + o.top.slice(1).map(e => boton(e, false)).join('') + '</div>' : '');
-      if (est < 2 && !o.pendHoy.length && falta > n0 + 0.5) h += '<div class="muted" style="font-size:12.5px;margin-top:6px">Las otras ~' + Math.ceil(falta - n0) + ' series, en tu próxima sesión: más de 4–5 series de una zona en un día rinden menos.</div>';
+      h += o.pendHoy.length || est === 2 ? html`<div class="alts">${o.pendHoy.length ? html`<span class="muted" style="font-size:13px;align-self:center">¿Quieres otro?</span>` : ''}${o.top.map(e => boton(e, false))}</div>`
+        : boton(o.top[0], true) + (o.top.length > 1 ? html`<div class="alts">${o.top.slice(1).map(e => boton(e, false))}</div>` : '');
+      if (est < 2 && !o.pendHoy.length && falta > n0 + 0.5) h += html`<div class="muted" style="font-size:12.5px;margin-top:6px">Las otras ~${Math.ceil(falta - n0)} series, en tu próxima sesión: más de 4–5 series de una zona en un día rinden menos.</div>`;
     }
-    else if (!o.pendHoy.length) h += '<div class="muted">No hay otro ejercicio en tu catálogo que la trabaje directo.</div>';
+    else if (!o.pendHoy.length) h += html`<div class="muted">No hay otro ejercicio en tu catálogo que la trabaje directo.</div>`;
   }
   // Lo que ya hiciste para esta zona (hoy y en la semana), para no repetir sin querer
   const hechos = o.hechoHoy.map(e => [e, 'hoy']).concat(o.semana.map(e => [e, DSEM[new Date(sumarDias(hoy(), -diasDesdeDM(e.lastWhen)) + 'T12:00:00').getDay()]]));
-  if (hechos.length) h += '<div class="muted" style="font-size:12.5px;margin-top:10px">Esta semana ya hiciste:</div><div class="hechos">' +
-    hechos.map(x => '<span>✓ ' + esc(x[0].ejercicio.split(' (')[0]) + ' · ' + x[1] + '</span>').join('') + '</div>';
-  return h + '</div></div>';
+  if (hechos.length) h += html`<div class="muted" style="font-size:12.5px;margin-top:10px">Esta semana ya hiciste:</div><div class="hechos">${
+    hechos.map(x => html`<span>✓ ${x[0].ejercicio.split(' (')[0]} · ${x[1]}</span>`)}</div>`;
+  return crudo(h + '</div></div>');
 }
 // Las zonas más atrasadas contra su meta (para "Lo que más te falta")
 function zonasAtrasadas(n) {
@@ -531,17 +531,17 @@ function elegirMusculo(m) {
   const z = zonasVivas(), col = ['var(--muted)', 'var(--acc)', 'var(--ok)', 'var(--bad)'];
   const atr = zonasAtrasadas(3);
   if (m) {
-    $('sheet').innerHTML = '<div class="row between"><button class="volver" ' + on('elegirMusculo') + '>← Otro músculo</button><button class="btn ghost sm" ' + on('cerrarModal') + '>✕</button></div>' + panelZona(m, true);
+    $('sheet').innerHTML = html`<div class="row between"><button class="volver" ${on('elegirMusculo')}>← Otro músculo</button><button class="btn ghost sm" ${on('cerrarModal')}>✕</button></div>${panelZona(m, true)}`;
     if (!$('modal').classList.contains('show')) abrirModal();
     $('sheet').scrollTop = 0;
     return;
   }
-  let h = '<div class="row between"><div class="t2">¿Qué quieres trabajar?</div><button class="btn ghost sm" ' + on('cerrarModal') + '>✕</button></div>';
-  if (atr.length) h += '<div class="muted" style="margin:4px 0 6px">Lo que más te falta esta semana:</div><div class="mchips" style="margin-top:0">' +
-    atr.map(x => '<button ' + on('elegirMusculo', x.m) + '><i style="background:' + col[zonaZ(x.v, x.m)] + '"></i>' + esc(x.m) + ' <b class="num">' + fmtSer(x.v) + '/' + x.meta + '</b></button>').join('') + '</div>';
-  h += '<div class="regiones">' + Object.keys(REGIONES).map(r => '<div><div class="muted">' + r + '</div><div class="mchips" style="margin-top:4px">' + REGIONES[r].map(x =>
-    '<button class="' + (x === m ? 'on' : '') + '" ' + on('elegirMusculo', x) + '><i style="background:' + col[zonaZ(z[x] || 0, x)] + '"></i>' + esc(x) + '</button>').join('') + '</div></div>').join('') + '</div>';
-  if (DATA.ia) h += '<button class="musbtn" ' + on('abrirMaquina') + '>📷 ¿Una máquina que no conoces? <span>Tómale foto y te digo qué trabaja</span></button>';
+  let h = html`<div class="row between"><div class="t2">¿Qué quieres trabajar?</div><button class="btn ghost sm" ${on('cerrarModal')}>✕</button></div>`;
+  if (atr.length) h += html`<div class="muted" style="margin:4px 0 6px">Lo que más te falta esta semana:</div><div class="mchips" style="margin-top:0">${
+    atr.map(x => html`<button ${on('elegirMusculo', x.m)}><i style="background:${col[zonaZ(x.v, x.m)]}"></i>${x.m} <b class="num">${fmtSer(x.v)}/${x.meta}</b></button>`)}</div>`;
+  h += html`<div class="regiones">${Object.keys(REGIONES).map(r => html`<div><div class="muted">${r}</div><div class="mchips" style="margin-top:4px">${REGIONES[r].map(x =>
+    html`<button class="${x === m ? 'on' : ''}" ${on('elegirMusculo', x)}><i style="background:${col[zonaZ(z[x] || 0, x)]}"></i>${x}</button>`)}</div></div>`)}</div>`;
+  if (DATA.ia) h += html`<button class="musbtn" ${on('abrirMaquina')}>📷 ¿Una máquina que no conoces? <span>Tómale foto y te digo qué trabaja</span></button>`;
   $('sheet').innerHTML = h;
   if (!$('modal').classList.contains('show')) abrirModal();
   $('sheet').scrollTop = 0;
@@ -624,19 +624,19 @@ function tarjetaRuta() {
   if (acep) {
     const hechos = acep.filter(x => cardDone(x.name) || (state[x.name] && state[x.name].done)).length;
     if (hechos < acep.length) return '';
-    return '<div class="ruta corta"><span class="i">🧭</span><div style="flex:1"><b>Ruta de hoy: ' + hechos + ' de ' + acep.length + '</b>' +
-      (hechos === acep.length ? ' · ✓ cerraste lo que faltaba' : '') + '</div><button class="link" ' + on('quitarRuta') + '>Quitar</button></div>';
+    return html`<div class="ruta corta"><span class="i">🧭</span><div style="flex:1"><b>Ruta de hoy: ${hechos} de ${acep.length}</b>${
+      hechos === acep.length ? ' · ✓ cerraste lo que faltaba' : ''}</div><button class="link" ${on('quitarRuta')}>Quitar</button></div>`;
   }
   if (LS.get(k + '_no', false)) return '';
   const r = RUTA_TMP = calcularRuta(GRUPO);
-  if (!r.total) return '<div class="ruta corta"><span class="i">✓</span><div style="flex:1">' + esc(GRUPO) + ' de la semana ya está en meta: si entrenas, no pases de 3 series por ejercicio.</div></div>';
+  if (!r.total) return html`<div class="ruta corta"><span class="i">✓</span><div style="flex:1">${GRUPO} de la semana ya está en meta: si entrenas, no pases de 3 series por ejercicio.</div></div>`;
   if (!r.items.length) return '';
-  return '<div class="card ruta' + (ANIM_PLAN ? ' entra' : '') + '"><div class="row between"><div class="t1">🧭 Ruta de hoy</div><button class="link" ' + on('ocultarRuta', k) + '>Ocultar</button></div>' +
-    '<div class="msg">' + esc(textoRuta(r)) + '</div><ol>' + r.items.map((x, i) => {
+  return crudo(html`<div class="card ruta${ANIM_PLAN ? ' entra' : ''}"><div class="row between"><div class="t1">🧭 Ruta de hoy</div><button class="link" ${on('ocultarRuta', k)}>Ocultar</button></div>` +
+    html`<div class="msg">${textoRuta(r)}</div><ol>${r.items.map((x, i) => {
       const e = exDe(x.name), w = (e.zonas.find(y => y.z === x.zona) || { w: 1 }).w, t = metaZona(x.zona);
-      return '<li><button ' + on('irAEjercicio', x.name) + '><span class="n num">' + (i + 1) + '</span><span style="flex:1;min-width:0"><b>' + esc(e.ejercicio) + '</b><small>' +
-        x.n + ' series · ' + esc(zn(x.zona).toLowerCase()) + ' ' + fmtSer(x.antes) + ' → ' + fmtSer(x.antes + x.n * w) + ' de ' + t.meta + '</small></span>' + badgeMod(e) + '</button></li>';
-    }).join('') + '</ol><button class="btn block" ' + on('seguirRuta') + '>Seguir esta ruta</button></div>';
+      return crudo(html`<li><button ${on('irAEjercicio', x.name)}><span class="n num">${i + 1}</span><span style="flex:1;min-width:0"><b>${e.ejercicio}</b><small>` +
+        html`${x.n} series · ${zn(x.zona).toLowerCase()} ${fmtSer(x.antes)} → ${fmtSer(x.antes + x.n * w)} de ${t.meta}</small></span>${badgeMod(e)}</button></li>`);
+    })}</ol><button class="btn block" ${on('seguirRuta')}>Seguir esta ruta</button></div>`);
 }
 function seguirRuta() {
   const r = RUTA_TMP;
@@ -686,11 +686,11 @@ function tarjetaDescarga() {
   if (DATA.descargaCarrera || LS.get('gym_descarga_no_' + lunesDe(hoy()), false)) return '';
   const bajan = fuerzaBajando();
   if (bajan.length < 2 || !recuperacionBaja()) return '';
-  return '<div class="card descarga"><div class="t1">📉 Te propongo adelantar la descarga</div><div class="muted" style="margin:4px 0 10px">' +
-    esc(bajan.slice(0, 3).join(', ')) + (bajan.length > 3 ? ' y ' + (bajan.length - 3) + ' más' : '') + ' bajaron 2 sesiones seguidas y vienes con poco sueño o energía. ' +
-    'Esta semana: mitad de series y ~10 % menos carga que la vez pasada, sin llegar al fallo. La fuerza suele volver más alta la siguiente.</div>' +
-    '<div class="acts"><button class="btn ghost" ' + on('noDescarga') + '>Ahora no</button>' +
-    '<button class="btn" ' + on('empezarDescarga') + '>Hacer descarga esta semana</button></div></div>';
+  return crudo(html`<div class="card descarga"><div class="t1">📉 Te propongo adelantar la descarga</div><div class="muted" style="margin:4px 0 10px">` +
+    html`${bajan.slice(0, 3).join(', ')}${bajan.length > 3 ? ' y ' + (bajan.length - 3) + ' más' : ''} bajaron 2 sesiones seguidas y vienes con poco sueño o energía. ` +
+    html`Esta semana: mitad de series y ~10 % menos carga que la vez pasada, sin llegar al fallo. La fuerza suele volver más alta la siguiente.</div>` +
+    html`<div class="acts"><button class="btn ghost" ${on('noDescarga')}>Ahora no</button>` +
+    html`<button class="btn" ${on('empezarDescarga')}>Hacer descarga esta semana</button></div></div>`);
 }
 function aplicarDescarga(ex, st) {
   if (!st || st.done || st.edited || st.sets.some(x => x.ok) || st.descarga) return;
@@ -736,11 +736,11 @@ function fijarAsignado(base, quien) {
 function menuAsignado(k) {
   const base = baseDe(k), a = asignadoDe(base), otro = (PAR && PAR.nombre) || (parejaDisponible() || {}).nombre || 'tu compañero';
   const ops = [['Ambos', 'Los dos'], [DATA.nombre, 'Solo yo'], [otro, 'Solo ' + otro]];
-  const on = v => v === 'Ambos' ? !a : mismoNombre(a, v);
-  $('sheet').innerHTML = '<div class="t2">¿Quién lo hace normalmente?</div><div class="muted" style="margin:4px 0 10px">' + esc(exDe(base).ejercicio) +
-    '. En pareja, al que no lo hace se le marca «no lo hace hoy» desde el inicio (lo puedes cambiar ese día).</div><div class="pills" style="display:grid;grid-template-columns:repeat(3,1fr)">' +
-    ops.map(o => '<button class="' + (on(o[0]) ? 'on' : '') + '" ' + on('fijarAsignado', base, o[0]) + '>' + esc(o[1]) + '</button>').join('') +
-    '</div><div class="acts"><button class="btn ghost" ' + on('cerrarModal') + '>Cancelar</button></div>';
+  const elegido = v => v === 'Ambos' ? !a : mismoNombre(a, v);
+  $('sheet').innerHTML = html`<div class="t2">¿Quién lo hace normalmente?</div><div class="muted" style="margin:4px 0 10px">${exDe(base).ejercicio}` +
+    html`. En pareja, al que no lo hace se le marca «no lo hace hoy» desde el inicio (lo puedes cambiar ese día).</div><div class="pills" style="display:grid;grid-template-columns:repeat(3,1fr)">` +
+    html`${ops.map(o => html`<button class="${elegido(o[0]) ? 'on' : ''}" ${on('fijarAsignado', base, o[0])}>${o[1]}</button>`)}` +
+    html`</div><div class="acts"><button class="btn ghost" ${on('cerrarModal')}>Cancelar</button></div>`;
   abrirModal();
 }
 // "▶ Tu semana": el mapa empieza en gris y se pinta día por día con lo que entrenaste
@@ -768,20 +768,20 @@ function verSemana() {
 function tarjetaMusculos(ms) {
   const z = zonasVivas();
   const col = ['var(--muted)', 'var(--acc)', 'var(--ok)', 'var(--bad)'];
-  let h = '<h2>Tus músculos</h2><div class="card"><div class="muted" style="margin-bottom:2px">Series efectivas de 7 días por zona contra tu meta' +
-    (focoMus() !== 'balanceado' ? ' (objetivo: ' + FOCOS[focoMus()][0] + ')' : '') + '. Toca una zona y te digo qué hacer.</div>' +
-    '<div class="cuerpo">' + svgCuerpo(z, false) + svgCuerpo(z, true) + '</div>' +
-    '<div class="leyenda">' + ['Falta', 'Poco', 'En meta', 'Arriba del tope'].map((t, i) => '<span><i style="background:' + col[i] + (i === 0 ? ';opacity:.4' : '') + '"></i>' + t + '</span>').join('') + '</div>';
-  if (((DATA.resumen || {}).zonasDias || []).length) h += '<div class="semana"><span class="dia" id="semDia"></span><button class="btn ghost sm" id="semBtn" ' + on('verSemana') + '>▶ Tu semana</button></div>';
+  let h = html`<h2>Tus músculos</h2><div class="card"><div class="muted" style="margin-bottom:2px">Series efectivas de 7 días por zona contra tu meta${
+    focoMus() !== 'balanceado' ? ' (objetivo: ' + FOCOS[focoMus()][0] + ')' : ''}. Toca una zona y te digo qué hacer.</div>` +
+    html`<div class="cuerpo">${svgCuerpo(z, false)}${svgCuerpo(z, true)}</div>` +
+    html`<div class="leyenda">${['Falta', 'Poco', 'En meta', 'Arriba del tope'].map((t, i) => html`<span><i style="background:${col[i]}${i === 0 ? ';opacity:.4' : ''}"></i>${t}</span>`)}</div>`;
+  if (((DATA.resumen || {}).zonasDias || []).length) h += html`<div class="semana"><span class="dia" id="semDia"></span><button class="btn ghost sm" id="semBtn" ${on('verSemana')}>▶ Tu semana</button></div>`;
   const atr = zonasAtrasadas(3);
-  if (atr.length && !MUS_SEL) h += '<div class="falta"><span class="muted">Lo que más te falta:</span> ' + atr.map(x => '<button class="link" ' + on('verMusculo', x.m) + '>' +
-    esc(x.m) + ' ' + fmtSer(x.v) + '/' + x.meta + '</button>').join(' · ') + '</div>';
+  if (atr.length && !MUS_SEL) h += html`<div class="falta"><span class="muted">Lo que más te falta:</span> ${atr.map((x, i) => html`${i ? ' · ' : ''}<button class="link" ${on('verMusculo', x.m)}>` +
+    html`${x.m} ${fmtSer(x.v)}/${x.meta}</button>`).map(crudo)}</div>`;
   if (MUS_SEL) h += panelZona(MUS_SEL, false);
-  h += '<div class="mchips">' + ZONAS.slice().sort((a, b) => (z[a] || 0) / metaZona(a).meta - (z[b] || 0) / metaZona(b).meta).map(m => '<button class="' + (m === MUS_SEL ? 'on' : '') + '" ' + on('verMusculo', m) + '><i style="background:' + col[zonaZ(z[m] || 0, m)] + '"></i>' +
-    esc(zn(m)) + ' <b class="num">' + fmtSer(z[m] || 0) + '/' + metaZona(m).meta + '</b></button>').join('') + '</div>';
+  h += html`<div class="mchips">${ZONAS.slice().sort((a, b) => (z[a] || 0) / metaZona(a).meta - (z[b] || 0) / metaZona(b).meta).map(m => html`<button class="${m === MUS_SEL ? 'on' : ''}" ${on('verMusculo', m)}><i style="background:${col[zonaZ(z[m] || 0, m)]}"></i>` +
+    html`${zn(m)} <b class="num">${fmtSer(z[m] || 0)}/${metaZona(m).meta}</b></button>`).map(crudo)}</div>`;
   // Resumen por músculo completo (el que usa el correo semanal), en una línea
   const g = (ms || []).filter(x => x.series7 > 0).sort((a, b) => b.series7 - a.series7);
-  if (g.length) h += '<div class="muted" style="font-size:12.5px;margin-top:10px">Por músculo completo: ' + g.map(x => esc(x.m) + ' ' + String(x.series7).replace('.5', '½')).join(' · ') + '</div>';
+  if (g.length) h += html`<div class="muted" style="font-size:12.5px;margin-top:10px">Por músculo completo: ${g.map(x => x.m + ' ' + String(x.series7).replace('.5', '½')).join(' · ')}</div>`;
   return h + '</div>';
 }
 
@@ -806,30 +806,30 @@ function pintarMusculos() {
   const rutina = recomendadosHoy(g), deHoy = [];
   rutina.forEach(e => (e.zonas || []).forEach(x => { if (x.w >= 1 && !deHoy.includes(x.z)) deHoy.push(x.z); }));
   const faltan = deHoy.filter(m => (zh[m] || 0) < metaHoy(m)), listas = ZONAS.filter(m => zonaHoyZ(zh[m] || 0, m) >= 2);
-  const barra = m => '<span class="zbar w"><i style="width:' + Math.min(100, Math.round((zh[m] || 0) / metaHoy(m) * 100)) + '%;background:' + col[zonaHoyZ(zh[m] || 0, m)] + '"></i></span>';
-  let h = '<div class="card hoycard"><div class="row between"><div><div class="t2">Músculos de hoy</div><div class="muted">' + esc(g) +
-    (QUE_TRABAJA[g] ? ' · ' + QUE_TRABAJA[g] : '') + ' · ' + fmtSer(total) + (Number(total) === 1 ? ' serie efectiva' : ' series efectivas') + '</div></div>' +
-    '<span class="pill ' + (faltan.length ? 'acc' : 'ok') + '">' + (faltan.length ? faltan.length + ' por cubrir' : '✓ Todo cubierto') + '</span></div>' +
-    '<div class="cuerpo">' + svgCuerpo(zh, false, (m, v) => 'mz' + zonaHoyZ(v, m), m => on('elegirMusculo', m)) +
-    svgCuerpo(zh, true, (m, v) => 'mz' + zonaHoyZ(v, m), m => on('elegirMusculo', m)) + '</div>' +
-    '<div class="leyenda">' + ['Sin trabajar', 'Empezado', 'Cubierto hoy', 'Mucho para un día'].map((t, i) => '<span><i style="background:' + col[i] + (i === 0 ? ';opacity:.4' : '') + '"></i>' + t + '</span>').join('') + '</div>' +
-    '<div class="muted" style="font-size:12.5px;margin-top:8px">Solo cuenta lo de hoy. Toca una zona para ver opciones y añadirla a tu sesión.</div></div>';
-  if (FECHA) return ($('vMusculos').innerHTML = h + '<div class="tip">Estás registrando otro día; este mapa es solo para la sesión de hoy.</div>');
+  const barra = m => html`<span class="zbar w"><i style="width:${Math.min(100, Math.round((zh[m] || 0) / metaHoy(m) * 100))}%;background:${col[zonaHoyZ(zh[m] || 0, m)]}"></i></span>`;
+  let h = html`<div class="card hoycard"><div class="row between"><div><div class="t2">Músculos de hoy</div><div class="muted">${g}${
+    QUE_TRABAJA[g] ? ' · ' + QUE_TRABAJA[g] : ''} · ${fmtSer(total)}${Number(total) === 1 ? ' serie efectiva' : ' series efectivas'}</div></div>` +
+    html`<span class="pill ${faltan.length ? 'acc' : 'ok'}">${faltan.length ? faltan.length + ' por cubrir' : '✓ Todo cubierto'}</span></div>` +
+    html`<div class="cuerpo">${svgCuerpo(zh, false, (m, v) => 'mz' + zonaHoyZ(v, m), m => on('elegirMusculo', m))}` +
+    html`${svgCuerpo(zh, true, (m, v) => 'mz' + zonaHoyZ(v, m), m => on('elegirMusculo', m))}</div>` +
+    html`<div class="leyenda">${['Sin trabajar', 'Empezado', 'Cubierto hoy', 'Mucho para un día'].map((t, i) => html`<span><i style="background:${col[i]}${i === 0 ? ';opacity:.4' : ''}"></i>${t}</span>`)}</div>` +
+    html`<div class="muted" style="font-size:12.5px;margin-top:8px">Solo cuenta lo de hoy. Toca una zona para ver opciones y añadirla a tu sesión.</div></div>`;
+  if (FECHA) return ($('vMusculos').innerHTML = h + html`<div class="tip">Estás registrando otro día; este mapa es solo para la sesión de hoy.</div>`);
   if (faltan.length) {
-    h += '<h2>Te falta hoy · ' + esc(g) + '</h2><div class="card">' + faltan.map(m => {
+    h += html`<h2>Te falta hoy · ${g}</h2><div class="card">${faltan.map(m => {
       const ej = rutina.find(e => (e.zonas || []).some(x => x.z === m && x.w >= 1) && !(state[e.name] && state[e.name].done));
-      return '<div class="zfila"><div class="zt"><div class="row between"><b>' + esc(znL(m)) + '</b><span class="num muted cnt">' + fmtSer(zh[m] || 0) + ' / ' + metaHoy(m) + ' series</span></div>' + barra(m) +
-        '<div class="muted ej">' + (ej ? 'Con: ' + esc(ej.ejercicio.split(' (')[0]) : 'No está en tu rutina de hoy') + '</div></div>' +
-        (ej ? '<button class="btn sm" ' + on('irAEjercicio', ej.name) + '>Ir →</button>'
-            : '<button class="btn ghost sm" ' + on('elegirMusculo', m) + '>＋ Añadir</button>') + '</div>';
-    }).join('') + '</div>';
+      return crudo(html`<div class="zfila"><div class="zt"><div class="row between"><b>${znL(m)}</b><span class="num muted cnt">${fmtSer(zh[m] || 0)} / ${metaHoy(m)} series</span></div>${barra(m)}` +
+        html`<div class="muted ej">${ej ? 'Con: ' + ej.ejercicio.split(' (')[0] : 'No está en tu rutina de hoy'}</div></div>` +
+        (ej ? html`<button class="btn sm" ${on('irAEjercicio', ej.name)}>Ir →</button>`
+            : html`<button class="btn ghost sm" ${on('elegirMusculo', m)}>＋ Añadir</button>`) + '</div>');
+    })}</div>`;
   }
-  if (listas.length) h += '<h2>Ya cubriste hoy</h2><div class="mchips">' + listas.map(m => '<button ' + on('elegirMusculo', m) + '><i style="background:' + col[zonaHoyZ(zh[m] || 0, m)] + '"></i>' +
-    esc(zn(m)) + ' <b class="num">' + fmtSer(zh[m] || 0) + '</b></button>').join('') + '</div>';
+  if (listas.length) h += html`<h2>Ya cubriste hoy</h2><div class="mchips">${listas.map(m => html`<button ${on('elegirMusculo', m)}><i style="background:${col[zonaHoyZ(zh[m] || 0, m)]}"></i>` +
+    html`${zn(m)} <b class="num">${fmtSer(zh[m] || 0)}</b></button>`).map(crudo)}</div>`;
   // Lo que va atrasado en la semana y no toca hoy: por si te sobra tiempo
   const atr = zonasAtrasadas(4).filter(x => !deHoy.includes(x.m));
-  if (atr.length) h += '<h2>Si te sobra tiempo · atrasado en la semana</h2><div class="mchips">' + atr.map(x => '<button ' + on('elegirMusculo', x.m) + '><i style="background:var(--acc)"></i>' +
-    esc(x.m) + ' <b class="num">' + fmtSer(x.v) + '/' + x.meta + '</b></button>').join('') + '</div>';
+  if (atr.length) h += html`<h2>Si te sobra tiempo · atrasado en la semana</h2><div class="mchips">${atr.map(x => html`<button ${on('elegirMusculo', x.m)}><i style="background:var(--acc)"></i>` +
+    html`${x.m} <b class="num">${fmtSer(x.v)}/${x.meta}</b></button>`).map(crudo)}</div>`;
   $('vMusculos').innerHTML = h;
 }
 
@@ -853,18 +853,18 @@ function tarjetaFotos() {
   const fotos = fotosConPendientes();
   const ultima = fotos.length ? fotos[fotos.length - 1].d : null;
   const toca = !ultima || difDias(ultima, hoy()) >= 28;
-  const img = f => f.thumb ? '<img src="data:image/jpeg;base64,' + f.thumb + '" alt="Foto del ' + ddmm(f.d) + '">' : '<img alt="">';
+  const img = f => f.thumb ? html`<img src="data:image/jpeg;base64,${f.thumb}" alt="Foto del ${ddmm(f.d)}">` : html`<img alt="">`;
   let h = '<h2>Fotos de progreso</h2><div class="card">';
-  if (toca) h += '<div class="aviso" style="margin-bottom:10px">' + ICO.camara + '<span>' + (ultima ? 'Ya pasó un mes: toca la foto de este mes.' : 'Toma tu primera foto: misma luz, mismo lugar y misma pose cada mes.') + '</span></div>';
+  if (toca) h += html`<div class="aviso" style="margin-bottom:10px">${crudo(ICO.camara)}<span>${ultima ? 'Ya pasó un mes: toca la foto de este mes.' : 'Toma tu primera foto: misma luz, mismo lugar y misma pose cada mes.'}</span></div>`;
   if (fotos.length >= 2) {
     const a = fotos[0], b = fotos[fotos.length - 1];
-    h += '<div class="comp"><div>' + img(a) + '<div class="muted" style="text-align:center;margin-top:4px">' + ddmm(a.d) + (a.cintura ? ' · ' + a.cintura + ' cm' : '') + '</div></div>' +
-      '<div>' + img(b) + '<div class="muted" style="text-align:center;margin-top:4px">' + ddmm(b.d) + (b.cintura ? ' · ' + b.cintura + ' cm' : '') + '</div></div></div>';
+    h += html`<div class="comp"><div>${img(a)}<div class="muted" style="text-align:center;margin-top:4px">${ddmm(a.d)}${a.cintura ? ' · ' + a.cintura + ' cm' : ''}</div></div>` +
+      html`<div>${img(b)}<div class="muted" style="text-align:center;margin-top:4px">${ddmm(b.d)}${b.cintura ? ' · ' + b.cintura + ' cm' : ''}</div></div></div>`;
   }
-  if (fotos.length === 1 || fotos.length > 2) h += '<div class="fotos">' + fotos.slice().reverse().map(f => '<a ' + (urlSegura(f.url) ? 'href="' + esc(urlSegura(f.url)) + '" target="_blank" rel="noopener"' : '') + ' style="text-decoration:none">' + img(f) + '<div>' + ddmm(f.d) + (f.pend ? ' · sin subir' : '') + '</div></a>').join('') + '</div>';
-  h += '<label class="btn ' + (toca ? '' : 'ghost ') + 'block" style="display:block;text-align:center;margin-top:10px">' + ICO.camara.replace('class="icon"', 'class="icon" style="vertical-align:-4px;margin-right:6px"') + 'Tomar foto' +
-    '<input type="file" accept="image/*" capture="environment" style="display:none" ' + ev('change', 'procesarFoto', EL) + '></label>' +
-    '<div class="muted" style="margin-top:8px;font-size:12.5px">La foto completa se guarda en tu Google Drive; aquí solo ves una miniatura.</div></div>';
+  if (fotos.length === 1 || fotos.length > 2) h += html`<div class="fotos">${fotos.slice().reverse().map(f => html`<a ${urlSegura(f.url) ? html`href="${urlSegura(f.url)}" target="_blank" rel="noopener"` : ''} style="text-decoration:none">${img(f)}<div>${ddmm(f.d)}${f.pend ? ' · sin subir' : ''}</div></a>`)}</div>`;
+  h += html`<label class="btn ${toca ? '' : 'ghost '}block" style="display:block;text-align:center;margin-top:10px">${crudo(ICO.camara.replace('class="icon"', 'class="icon" style="vertical-align:-4px;margin-right:6px"'))}Tomar foto` +
+    html`<input type="file" accept="image/*" capture="environment" style="display:none" ${ev('change', 'procesarFoto', EL)}></label>` +
+    html`<div class="muted" style="margin-top:8px;font-size:12.5px">La foto completa se guarda en tu Google Drive; aquí solo ves una miniatura.</div></div>`;
   return h;
 }
 function reducirImagen(img, max, calidad) {
@@ -890,9 +890,9 @@ function procesarFoto(input) {
 
 /* ===================== Gráficas ===================== */
 function graficaPeso(s) {
-  if (!s || s.length < 2) return '<div class="muted" style="margin-top:8px">La gráfica aparece cuando tengas al menos 2 días de peso.</div>';
+  if (!s || s.length < 2) return html`<div class="muted" style="margin-top:8px">La gráfica aparece cuando tengas al menos 2 días de peso.</div>`;
   const prom = s.map((p, i) => { const v = s.slice(Math.max(0, i - 6), i + 1).map(x => x.v); return { d: p.d, v: v.reduce((a, b) => a + b, 0) / v.length }; });
-  return linea(prom, s, 'var(--cyan)') + '<div class="legend"><span><i></i>Promedio 7 días</span><span><i class="p"></i>Peso de cada día</span></div>';
+  return html`${linea(prom, s, 'var(--cyan)')}<div class="legend"><span><i></i>Promedio 7 días</span><span><i class="p"></i>Peso de cada día</span></div>`;
 }
 // Curva suave que pasa por todos los puntos (Catmull-Rom convertida a Bézier)
 function curva(pts) {
@@ -918,34 +918,35 @@ function linea(serie, puntos, color, de) {
   const x = i => pl + (W - pl - pr) * (n === 1 ? 0.5 : i / (n - 1));
   const y = v => pt + (H - pt - pb) * (1 - (v - mn) / (mx - mn));
   const xy = serie.map((p, i) => [x(i), y(p.v)]), d = curva(xy), ult = xy[n - 1];
-  let g = '<svg viewBox="0 0 ' + W + ' ' + H + '"><defs>' +
-    '<linearGradient id="' + id + 'a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + color + '" stop-opacity=".32"/><stop offset="1" stop-color="' + color + '" stop-opacity="0"/></linearGradient>' +
-    '<linearGradient id="' + id + 'l" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="' + (de || color) + '"/><stop offset="1" stop-color="' + color + '"/></linearGradient></defs>';
+  let g = html`<svg viewBox="0 0 ${W} ${H}"><defs>` +
+    html`<linearGradient id="${id}a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".32"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient>` +
+    html`<linearGradient id="${id}l" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${de || color}"/><stop offset="1" stop-color="${color}"/></linearGradient></defs>`;
   [mn, (mn + mx) / 2, mx].forEach(v => {
-    g += '<line class="grid" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y(v) + '" y2="' + y(v) + '"/>' +
-      '<text class="ax" x="' + (pl - 5) + '" y="' + (y(v) + 3) + '" text-anchor="end">' + v.toFixed(1) + '</text>';
+    g += html`<line class="grid" x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}"/>` +
+      html`<text class="ax" x="${pl - 5}" y="${y(v) + 3}" text-anchor="end">${v.toFixed(1)}</text>`;
   });
-  if (n > 1) g += '<path d="' + d + ' L' + ult[0].toFixed(1) + ',' + (H - pb) + ' L' + xy[0][0].toFixed(1) + ',' + (H - pb) + ' Z" fill="url(#' + id + 'a)"/>';
-  if (puntos) puntos.forEach((p, i) => { g += '<circle class="pt" cx="' + x(i) + '" cy="' + y(p.v) + '" r="3.2"/>'; });
-  g += '<path d="' + d + '" fill="none" stroke="url(#' + id + 'l)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';
+  if (n > 1) g += html`<path d="${d} L${ult[0].toFixed(1)},${H - pb} L${xy[0][0].toFixed(1)},${H - pb} Z" fill="url(#${id}a)"/>`;
+  if (puntos) puntos.forEach((p, i) => { g += html`<circle class="pt" cx="${x(i)}" cy="${y(p.v)}" r="3.2"/>`; });
+  g += html`<path d="${d}" fill="none" stroke="url(#${id}l)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
   if (!puntos) {
-    g += '<circle cx="' + xy[0][0] + '" cy="' + xy[0][1] + '" r="4" fill="var(--card)" stroke="' + (de || color) + '" stroke-width="2"/>';
-    if (n > 1) g += '<circle cx="' + ult[0] + '" cy="' + ult[1] + '" r="9" fill="' + color + '" opacity=".22"/>' +
-      '<circle cx="' + ult[0] + '" cy="' + ult[1] + '" r="4.5" fill="#fff" stroke="' + color + '" stroke-width="2.5"/>';
+    g += html`<circle cx="${xy[0][0]}" cy="${xy[0][1]}" r="4" fill="var(--card)" stroke="${de || color}" stroke-width="2"/>`;
+    if (n > 1) g += html`<circle cx="${ult[0]}" cy="${ult[1]}" r="9" fill="${color}" opacity=".22"/>` +
+      html`<circle cx="${ult[0]}" cy="${ult[1]}" r="4.5" fill="#fff" stroke="${color}" stroke-width="2.5"/>`;
   }
-  g += '<text class="ax" x="' + pl + '" y="' + (H - 5) + '">' + serie[0].d + '</text>' +
-    '<text class="ax" x="' + (W - pr) + '" y="' + (H - 5) + '" text-anchor="end" style="fill:' + color + '">' + serie[n - 1].d + '</text></svg>';
+  g += html`<text class="ax" x="${pl}" y="${H - 5}">${serie[0].d}</text>` +
+    html`<text class="ax" x="${W - pr}" y="${H - 5}" text-anchor="end" style="fill:${color}">${serie[n - 1].d}</text></svg>`;
+  return crudo(g);
   return g;
 }
 function barras(semanas) {
   const W = 340, H = 130, pb = 20, pt = 18, n = semanas.length, mx = Math.max.apply(null, semanas.map(s => s.km).concat([1]));
   const bw = (W - 10) / n;
-  let g = '<svg viewBox="0 0 ' + W + ' ' + H + '"><defs><linearGradient id="barAcc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB46E"/><stop offset="1" stop-color="var(--acc)"/></linearGradient></defs>';
+  let g = html`<svg viewBox="0 0 ${W} ${H}"><defs><linearGradient id="barAcc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB46E"/><stop offset="1" stop-color="var(--acc)"/></linearGradient></defs>`;
   semanas.forEach((s, i) => {
     const actual = i === n - 1, h = (H - pb - pt) * s.km / mx, x = 5 + i * bw + 4, yy = H - pb - Math.max(h, 4);
-    g += '<rect x="' + x + '" y="' + yy + '" width="' + (bw - 8) + '" height="' + Math.max(h, 4) + '" rx="6" fill="' + (actual ? 'url(#barAcc)' : 'var(--line)') + '"/>' +
-      (s.km && (actual || s.km === mx) ? '<text class="ax" x="' + (x + (bw - 8) / 2) + '" y="' + (yy - 5) + '" text-anchor="middle" style="fill:' + (actual ? 'var(--acc)' : 'var(--muted)') + ';font-weight:700">' + s.km + '</text>' : '') +
-      '<text class="ax" x="' + (x + (bw - 8) / 2) + '" y="' + (H - 5) + '" text-anchor="middle"' + (actual ? ' style="fill:var(--acc);font-weight:700"' : '') + '>' + s.d + '</text>';
+    g += html`<rect x="${x}" y="${yy}" width="${bw - 8}" height="${Math.max(h, 4)}" rx="6" fill="${actual ? 'url(#barAcc)' : 'var(--line)'}"/>` +
+      (s.km && (actual || s.km === mx) ? html`<text class="ax" x="${x + (bw - 8) / 2}" y="${yy - 5}" text-anchor="middle" style="fill:${actual ? 'var(--acc)' : 'var(--muted)'};font-weight:700">${s.km}</text>` : '') +
+      html`<text class="ax" x="${x + (bw - 8) / 2}" y="${H - 5}" text-anchor="middle"${actual ? html` style="fill:var(--acc);font-weight:700"` : ''}>${s.d}</text>`;
   });
-  return g + '</svg>';
+  return crudo(g + '</svg>');
 }

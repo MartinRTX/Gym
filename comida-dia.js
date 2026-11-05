@@ -54,16 +54,16 @@ const textoFalla = f => 'tu ' + nombreDeComida(f.m).toLowerCase() + (f.fin ? ' d
 function tarjetaPorComida() {
   const dia = diaComida(), g = gramosPorComida(prot, etiquetas(dia, prot.length)), sel = comidaActual(), falla = COMIDA_DIA ? null : comidaQueFalla();
   const ayuda = falla ? completarProt(META_COMIDA - falla.g) : [];
-  return '<div class="card porcomida"><div class="row between"><div class="t1">Por comida</div><span class="muted" style="font-size:12px">~' + META_COMIDA + ' g en cada una</span></div>' +
-    '<div class="comidas3">' + COMIDAS.map(c => {
+  return crudo(html`<div class="card porcomida"><div class="row between"><div class="t1">Por comida</div><span class="muted" style="font-size:12px">~${META_COMIDA} g en cada una</span></div>` +
+    html`<div class="comidas3">${COMIDAS.map(c => {
       const v = Math.round(g[c[0]]);
-      return '<button class="' + (c[0] === sel ? 'on' : '') + (v >= META_COMIDA ? ' ok' : v > 0 ? ' baja' : '') + '" ' + on('elegirComidaDe', c[0]) + '>' +
-        '<span>' + c[2] + ' ' + c[1] + '</span><b class="num">' + v + ' g</b><small>' + (v >= META_COMIDA ? '✓ listo' : v > 0 ? 'faltan ' + (META_COMIDA - v) : 'sin anotar') + '</small></button>';
-    }).join('') + '</div>' +
-    '<div class="muted" style="font-size:12.5px;margin-top:8px">Lo que agregues va a <b style="color:var(--text)">' + nombreDeComida(sel) + '</b>' + (sel === COMIDA_SEL && Date.now() - COMIDA_SEL_T < 2 * 3600e3 ? '' : ' (por la hora)') + ' · toca otra para cambiar' +
-    (g.sin ? ' · ' + Math.round(g.sin) + ' g sin comida marcada' : '') + '</div>' +
-    (falla ? '<div class="tip acc" style="margin:10px 0 0">⚠️ En 2 semanas, ' + esc(textoFalla(falla)) + ': ahí se te escapa la proteína.' +
-      (ayuda.length ? ' Con ' + esc(ayuda.map(nombreComida).join(' + ')) + ' llegas a ' + META_COMIDA + ' g.' : '') + '</div>' : '') + '</div>';
+      return html`<button class="${c[0] === sel ? 'on' : ''}${v >= META_COMIDA ? ' ok' : v > 0 ? ' baja' : ''}" ${on('elegirComidaDe', c[0])}>` +
+        html`<span>${c[2]} ${c[1]}</span><b class="num">${v} g</b><small>${v >= META_COMIDA ? '✓ listo' : v > 0 ? 'faltan ' + (META_COMIDA - v) : 'sin anotar'}</small></button>`;
+    }).map(crudo)}</div>` +
+    html`<div class="muted" style="font-size:12.5px;margin-top:8px">Lo que agregues va a <b style="color:var(--text)">${nombreDeComida(sel)}</b>${sel === COMIDA_SEL && Date.now() - COMIDA_SEL_T < 2 * 3600e3 ? '' : ' (por la hora)'} · toca otra para cambiar${
+      g.sin ? ' · ' + Math.round(g.sin) + ' g sin comida marcada' : ''}</div>` +
+    (falla ? html`<div class="tip acc" style="margin:10px 0 0">⚠️ En 2 semanas, ${textoFalla(falla)}: ahí se te escapa la proteína.${
+      ayuda.length ? ' Con ' + ayuda.map(nombreComida).join(' + ') + ' llegas a ' + META_COMIDA + ' g.' : ''}</div>` : '') + '</div>');
 }
 
 // "¿Ayer comiste tu día típico?": si ayer quedó sin proteína, se registra con un toque
@@ -76,11 +76,11 @@ function tarjetaAyer() {
   const ayer = ayerPendiente();
   if (!ayer) return '';
   const tipico = diaTipicoLista(), g = protTotal(tipico);
-  return '<div class="card"><div class="row between"><div class="t1">¿Qué comiste ayer?</div>' +
-    '<button class="btn ghost sm" ' + on('noRegistrarAyer', ayer) + ' aria-label="No registrar">✕</button></div>' +
-    '<div class="muted" style="margin:2px 0 10px">Se quedó sin registrar la proteína del ' + diaCorto(ayer) + '.</div><div class="acts" style="margin-top:0">' +
-    (tipico.length ? '<button class="btn" style="white-space:nowrap" ' + on('ayerTipico') + '>Día típico · ' + g + ' g</button>' : '') +
-    '<button class="btn ghost" ' + on('comidaDe', String(ayer)) + '>' + (tipico.length ? 'Fue diferente' : 'Registrar ayer') + '</button></div></div>';
+  return crudo(html`<div class="card"><div class="row between"><div class="t1">¿Qué comiste ayer?</div>` +
+    html`<button class="btn ghost sm" ${on('noRegistrarAyer', ayer)} aria-label="No registrar">✕</button></div>` +
+    html`<div class="muted" style="margin:2px 0 10px">Se quedó sin registrar la proteína del ${diaCorto(ayer)}.</div><div class="acts" style="margin-top:0">` +
+    (tipico.length ? html`<button class="btn" style="white-space:nowrap" ${on('ayerTipico')}>Día típico · ${g} g</button>` : '') +
+    html`<button class="btn ghost" ${on('comidaDe', String(ayer))}>${tipico.length ? 'Fue diferente' : 'Registrar ayer'}</button></div></div>`);
 }
 function ayerTipico() {
   const ayer = sumarDias(hoy(), -1), plantilla = diaTipicoLista(), lista = plantilla.map(expandirClave);
@@ -113,46 +113,46 @@ function pintarComida() {
   const top = todas.slice().sort((a, b) => (cuenta[b.k] || 0) - (cuenta[a.k] || 0)).slice(0, 3).filter(f => cuenta[f.k]);
   const tipico = diaTipicoLista();
   let h = '';
-  if (COMIDA_DIA) h += '<div class="otro">' + ICO.cal + '<span>Comida del ' + diaCorto(COMIDA_DIA) + '</span><button class="btn" ' + on('comidaDe', null) + '>Volver a hoy</button></div>';
+  if (COMIDA_DIA) h += html`<div class="otro">${crudo(ICO.cal)}<span>Comida del ${diaCorto(COMIDA_DIA)}</span><button class="btn" ${on('comidaDe', null)}>Volver a hoy</button></div>`;
   else h += tarjetaAyer();
   // Anillo: al tocarlo alterna entre lo registrado y lo que te falta
   const verFalta = RING_FALTA && falta > 0;
-  h += '<div class="card protcard"><div class="row between"><div class="t2">Proteína de ' + (COMIDA_DIA ? 'ese día' : 'hoy') + '</div>' +
-    '<span class="muted">Meta ' + meta + ' g</span></div>' +
-    '<button class="ring" ' + on('alternarRing') + ' aria-label="Cambiar entre registrado y lo que falta"><svg viewBox="0 0 170 170">' +
-    '<circle cx="85" cy="85" r="' + R + '" fill="none" stroke="var(--card2)" stroke-width="13"/>' +
-    '<circle cx="85" cy="85" r="' + (R - 14) + '" fill="none" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 5"/>' +
-    '<circle cx="85" cy="85" r="' + R + '" fill="none" stroke="var(--ok)" stroke-width="13" stroke-linecap="round" ' +
-    'stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - pct)) + '" style="transition:stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1)"/></svg>' +
-    '<div><div class="lbl">' + (verFalta ? 'Te faltan' : 'Registrado') + '</div><div class="v num">' + (verFalta ? falta : tot) +
-    (verFalta ? '' : '<small>/' + meta + '</small>') + '</div><div class="muted">gramos</div></div></button>' +
-    '<div class="row between falta"><div class="t1">' + (falta > 0 ? 'Te faltan ~' + falta + ' g' : '¡Meta cumplida!') + '</div>' +
-    (falta <= 0 ? '<span class="pill ok">✓ Listo</span>' : '') + '</div>' +
-    '<div class="consejo">💡 ' + (falta > 0 ? textoCompletar(falta) : 'Bien hecho hoy') + '</div>' + seguroNut(tarjetaMacros, 'macros') + '</div>';
+  h += html`<div class="card protcard"><div class="row between"><div class="t2">Proteína de ${COMIDA_DIA ? 'ese día' : 'hoy'}</div>` +
+    html`<span class="muted">Meta ${meta} g</span></div>` +
+    html`<button class="ring" ${on('alternarRing')} aria-label="Cambiar entre registrado y lo que falta"><svg viewBox="0 0 170 170">` +
+    html`<circle cx="85" cy="85" r="${R}" fill="none" stroke="var(--card2)" stroke-width="13"/>` +
+    html`<circle cx="85" cy="85" r="${R - 14}" fill="none" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 5"/>` +
+    html`<circle cx="85" cy="85" r="${R}" fill="none" stroke="var(--ok)" stroke-width="13" stroke-linecap="round" ` +
+    html`stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}" style="transition:stroke-dashoffset .6s cubic-bezier(.2,.8,.2,1)"/></svg>` +
+    html`<div><div class="lbl">${verFalta ? 'Te faltan' : 'Registrado'}</div><div class="v num">${verFalta ? falta : tot}${
+      verFalta ? '' : html`<small>/${meta}</small>`}</div><div class="muted">gramos</div></div></button>` +
+    html`<div class="row between falta"><div class="t1">${falta > 0 ? 'Te faltan ~' + falta + ' g' : '¡Meta cumplida!'}</div>` +
+    (falta <= 0 ? html`<span class="pill ok">✓ Listo</span>` : '') + '</div>' +
+    html`<div class="consejo">💡 ${falta > 0 ? textoCompletar(falta) : 'Bien hecho hoy'}</div>${crudo(seguroNut(tarjetaMacros, 'macros'))}</div>`;
   h += seguroNut(filaSiempre, 'de siempre');
   h += seguroNut(filaHabitos, 'hábitos');
   h += botonRepetirAyer();
-  if (!COMIDA_DIA) h += '<button class="link" style="margin:0 2px 10px" ' + on('abrirRepetir') + '>📅 Repetir una comida de otro día</button>';
-  if (!prot.length && tipico.length) h += '<button class="tipico" ' + on('diaTipico') + '><span class="ic">🍽️</span><span style="flex:1"><b>Mi día típico</b> <span class="pill ok">+' +
-    protTotal(tipico) + ' g</span><small>' + esc(tipico.map(k => FOODS.some(f => f.k === k) ? k : tDe(k).split(' · ')[0]).join(' · ')) + '</small></span><span class="mas">＋</span></button>';
-  if (top.length) h += '<div class="row between"><h2>Lo que más comes</h2><span class="muted" style="font-size:12px">Frecuentes</span></div><div class="foods tops">' + top.map(f => botonComida(f, true)).join('') + '</div>';
+  if (!COMIDA_DIA) h += html`<button class="link" style="margin:0 2px 10px" ${on('abrirRepetir')}>📅 Repetir una comida de otro día</button>`;
+  if (!prot.length && tipico.length) h += html`<button class="tipico" ${on('diaTipico')}><span class="ic">🍽️</span><span style="flex:1"><b>Mi día típico</b> <span class="pill ok">+${
+    protTotal(tipico)} g</span><small>${tipico.map(k => FOODS.some(f => f.k === k) ? k : tDe(k).split(' · ')[0]).join(' · ')}</small></span><span class="mas">＋</span></button>`;
+  if (top.length) h += html`<div class="row between"><h2>Lo que más comes</h2><span class="muted" style="font-size:12px">Frecuentes</span></div><div class="foods tops">${top.map(f => botonComida(f, true))}</div>`;
   const favs = misComidas().concat(propias).filter(f => !top.some(t => t.k === f.k));
-  if (favs.length || QUITAR_FAV) h += '<div class="row between"><h2>Mis comidas</h2><button class="link" ' + on('alternarQuitarFav') + '>' + (QUITAR_FAV ? 'Listo' : 'Editar') + '</button></div>' +
-    (QUITAR_FAV ? '<div class="muted" style="margin:-4px 0 8px;font-size:13px">Toca una para quitarla de tus comidas</div>' : '') +
-    '<div class="foods">' + (QUITAR_FAV ? misComidas().concat(propias) : favs).map(f => botonComida(f, false)).join('') + '</div>';
-  h += '<div class="row between"><h2>Agregar</h2><span class="rapido">Toque rápido</span></div><div class="foods">' + FOODS.filter(f => !top.includes(f) && f.k !== 'Licuado').map(f => botonComida(f, false)).join('') + '</div>';
+  if (favs.length || QUITAR_FAV) h += html`<div class="row between"><h2>Mis comidas</h2><button class="link" ${on('alternarQuitarFav')}>${QUITAR_FAV ? 'Listo' : 'Editar'}</button></div>` +
+    (QUITAR_FAV ? html`<div class="muted" style="margin:-4px 0 8px;font-size:13px">Toca una para quitarla de tus comidas</div>` : '') +
+    html`<div class="foods">${(QUITAR_FAV ? misComidas().concat(propias) : favs).map(f => botonComida(f, false))}</div>`;
+  h += html`<div class="row between"><h2>Agregar</h2><span class="rapido">Toque rápido</span></div><div class="foods">${FOODS.filter(f => !top.includes(f) && f.k !== 'Licuado').map(f => botonComida(f, false))}</div>`;
   // Primero los botones para agregar (lo que más usas); después en qué comida va y tu día típico
   h += tarjetaPorComida() + tarjetaComidaIA();
-  if (!COMIDA_DIA) h += '<button class="link tipico-ed" ' + on('editarTipico', true) + '>✏️ ' + (tipico.length ? 'Editar mi día típico' : 'Arma tu día típico: lo agregas con un toque') + '</button>';
+  if (!COMIDA_DIA) h += html`<button class="link tipico-ed" ${on('editarTipico', true)}>✏️ ${tipico.length ? 'Editar mi día típico' : 'Arma tu día típico: lo agregas con un toque'}</button>`;
   if (prot.length) {
     const t = etiquetas(diaComida(), prot.length);
-    h += '<h2>' + (COMIDA_DIA ? 'Ese día comiste' : 'Hoy comiste') + ' · toca para corregir o quitar</h2>' + COMIDAS.concat([[null, 'Sin comida marcada', '•']]).map(c => {
+    h += html`<h2>${COMIDA_DIA ? 'Ese día comiste' : 'Hoy comiste'} · toca para corregir o quitar</h2>${COMIDAS.concat([[null, 'Sin comida marcada', '•']]).map(c => {
       const idx = prot.map((k, i) => i).filter(i => (t[i] || null) === c[0]);
-      return idx.length ? '<div class="muted comida-l">' + c[2] + ' ' + c[1] + '</div><div class="eaten">' + idx.map(i => { const m = macrosDe(prot[i]), r = regDe(prot[i]);
+      return idx.length ? html`<div class="muted comida-l">${c[2]} ${c[1]}</div><div class="eaten">${idx.map(i => { const m = macrosDe(prot[i]), r = regDe(prot[i]);
         const ojo = avisosItem(m, r && r.q, r ? r.src : esRec(prot[i]) ? 'receta' : '', r && (r.partes || partesSiNoCambio(r)), tDe(prot[i])).length;
-        return '<button' + (ojo ? ' class="grande"' : '') + ' ' + on('abrirItemDia', i) + '>' + (ojo ? '⚠️ ' : '') + esc(tDe(prot[i])) + ' ✏️' +
-        '<span class="mac">' + Math.round(m.p || 0) + ' g prot' + (m.k !== null && m.k !== undefined ? ' · ' + Math.round(m.k) + ' kcal' : '') + '</span></button>'; }).join('') + '</div>' : '';
-    }).join('');
+        return html`<button${ojo ? html` class="grande"` : ''} ${on('abrirItemDia', i)}>${ojo ? '⚠️ ' : ''}${tDe(prot[i])} ✏️` +
+        html`<span class="mac">${Math.round(m.p || 0)} g prot${m.k !== null && m.k !== undefined ? ' · ' + Math.round(m.k) + ' kcal' : ''}</span></button>`; }).map(crudo)}</div>` : '';
+    })}`;
   }
   h += '<p class="muted" style="margin-top:14px">Cantidades aproximadas. Lo que cuenta es acercarte a la meta casi todos los días.</p>';
   $('vComida').innerHTML = h;
@@ -160,10 +160,10 @@ function pintarComida() {
 function botonComida(f, esTop) {
   const c = prot.filter(k => k === f.k).length;
   const quitar = QUITAR_FAV && f.fav;
-  return '<button class="food' + (esTop ? ' top' : '') + (f.fav ? ' fav' : '') + (quitar ? ' quitar' : '') + '" ' +
-    (quitar ? (f.rec ? on('quitarReceta', f.k.slice(1)) : on('quitarFav', f.t)) : on('addProt', f.k)) + '>' +
-    '<span class="ic">' + iconoComida(f) + '</span><b>+' + f.g + ' g</b><span class="nom">' + esc(f.t) + '</span>' +
-    (c && !quitar ? '<span class="c">×' + c + '</span>' : '') + (esTop ? '<span class="mas">＋</span>' : '') + '</button>';
+  return crudo(html`<button class="food${esTop ? ' top' : ''}${f.fav ? ' fav' : ''}${quitar ? ' quitar' : ''}" ` +
+    html`${quitar ? (f.rec ? on('quitarReceta', f.k.slice(1)) : on('quitarFav', f.t)) : on('addProt', f.k)}>` +
+    html`<span class="ic">${iconoComida(f)}</span><b>+${f.g} g</b><span class="nom">${f.t}</span>` +
+    html`${c && !quitar ? html`<span class="c">×${c}</span>` : ''}${esTop ? html`<span class="mas">＋</span>` : ''}</button>`);
 }
 // Ícono de cada acceso rápido (los que agregas tú usan uno genérico)
 const ICONO_COMIDA = { 'Licuado': '🥤', 'Scoop': '🥛', 'Tupper carne': '🍗', 'Tupper pasta': '🍝', 'Cena huevos': '🍳', 'Cena pollo': '🌮', 'Quesadillas': '🫓',
@@ -189,8 +189,8 @@ function botonRepetirAyer() {
   if (COMIDA_DIA || LS.get('gym_repetido_' + hoy(), false)) return '';
   const l = cargarProt(sumarDias(hoy(), -1)) || [];
   if (!l.length) return '';
-  return '<button class="tipico" ' + on('repetirAyer') + '><span class="ic">↺</span><span style="flex:1"><b>Repetir lo de ayer</b> <span class="pill ok">+' + protTotal(l) + ' g</span><small>' +
-    esc(l.slice(0, 5).map(k => tDe(k).split(' · ')[0]).join(' · ') + (l.length > 5 ? ' y ' + (l.length - 5) + ' más' : '')) + '</small></span><span class="mas">＋</span></button>';
+  return html`<button class="tipico" ${on('repetirAyer')}><span class="ic">↺</span><span style="flex:1"><b>Repetir lo de ayer</b> <span class="pill ok">+${protTotal(l)} g</span><small>${
+    l.slice(0, 5).map(k => tDe(k).split(' · ')[0]).join(' · ') + (l.length > 5 ? ' y ' + (l.length - 5) + ' más' : '')}</small></span><span class="mas">＋</span></button>`;
 }
 function repetirAyer() {
   const ayer = sumarDias(hoy(), -1), l = cargarProt(ayer) || [], t = etiquetas(ayer, l.length);
@@ -207,13 +207,13 @@ function editarTipico(nuevo) {
   if (nuevo || !TIPICO_TMP) TIPICO_TMP = diaTipicoLista().slice();
   const vistas = {}, todas = recetasComoBotones().concat(misComidas(), FOODS.filter(f => f.k !== 'Licuado')).filter(f => !vistas[f.k] && (vistas[f.k] = true));
   const cuantas = k => TIPICO_TMP.filter(x => x === k).length, tot = protTotal(TIPICO_TMP);
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Mi día típico</div><button class="btn ghost sm" ' + on('cerrarTipico') + '>✕</button></div>' +
-    '<div class="muted" style="margin:4px 0 10px">Lo que comes casi todos los días. Con un toque en Comida se agrega todo junto. Total: <b class="num" style="color:' +
-    (tot >= metaProt() ? 'var(--ok)' : 'var(--text)') + '">' + tot + ' g</b> de ' + metaProt() + ' g.</div><div class="tipico-lista">' +
-    todas.map(f => { const n = cuantas(f.k); return '<div class="tl' + (n ? ' on' : '') + '"><span class="ic">' + iconoComida(f) + '</span><span class="nm">' + esc(f.t) + '<small>' + f.g + ' g</small></span>' +
-      '<button class="mini" ' + on('tipicoMas', f.k, -1) + '' + (n ? '' : ' disabled') + ' aria-label="Menos">−</button><b class="num">' + n + '</b>' +
-      '<button class="mini" ' + on('tipicoMas', f.k, 1) + ' aria-label="Más">+</button></div>'; }).join('') + '</div>' +
-    '<div class="acts"><button class="btn ghost" ' + on('vaciarTipico') + '>Vaciar</button><button class="btn" ' + on('guardarTipico') + '>Guardar</button></div>';
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2">Mi día típico</div><button class="btn ghost sm" ${on('cerrarTipico')}>✕</button></div>` +
+    html`<div class="muted" style="margin:4px 0 10px">Lo que comes casi todos los días. Con un toque en Comida se agrega todo junto. Total: <b class="num" style="color:${
+      tot >= metaProt() ? 'var(--ok)' : 'var(--text)'}">${tot} g</b> de ${metaProt()} g.</div><div class="tipico-lista">${
+    todas.map(f => { const n = cuantas(f.k); return crudo(html`<div class="tl${n ? ' on' : ''}"><span class="ic">${iconoComida(f)}</span><span class="nm">${f.t}<small>${f.g} g</small></span>` +
+      html`<button class="mini" ${on('tipicoMas', f.k, -1)}${n ? '' : ' disabled'} aria-label="Menos">−</button><b class="num">${n}</b>` +
+      html`<button class="mini" ${on('tipicoMas', f.k, 1)} aria-label="Más">+</button></div>`); })}</div>` +
+    html`<div class="acts"><button class="btn ghost" ${on('vaciarTipico')}>Vaciar</button><button class="btn" ${on('guardarTipico')}>Guardar</button></div>`;
   if (!$('modal').classList.contains('show')) abrirModal();
 }
 function tipicoMas(k, d) {
@@ -254,9 +254,9 @@ function tarjetaProt6() {
   const tot = protTotal(cargarProt(hoy())), falta = metaProt() - tot;
   if (falta <= 0) return '';
   const c = completarProt(falta);
-  return '<div class="card prot6"><div class="t1">🥩 Llevas ' + tot + ' g, te faltan ' + falta + '</div><div class="muted" style="margin:4px 0 10px">' + esc(textoCompletar(falta)) + ' · meta ' + metaProt() + ' g</div>' +
-    '<div class="botones">' + c.map(f => '<button class="btn sm" ' + on('addProtHoy', f.k) + '>+' + f.g + ' g ' + esc(f.fav ? f.t : f.k) + '</button>').join('') +
-    '<button class="btn ghost sm" ' + on('verTab', 'Comida') + '>Otra…</button></div></div>';
+  return crudo(html`<div class="card prot6"><div class="t1">🥩 Llevas ${tot} g, te faltan ${falta}</div><div class="muted" style="margin:4px 0 10px">${textoCompletar(falta)} · meta ${metaProt()} g</div>` +
+    html`<div class="botones">${c.map(f => html`<button class="btn sm" ${on('addProtHoy', f.k)}>+${f.g} g ${f.fav ? f.t : f.k}</button>`)}` +
+    html`<button class="btn ghost sm" ${on('verTab', 'Comida')}>Otra…</button></div></div>`);
 }
 /* ----- Pasos contra el trabajo de escritorio (Health Connect, lunes a viernes desde las 5 pm) ----- */
 // Lo esperado a esta hora si repartes la meta de 7 am a 10 pm (el aviso nativo usa la misma cuenta)
@@ -267,10 +267,10 @@ const horaTexto = d => (d.getHours() % 12 || 12) + (d.getMinutes() ? ':' + Strin
 function tarjetaPermisoFondo() {
   const e = ESTADO_N;
   if (!NATIVO || !e || !ajuste('salud', false) || !ajuste('avisoPasos', true) || e.fondo || !e.fondoDisponible || LS.get('gym_fondo_no', false)) return '';
-  return '<div class="card pasos5"><div class="t1">🚶 Un permiso más para el aviso de pasos</div>' +
-    '<div class="muted" style="margin:4px 0 10px">Para que a las 5 pm te avise aunque la app esté cerrada, Health Connect necesita "Acceder a datos en segundo plano". Solo lectura, como lo demás.</div>' +
-    '<div class="acts" style="margin-top:0"><button class="btn ghost" ' + on('noFondo') + '>Ahora no</button>' +
-    '<button class="btn" ' + on('permisoFondo') + '>Permitir</button></div></div>';
+  return crudo(html`<div class="card pasos5"><div class="t1">🚶 Un permiso más para el aviso de pasos</div>` +
+    html`<div class="muted" style="margin:4px 0 10px">Para que a las 5 pm te avise aunque la app esté cerrada, Health Connect necesita "Acceder a datos en segundo plano". Solo lectura, como lo demás.</div>` +
+    html`<div class="acts" style="margin-top:0"><button class="btn ghost" ${on('noFondo')}>Ahora no</button>` +
+    html`<button class="btn" ${on('permisoFondo')}>Permitir</button></div></div>`);
 }
 async function permisoFondo() { if (await conectarSalud()) configurarPasos(); pintarTab(); }
 const minutosCaminar = faltan => Math.max(10, Math.min(30, Math.round(faltan / 100 / 5) * 5));
@@ -283,9 +283,9 @@ function tarjetaPasos() {
   const meta = META_PASOS(), esperado = pasosEsperados(meta, ahora);
   if (x.v >= esperado) return '';
   const min = minutosCaminar(esperado - x.v);
-  return '<div class="card pasos5"><div class="t1">🚶 Son las ' + horaTexto(ahora) + ' y llevas ' + x.v.toLocaleString('es-MX') + ' pasos: camina ' + min + ' minutos</div>' +
-    '<div class="muted" style="margin-top:4px">Meta ' + meta.toLocaleString('es-MX') + ' al día; a esta hora irías en ~' + (Math.round(esperado / 100) * 100).toLocaleString('es-MX') +
-    '. Después de horas sentado, una vuelta de ' + min + ' min te pone al día.</div></div>';
+  return crudo(html`<div class="card pasos5"><div class="t1">🚶 Son las ${horaTexto(ahora)} y llevas ${x.v.toLocaleString('es-MX')} pasos: camina ${min} minutos</div>` +
+    html`<div class="muted" style="margin-top:4px">Meta ${meta.toLocaleString('es-MX')} al día; a esta hora irías en ~${(Math.round(esperado / 100) * 100).toLocaleString('es-MX')}` +
+    html`. Después de horas sentado, una vuelta de ${min} min te pone al día.</div></div>`);
 }
 // APK: hoy a las 6 pm con tus números; sábado y domingo que vienen, un recordatorio aunque no abras la app
 function programarAvisoProt() {
@@ -336,35 +336,35 @@ let COMIDA_IA = null, QUITAR_FAV = false, RING_FALTA = false;
 function tarjetaComidaIA() {
   if (!DATA.ia) return '';
   const c = COMIDA_IA || {};
-  let h = '<div class="card iacard"><div class="row between" style="margin-bottom:8px"><div class="t1">✨ Registro Inteligente</div><span class="pill pri">IA asistida</span></div>' +
-    '<textarea id="iaComida" maxlength="600" placeholder="Ej. 3 tacos de asada y una coca · o toca 📷, toma la tabla nutrimental y escribe: me comí la mitad" ' + ev('input', 'textoComidaIA', VALOR) + '>' + esc(c.texto || '') + '</textarea>' +
-    '<div class="fila-ia">' + botonMic('iaComida', 'calcularComida') + (scriptEtiqueta() ? '<button class="mic" ' + on('fotoConNota') + ' aria-label="Foto de la etiqueta o de tu comida con lo que escribiste">' + ICO_CAM + '</button>' : '') +
-    '<button class="btn" ' + on('calcularComida') + '>' + (c.cargando ? 'Preguntar de nuevo' : 'Calcular') + '</button></div>';
+  let h = html`<div class="card iacard"><div class="row between" style="margin-bottom:8px"><div class="t1">✨ Registro Inteligente</div><span class="pill pri">IA asistida</span></div>` +
+    html`<textarea id="iaComida" maxlength="600" placeholder="Ej. 3 tacos de asada y una coca · o toca 📷, toma la tabla nutrimental y escribe: me comí la mitad" ${ev('input', 'textoComidaIA', VALOR)}>${c.texto || ''}</textarea>` +
+    html`<div class="fila-ia">${crudo(botonMic('iaComida', 'calcularComida'))}${scriptEtiqueta() ? html`<button class="mic" ${on('fotoConNota')} aria-label="Foto de la etiqueta o de tu comida con lo que escribiste">${crudo(ICO_CAM)}</button>` : ''}` +
+    html`<button class="btn" ${on('calcularComida')}>${c.cargando ? 'Preguntar de nuevo' : 'Calcular'}</button></div>`;
   // Mientras piensa puedes corregir el texto y volver a preguntar: la respuesta vieja se ignora
-  if (c.cargando) h += '<div class="muted" style="margin-top:8px">⏳ Calculando… <span id="iaSeg" class="num">' + Math.round((Date.now() - (c.desde || Date.now())) / 1000) + ' s</span> · ¿te equivocaste? Corrige y toca «Preguntar de nuevo».</div>';
-  if (c.error) h += '<div class="muted" style="margin-top:8px;color:var(--acc)">' + esc(c.error) + '</div>';
-  if (c.locales) h += '<div style="margin-top:8px">' + (c.locales.length ? '<div class="muted" style="font-size:13.5px;margin-bottom:4px">' + (c.cargando ? 'Mientras: ¿es alguno de estos? Tócalo y no esperas a la IA' : '¿Es alguno de estos? (catálogo, funciona sin internet)') + '</div>' +
-      c.locales.map(a => '<button class="bres" ' + on('elegirNut', a.id) + '><span class="nm">' + esc(a.n) + '<small>por 100 ' + a.u + ': <b>' + Math.round(a.p * 10) / 10 + ' g prot</b> · ' + Math.round(a.k) + ' kcal</small></span></button>').join('') : '') +
-      '<button class="link" style="margin:6px 2px" ' + on('buscarTextoIA') + '>🔎 Buscar en el catálogo</button></div>';
+  if (c.cargando) h += html`<div class="muted" style="margin-top:8px">⏳ Calculando… <span id="iaSeg" class="num">${Math.round((Date.now() - (c.desde || Date.now())) / 1000)} s</span> · ¿te equivocaste? Corrige y toca «Preguntar de nuevo».</div>`;
+  if (c.error) h += html`<div class="muted" style="margin-top:8px;color:var(--acc)">${c.error}</div>`;
+  if (c.locales) h += html`<div style="margin-top:8px">${c.locales.length ? html`<div class="muted" style="font-size:13.5px;margin-bottom:4px">${c.cargando ? 'Mientras: ¿es alguno de estos? Tócalo y no esperas a la IA' : '¿Es alguno de estos? (catálogo, funciona sin internet)'}</div>${
+      c.locales.map(a => html`<button class="bres" ${on('elegirNut', a.id)}><span class="nm">${a.n}<small>por 100 ${a.u}: <b>${Math.round(a.p * 10) / 10} g prot</b> · ${Math.round(a.k)} kcal</small></span></button>`)}` : ''}` +
+      html`<button class="link" style="margin:6px 2px" ${on('buscarTextoIA')}>🔎 Buscar en el catálogo</button></div>`;
   if (c.items && c.items.length) {
     const tot = c.items.filter(x => x.on).reduce((a, x) => a + x.g, 0), kcal = c.items.filter(x => x.on).reduce((a, x) => a + (x.k || 0), 0);
-    h += '<div style="margin-top:10px">' + c.items.map((x, i) => '<div class="iitem' + (x.on ? '' : ' off') + '">' +
-      '<button class="mini' + (x.on ? ' on' : '') + '" ' + on('alternarItemIA', i) + ' aria-label="Incluir">✓</button>' +
+    h += html`<div style="margin-top:10px">${c.items.map((x, i) => crudo(html`<div class="iitem${x.on ? '' : ' off'}">` +
+      html`<button class="mini${x.on ? ' on' : ''}" ${on('alternarItemIA', i)} aria-label="Incluir">✓</button>` +
       // Toca el nombre para corregir gramos y macros; lo que no cuadra sale marcado
-      '<button class="nm" ' + on('editarItemIA', i) + '>' + esc(x.nombre) + (x.fijo && x.fijo.length ? ' 🔒' : '') + ' ✏️' + (x.nota ? '<small>' + esc(x.nota) + '</small>' : '') +
-        '<span class="mac"><b>' + x.g + ' g prot</b> · ' + (x.gramos && x.piezas ? Math.round(x.gramos) + ' g · ' : '') + 'C ' + Math.round(x.c || 0) + ' · G ' + Math.round(x.f || 0) + ' · ' + Math.round(x.k || 0) + ' kcal</span>' +
-        NUT.revisarMacros({ p: x.g, c: x.c, f: x.f, k: x.k }, x.gramos, x.nombre).concat(NUT.esGrande(x) ? [Math.round(x.k).toLocaleString('es-MX') + ' kcal en una sola cosa: ¿fue todo? Tócala para corregir'] : []).map(a => '<span class="av">⚠️ ' + esc(a) + '</span>').join('') + '</button>' +
+      html`<button class="nm" ${on('editarItemIA', i)}>${x.nombre}${x.fijo && x.fijo.length ? ' 🔒' : ''} ✏️${x.nota ? html`<small>${x.nota}</small>` : ''}` +
+        html`<span class="mac"><b>${x.g} g prot</b> · ${x.gramos && x.piezas ? Math.round(x.gramos) + ' g · ' : ''}C ${Math.round(x.c || 0)} · G ${Math.round(x.f || 0)} · ${Math.round(x.k || 0)} kcal</span>` +
+        html`${NUT.revisarMacros({ p: x.g, c: x.c, f: x.f, k: x.k }, x.gramos, x.nombre).concat(NUT.esGrande(x) ? [Math.round(x.k).toLocaleString('es-MX') + ' kcal en una sola cosa: ¿fue todo? Tócala para corregir'] : []).map(a => html`<span class="av">⚠️ ${a}</span>`)}</button>` +
       // − / + cambian la PORCIÓN (piezas o gramos) y todo sube parejo; la proteína se ve abajo del nombre
-      '<button class="mini" ' + on('porcionItemIA', i, -1) + ' aria-label="Menos">−</button><span class="g num">' + cantidadItemIA(x) + '</span>' +
-      '<button class="mini" ' + on('porcionItemIA', i, 1) + ' aria-label="Más">+</button>' +
-      '<button class="mini' + (x.fav ? ' on' : '') + '" ' + on('guardarFav', i) + ' aria-label="Guardar en mis comidas">⭐</button></div>' +
-      ingredientesItemIA(x, i)).join('') + '</div>';
-    if (c.consejo) h += '<div class="muted" style="margin:8px 0 0;font-size:13.5px">💡 ' + esc(c.consejo) + '</div>';
-    if (c.items.length > 1) h += '<button class="link" style="margin:8px 2px 0" ' + on('guardarRecetaIA') + '>💾 Guardar como receta</button>';
-    h += '<div class="acts"><button class="btn ghost" ' + on('descartarComidaIA') + '>Descartar</button>' +
-      '<button class="btn"' + (tot || kcal ? '' : ' disabled') + ' ' + on('agregarComidaIA') + '>Agregar +' + tot + ' g' + (kcal ? ' · ' + kcal + ' kcal' : '') + '</button></div>';
+      html`<button class="mini" ${on('porcionItemIA', i, -1)} aria-label="Menos">−</button><span class="g num">${cantidadItemIA(x)}</span>` +
+      html`<button class="mini" ${on('porcionItemIA', i, 1)} aria-label="Más">+</button>` +
+      html`<button class="mini${x.fav ? ' on' : ''}" ${on('guardarFav', i)} aria-label="Guardar en mis comidas">⭐</button></div>` +
+      ingredientesItemIA(x, i)))}</div>`;
+    if (c.consejo) h += html`<div class="muted" style="margin:8px 0 0;font-size:13.5px">💡 ${c.consejo}</div>`;
+    if (c.items.length > 1) h += html`<button class="link" style="margin:8px 2px 0" ${on('guardarRecetaIA')}>💾 Guardar como receta</button>`;
+    h += html`<div class="acts"><button class="btn ghost" ${on('descartarComidaIA')}>Descartar</button>` +
+      html`<button class="btn"${tot || kcal ? '' : ' disabled'} ${on('agregarComidaIA')}>Agregar +${tot} g${kcal ? ' · ' + kcal + ' kcal' : ''}</button></div>`;
   }
-  return h + '</div>';
+  return crudo(h + '</div>');
 }
 async function calcularComida() {
   const c = COMIDA_IA = COMIDA_IA || {};
@@ -450,12 +450,12 @@ async function sugerenciasCatalogo(texto) {
 // Corregir lo que dijo la IA: gramos (escala todo), proteína, carbos, grasa y kcal (se recalculan de los macros si no las tocas)
 function editarItemIA(i) {
   const x = COMIDA_IA && COMIDA_IA.items[i]; if (!x) return;
-  const campo = (k, nom, v) => '<label class="pc"><span>' + nom + '</span><input class="num" inputmode="decimal" value="' + (v === null || v === undefined ? '' : NUT.r1(v)) + '" ' + ev('change', 'cambiarItemIA', i, k, VALOR) + '></label>';
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">' + esc(x.nombre) + '</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
-    '<div class="muted" style="margin:2px 0 6px">Cambiar los gramos ajusta todo en proporción. Si cambias proteína, carbos o grasa, las kcal se recalculan.</div>' +
-    '<div class="iedit"><div class="pcs">' + campo('gramos', 'Gramos', x.gramos) + campo('g', 'Proteína', x.g) + campo('c', 'Carbos', x.c) + campo('f', 'Grasa', x.f) + campo('k', 'kcal', x.k) + '</div></div>' +
-    '<div id="iaEdAv">' + avisosHtml(NUT.revisarMacros({ p: x.g, c: x.c, f: x.f, k: x.k }, x.gramos, x.nombre)) + '</div>' +
-    '<div class="acts"><button class="btn" ' + on('cerrarYPintarIA') + '>Listo</button></div>';
+  const campo = (k, nom, v) => html`<label class="pc"><span>${nom}</span><input class="num" inputmode="decimal" value="${v === null || v === undefined ? '' : NUT.r1(v)}" ${ev('change', 'cambiarItemIA', i, k, VALOR)}></label>`;
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2">${x.nombre}</div><button class="cerrar" ${on('cerrarModal')} aria-label="Cerrar">✕</button></div>` +
+    html`<div class="muted" style="margin:2px 0 6px">Cambiar los gramos ajusta todo en proporción. Si cambias proteína, carbos o grasa, las kcal se recalculan.</div>` +
+    html`<div class="iedit"><div class="pcs">${campo('gramos', 'Gramos', x.gramos)}${campo('g', 'Proteína', x.g)}${campo('c', 'Carbos', x.c)}${campo('f', 'Grasa', x.f)}${campo('k', 'kcal', x.k)}</div></div>` +
+    html`<div id="iaEdAv">${crudo(avisosHtml(NUT.revisarMacros({ p: x.g, c: x.c, f: x.f, k: x.k }, x.gramos, x.nombre)))}</div>` +
+    html`<div class="acts"><button class="btn" ${on('cerrarYPintarIA')}>Listo</button></div>`;
   abrirModal();
 }
 function cambiarItemIA(i, k, v) {
@@ -483,13 +483,13 @@ function porcionItemIA(i, d) {
 function ingredientesItemIA(x, i) {
   const l = x.ingredientes || [];
   if (!l.length) return '';
-  if (!x.verIng) return '<button class="link ingtog" ' + on('verIngIA', i) + '>🥗 Ingredientes (' + l.length + ') · cámbialos ▾</button>';
-  return '<div class="ings"><button class="link ingtog" ' + on('verIngIA', i) + '>🥗 Ingredientes (' + l.length + ') ▴</button>' + l.map((g, k) =>
-    '<div class="ing"><span class="nm">' + esc(g.nombre) + '<small>' + NUT.r1(g.g) + ' g prot · ' + Math.round(g.k || 0) + ' kcal</small></span>' +
-    '<input class="num" inputmode="decimal" value="' + NUT.r1(g.gramos) + '" ' + ev('change', 'cambiarIngIA', i, k, VALOR) + ' aria-label="Gramos de ' + esc(g.nombre) + '"><span class="u">g</span>' +
-    '<button class="mini" ' + on('quitarIngIA', i, k) + ' aria-label="Quitar">✕</button></div>').join('') +
-    '<div class="ing nuevo"><input id="ingNom' + i + '" class="campo" placeholder="Otro ingrediente (ej. crutones)"><input id="ingG' + i + '" class="num" inputmode="decimal" placeholder="g">' +
-    '<button class="mini" ' + on('agregarIngIA', i) + ' aria-label="Agregar ingrediente">＋</button></div></div>';
+  if (!x.verIng) return html`<button class="link ingtog" ${on('verIngIA', i)}>🥗 Ingredientes (${l.length}) · cámbialos ▾</button>`;
+  return html`<div class="ings"><button class="link ingtog" ${on('verIngIA', i)}>🥗 Ingredientes (${l.length}) ▴</button>${l.map((g, k) =>
+    crudo(html`<div class="ing"><span class="nm">${g.nombre}<small>${NUT.r1(g.g)} g prot · ${Math.round(g.k || 0)} kcal</small></span>` +
+    html`<input class="num" inputmode="decimal" value="${NUT.r1(g.gramos)}" ${ev('change', 'cambiarIngIA', i, k, VALOR)} aria-label="Gramos de ${g.nombre}"><span class="u">g</span>` +
+    html`<button class="mini" ${on('quitarIngIA', i, k)} aria-label="Quitar">✕</button></div>`))}` +
+    html`<div class="ing nuevo"><input id="ingNom${i}" class="campo" placeholder="Otro ingrediente (ej. crutones)"><input id="ingG${i}" class="num" inputmode="decimal" placeholder="g">` +
+    html`<button class="mini" ${on('agregarIngIA', i)} aria-label="Agregar ingrediente">＋</button></div></div>`;
 }
 function verIngIA(i) { const x = COMIDA_IA && COMIDA_IA.items[i]; if (x) { x.verIng = !x.verIng; pintarComida(); } }
 function cambiarIngIA(i, k, v) {
@@ -553,7 +553,7 @@ const ICO_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 let VOZ = null;   // { id, rec } mientras escucha
 function botonMic(idTexto, alTerminar) {
   if (!NATIVO && !SR) return '';
-  return '<button class="mic' + (VOZ && VOZ.id === idTexto ? ' oye' : '') + '" id="mic-' + idTexto + '" ' + on('dictar', String(idTexto), String(alTerminar)) + ' aria-label="Dictar por voz">' + ICO_MIC + '</button>';
+  return html`<button class="mic${VOZ && VOZ.id === idTexto ? ' oye' : ''}" id="mic-${idTexto}" ${on('dictar', String(idTexto), String(alTerminar))} aria-label="Dictar por voz">${crudo(ICO_MIC)}</button>`;
 }
 function marcarMic(id, on) { const b = $('mic-' + id); if (b) b.classList.toggle('oye', on); }
 async function dictar(id, alTerminar) {

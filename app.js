@@ -353,7 +353,7 @@ function toast(msg, tipo, accion) {
   if (Date.now() < TOAST_FIJO && !accion) return;   // el aviso de "sin espacio" no se tapa
   const t = $('toast');
   toastFn = accion ? accion.fn : null;
-  t.innerHTML = '<span>' + esc(msg) + '</span>' + (accion ? '<button ' + on('usarToast') + '>' + esc(accion.txt) + '</button>' : '');
+  t.innerHTML = html`<span>${msg}</span>${accion ? html`<button ${on('usarToast')}>${accion.txt}</button>` : ''}`;
   t.className = 'toast show' + (tipo ? ' ' + tipo : '') + (accion ? ' act' : '');
   clearTimeout(t._h);
   t._h = setTimeout(() => { t.className = 'toast'; toastFn = null; }, accion ? 5000 : tipo === 'pr' ? 2800 : 2200);
@@ -509,11 +509,11 @@ function pintarSync() {
 function avisoErrores() {
   const e = LS.get('gym_errores', []);
   if (!e.length) return '';
-  return '<div class="card" style="background:var(--acc-weak);border-color:transparent">' +
-    '<div class="t1" style="color:var(--acc)">La hoja no aceptó ' + (e.length === 1 ? 'un dato' : e.length + ' datos') + '</div>' +
-    '<div class="muted" style="margin:4px 0 10px">' + e.slice(-3).map(x => esc(x.que + ' (' + ddmm(x.cuando) + '): ' + x.msg)).join('<br>') +
-    '<br>Quedó en tu celular, pero no en la hoja. Si no sabes por qué, mándale captura a tu coach.</div>' +
-    '<button class="btn ghost sm" ' + on('entendidoErrores') + '>Entendido</button></div>';
+  return crudo(html`<div class="card" style="background:var(--acc-weak);border-color:transparent">` +
+    html`<div class="t1" style="color:var(--acc)">La hoja no aceptó ${e.length === 1 ? 'un dato' : e.length + ' datos'}</div>` +
+    html`<div class="muted" style="margin:4px 0 10px">${e.slice(-3).map((x, i) => html`${i ? html`<br>` : ''}${x.que + ' (' + ddmm(x.cuando) + '): ' + x.msg}`)}` +
+    html`<br>Quedó en tu celular, pero no en la hoja. Si no sabes por qué, mándale captura a tu coach.</div>` +
+    html`<button class="btn ghost sm" ${on('entendidoErrores')}>Entendido</button></div>`);
 }
 
 /* ===================== Arranque ===================== */
@@ -584,7 +584,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v10.0';
+const VERSION_APP = 'v10.1';
 // Versión del script de Apps Script que espera esta app (SCRIPT_VERSION en AppGym.js); si la hoja trae una anterior, Ajustes avisa
 const SCRIPT_ESPERADO = '8.5';
 const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);
