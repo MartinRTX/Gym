@@ -51,13 +51,13 @@ function avisosItem(m, q, src, partes, nombre) {
 }
 function pintarItemDia() {
   const E = ITEM_ED, av = avisosItem({ p: E.p, c: E.c, f: E.f, k: E.k2 }, E.q, E.src, E.partes, E.n);
-  const campo = (k, nom, v) => '<label class="pc"><span>' + nom + '</span><input class="num" inputmode="decimal" value="' + (v === null || v === undefined ? '' : NUT.r1(v)) + '" ' + ev('change', 'itemDiaCampo', k, VALOR) + '></label>';
-  $('sheet').innerHTML = '<div class="row between"><div class="t2" style="padding-right:8px">' + esc(E.n) + '</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
+  const campo = (k, nom, v) => html`<label class="pc"><span>${nom}</span><input class="num" inputmode="decimal" value="${v === null || v === undefined ? '' : NUT.r1(v)}" ${ev('change', 'itemDiaCampo', k, VALOR)}></label>`;
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2" style="padding-right:8px">${E.n}</div><button class="cerrar" ${on('cerrarModal')} aria-label="Cerrar">✕</button></div>` +
     avisosHtml(av) +
-    '<div class="tpaso">¿Fue otra cantidad?</div><div class="tchips">' + [['½', 0.5], ['×1½', 1.5], ['×2', 2]].map(x => '<button class="tch" ' + on('itemDiaVeces', x[1]) + '>' + x[0] + '</button>').join('') + '</div>' +
-    '<div class="pcs">' + (E.q ? campo('q', 'Cantidad (' + esc(E.u) + ')', E.q) : '') + campo('p', 'Proteína', E.p) + campo('c', 'Carbos', E.c) + campo('f', 'Grasa', E.f) + campo('k2', 'kcal', E.k2) + '</div>' +
-    '<div class="muted" style="font-size:12.5px;margin-top:6px">Cambiar la cantidad ajusta todo en proporción; si cambias un macro, las kcal se recalculan.</div>' +
-    '<div class="acts"><button class="btn ghost" ' + on('itemDiaQuitar') + '>Quitar</button><button class="btn" ' + on('itemDiaGuardar') + '>Guardar</button></div>';
+    html`<div class="tpaso">¿Fue otra cantidad?</div><div class="tchips">${[['½', 0.5], ['×1½', 1.5], ['×2', 2]].map(x => html`<button class="tch" ${on('itemDiaVeces', x[1])}>${x[0]}</button>`)}</div>` +
+    html`<div class="pcs">${E.q ? campo('q', 'Cantidad (' + E.u + ')', E.q) : ''}${campo('p', 'Proteína', E.p)}${campo('c', 'Carbos', E.c)}${campo('f', 'Grasa', E.f)}${campo('k2', 'kcal', E.k2)}</div>` +
+    html`<div class="muted" style="font-size:12.5px;margin-top:6px">Cambiar la cantidad ajusta todo en proporción; si cambias un macro, las kcal se recalculan.</div>` +
+    html`<div class="acts"><button class="btn ghost" ${on('itemDiaQuitar')}>Quitar</button><button class="btn" ${on('itemDiaGuardar')}>Guardar</button></div>`;
 }
 function escalarItem(f) {
   const E = ITEM_ED;
@@ -106,10 +106,10 @@ function filaHabitos() {
   if (COMIDA_DIA) return '';
   const s = sugerenciasHora();
   if (!s.length) return '';
-  return '<div class="habitos"><span class="muted">Sueles comer en ' + esc(nombreDeComida(comidaActual()).toLowerCase()) + ':</span>' + s.map(x => {
+  return html`<div class="habitos"><span class="muted">Sueles comer en ${nombreDeComida(comidaActual()).toLowerCase()}:</span>${s.map(x => {
     const m = macrosDe(x.k);
-    return '<button class="tch" ' + on('agregarHabito', x.dia, x.i) + '>＋ ' + esc(tDe(x.k).replace(/ · [\d.,]+ (g|ml)$/, '')) + ' <small>' + Math.round(m.p || 0) + ' g</small></button>';
-  }).join('') + '</div>';
+    return html`<button class="tch" ${on('agregarHabito', x.dia, x.i)}>＋ ${tDe(x.k).replace(/ · [\d.,]+ (g|ml)$/, '')} <small>${Math.round(m.p || 0)} g</small></button>`;
+  })}</div>`;
 }
 // Copiar algo de otro día: una receta se calcula con tu receta de hoy; lo demás, tal como fue
 function copiaDe(k) {
@@ -124,8 +124,8 @@ function agregarHabito(dia, i) {
 }
 // Repetir una comida de otro día (no solo ayer completo)
 function abrirRepetir() {
-  let h = '<div class="row between"><div class="t2">Repetir una comida</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
-    '<div class="muted" style="margin:2px 0 8px">Se agrega a ' + esc(nombreDeComida(comidaActual()).toLowerCase()) + ' de hoy.</div>';
+  let h = html`<div class="row between"><div class="t2">Repetir una comida</div><button class="cerrar" ${on('cerrarModal')} aria-label="Cerrar">✕</button></div>` +
+    html`<div class="muted" style="margin:2px 0 8px">Se agrega a ${nombreDeComida(comidaActual()).toLowerCase()} de hoy.</div>`;
   let hay = 0;
   for (let d = 1; d <= 7; d++) {
     const dia = sumarDias(hoy(), -d), l = LS.get('gym_prot_' + dia, null);
@@ -133,14 +133,14 @@ function abrirRepetir() {
     const t = etiquetas(dia, l.length);
     const grupos = COMIDAS.map(c => [c, l.map((k, i) => i).filter(i => t[i] === c[0])]).filter(g => g[1].length);
     if (!grupos.length) continue;
-    h += '<div class="tpaso">' + esc(diaCorto(dia)) + '</div>' + grupos.map(([c, idx]) => {
+    h += html`<div class="tpaso">${diaCorto(dia)}</div>${grupos.map(([c, idx]) => {
       const tot = idx.reduce((a, i) => { const m = macrosDe(l[i]); return { p: a.p + (m.p || 0), k: a.k + (m.k || 0) }; }, { p: 0, k: 0 });
       hay++;
-      return '<button class="repcom" ' + on('repetirComida', dia, c[0]) + '><b>' + c[2] + ' ' + c[1] + '</b> <small>' + Math.round(tot.p) + ' g · ' + Math.round(tot.k) + ' kcal</small>' +
-        '<span>' + esc(idx.map(i => tDe(l[i]).replace(/ · [\d.,]+ (g|ml)$/, '')).join(', ')) + '</span></button>';
-    }).join('');
+      return html`<button class="repcom" ${on('repetirComida', dia, c[0])}><b>${c[2]} ${c[1]}</b> <small>${Math.round(tot.p)} g · ${Math.round(tot.k)} kcal</small>` +
+        html`<span>${idx.map(i => tDe(l[i]).replace(/ · [\d.,]+ (g|ml)$/, '')).join(', ')}</span></button>`;
+    }).map(crudo)}`;
   }
-  if (!hay) h += '<div class="muted">Aún no hay comidas de los últimos 7 días en este celular.</div>';
+  if (!hay) h += html`<div class="muted">Aún no hay comidas de los últimos 7 días en este celular.</div>`;
   $('sheet').innerHTML = h; abrirModal();
 }
 function repetirComida(dia, m) {
@@ -154,10 +154,10 @@ function guardarRecetaIA() {
   const c = COMIDA_IA; if (!c || !c.items) return;
   const items = c.items.filter(x => x.on && x.gramos > 0);
   if (!items.length) return toast('Necesito los gramos de cada cosa: tócala y ponlos');
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Guardar como receta</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
-    '<input id="recNom" class="campo" placeholder="Nombre (ej. Molletes con frijoles con soya)" value="' + esc(String(c.texto || '').slice(0, 40)) + '">' +
-    '<div class="muted" style="margin:4px 0 8px">' + esc(items.map(x => x.nombre + ' ' + Math.round(x.gramos) + ' g').join(' · ')) + '</div>' +
-    '<div class="acts"><button class="btn" ' + on('confirmarRecetaIA') + '>Guardar</button></div>';
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2">Guardar como receta</div><button class="cerrar" ${on('cerrarModal')} aria-label="Cerrar">✕</button></div>` +
+    html`<input id="recNom" class="campo" placeholder="Nombre (ej. Molletes con frijoles con soya)" value="${String(c.texto || '').slice(0, 40)}">` +
+    html`<div class="muted" style="margin:4px 0 8px">${items.map(x => x.nombre + ' ' + Math.round(x.gramos) + ' g').join(' · ')}</div>` +
+    html`<div class="acts"><button class="btn" ${on('confirmarRecetaIA')}>Guardar</button></div>`;
   abrirModal();
 }
 function confirmarRecetaIA() {
@@ -347,26 +347,26 @@ function tarjetaMacros() {
   const t = totalMacros(), mt = metasHoy();
   const barra = (nom, v, meta, u, cls) => {
     const pct = Math.min(100, Math.round(v / Math.max(1, meta) * 100));
-    return '<div class="mm ' + cls + (v > meta * 1.05 ? ' pasa' : '') + '"><span class="et">' + nom + '</span><b class="num">' + v.toLocaleString('es-MX') +
-      '<small>/' + meta.toLocaleString('es-MX') + (u ? ' ' + u : '') + '</small></b><i style="--p:' + pct + '%"></i></div>';
+    return html`<div class="mm ${cls}${v > meta * 1.05 ? ' pasa' : ''}"><span class="et">${nom}</span><b class="num">${v.toLocaleString('es-MX')}` +
+      html`<small>/${meta.toLocaleString('es-MX')}${u ? ' ' + u : ''}</small></b><i style="--p:${pct}%"></i></div>`;
   };
-  return '<button class="macros" ' + on('abrirMetas') + ' aria-label="Ver metas de calorías y macros">' +
+  return html`<button class="macros" ${on('abrirMetas')} aria-label="Ver metas de calorías y macros">` +
     barra('Calorías', t.k, mt.k, '', 'kc') + barra('Carbohidratos', t.c, mt.c, 'g', 'ca') + barra('Grasa', t.f, mt.f, 'g', 'gr') + '</button>' +
-    (t.sinDatos ? '<div class="muted sindatos">' + t.sinDatos + ' cosa' + (t.sinDatos > 1 ? 's' : '') + ' de hoy solo tiene' + (t.sinDatos > 1 ? 'n' : '') + ' proteína (de antes)</div>' : '');
+    (t.sinDatos ? html`<div class="muted sindatos">${t.sinDatos} cosa${t.sinDatos > 1 ? 's' : ''} de hoy solo tiene${t.sinDatos > 1 ? 'n' : ''} proteína (de antes)</div>` : '');
 }
 
 /* ----- Tus de siempre: el licuado, el tupper de mamá y la cena ----- */
 function filaSiempre() {
   const lic = totReceta('licuado'), h = totReceta('cena-harina'), m = totReceta('cena-maiz');
   const usosTup = Object.values(nutCfg().tuppers || {}).sort((a, b) => b.n - a.n)[0];
-  const b = (ico, nom, sub, accion, extra) => '<button class="siempre" ' + accion + '><span class="ic">' + ico + '</span><span class="tx"><b>' + nom + '</b><small>' + sub + '</small></span>' + (extra || '') + '</button>';
-  return '<div class="siempre3">' +
-    b('🥤', 'Mi licuado', lic ? '<b class="num">' + Math.round(lic.p) + ' g</b> · ' + lic.k + ' kcal' : '', on('abrirReceta', 'licuado')) +
-    b('🍱', 'Tupper', usosTup ? '<b class="num">' + usosTup.p + ' g</b> · ' + esc(usosTup.nombre.replace(/^Tupper: /, '').split(/[ ,]/)[0]) : 'En 3 toques', on('abrirTupper')) +
+  const b = (ico, nom, sub, accion, extra) => html`<button class="siempre" ${accion}><span class="ic">${ico}</span><span class="tx"><b>${nom}</b><small>${sub}</small></span>${extra || ''}</button>`;
+  return html`<div class="siempre3">` +
+    b('🥤', 'Mi licuado', lic ? html`<b class="num">${Math.round(lic.p)} g</b> · ${lic.k} kcal` : '', on('abrirReceta', 'licuado')) +
+    b('🍱', 'Tupper', usosTup ? html`<b class="num">${usosTup.p} g</b> · ${usosTup.nombre.replace(/^Tupper: /, '').split(/[ ,]/)[0]}` : 'En 3 toques', on('abrirTupper')) +
     b('🌮', 'Cena', h && m ? 'Harina o maíz: ' + Math.round(h.p) + ' / ' + Math.round(m.p) + ' g' : '', on('abrirCenas')) +
-    '</div><div class="herr">' +
-    '<button ' + on('abrirBuscador') + '><span>🔍</span>Buscar alimento</button>' +
-    '<button ' + on('abrirCamara') + '><span>📷</span>Foto o código</button></div>';
+    html`</div><div class="herr">` +
+    html`<button ${on('abrirBuscador')}><span>🔍</span>Buscar alimento</button>` +
+    html`<button ${on('abrirCamara')}><span>📷</span>Foto o código</button></div>`;
 }
 
 /* ----- Editor de receta (cantidades editables; tu licuado viene con cantidades estándar hasta que las midas) ----- */
@@ -381,27 +381,27 @@ function abrirReceta(id, deCena) {
 function pintarReceta() {
   const e = REC_ED, t = NUT.receta({ items: e.items }, resolver);
   const rolTxt = { leche: 'tu leche', proteina: 'tu proteína' };
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">' + esc(e.n) + '</div><button class="cerrar" ' + on('cerrarReceta') + ' aria-label="Cerrar">✕</button></div>' +
-    '<div class="muted" style="margin:2px 0 10px">Toca una cantidad para cambiarla. ' + (e.id === 'licuado' ? 'Vienen cantidades estándar: cuando midas las tuyas, ponlas aquí.' : '') + '</div>' +
-    '<div class="rec">' + t.items.map((it, i) => {
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2">${e.n}</div><button class="cerrar" ${on('cerrarReceta')} aria-label="Cerrar">✕</button></div>` +
+    html`<div class="muted" style="margin:2px 0 10px">Toca una cantidad para cambiarla. ${e.id === 'licuado' ? 'Vienen cantidades estándar: cuando midas las tuyas, ponlas aquí.' : ''}</div>` +
+    html`<div class="rec">${t.items.map((it, i) => {
       const al = it.al, m = it.m || {}, u = al ? al.u : 'g';
-      return '<div class="ri"><div class="nm"><b>' + esc(al ? al.n : 'Alimento que ya no está') + (it.rol ? ' <span class="rol">' + rolTxt[it.rol] + '</span>' : '') + '</b></div>' +
-        '<div class="mac2">' + (al ? '<b>' + NUT.r1(m.p) + ' g</b> prot · ' + Math.round(m.k || 0) + ' kcal' : '') + '</div><div class="ctl">' +
-        '<button class="mini" ' + on('recCant', i, -1) + ' aria-label="Menos">−</button>' +
-        '<input class="cant num" inputmode="decimal" value="' + it.q + '" ' + ev('change', 'recSet', i, VALOR) + ' aria-label="Cantidad"><span class="u">' + u + '</span>' +
-        '<button class="mini" ' + on('recCant', i, 1) + ' aria-label="Más">+</button>' +
-        '<button class="mini" ' + on('recCambiar', i) + ' aria-label="Cambiar ingrediente">⇄</button>' +
-        '<button class="mini" ' + on('recQuitar', i) + ' aria-label="Quitar">✕</button></div></div>';
-    }).join('') + '</div>' +
-    '<button class="link" ' + on('recAgregar') + '>＋ Agregar ingrediente</button>' +
-    '<div class="rectot"><b class="num">' + Math.round(t.tot.p) + ' g</b> proteína<span>' + fmtM(t.tot, true) + '</span></div>' +
-    '<div class="acts">' + (e.cambio ? '<button class="btn ghost" ' + on('guardarReceta') + '>Guardar cambios</button>' : '') +
-    '<button class="btn" ' + on('agregarRecetaHoy') + '>Agregar a ' + esc(nombreDeComida(comidaActual()).toLowerCase()) + '</button></div>';
+      return crudo(html`<div class="ri"><div class="nm"><b>${al ? al.n : 'Alimento que ya no está'}${it.rol ? html` <span class="rol">${rolTxt[it.rol]}</span>` : ''}</b></div>` +
+        html`<div class="mac2">${al ? html`<b>${NUT.r1(m.p)} g</b> prot · ${Math.round(m.k || 0)} kcal` : ''}</div><div class="ctl">` +
+        html`<button class="mini" ${on('recCant', i, -1)} aria-label="Menos">−</button>` +
+        html`<input class="cant num" inputmode="decimal" value="${it.q}" ${ev('change', 'recSet', i, VALOR)} aria-label="Cantidad"><span class="u">${u}</span>` +
+        html`<button class="mini" ${on('recCant', i, 1)} aria-label="Más">+</button>` +
+        html`<button class="mini" ${on('recCambiar', i)} aria-label="Cambiar ingrediente">⇄</button>` +
+        html`<button class="mini" ${on('recQuitar', i)} aria-label="Quitar">✕</button></div></div>`);
+    })}</div>` +
+    html`<button class="link" ${on('recAgregar')}>＋ Agregar ingrediente</button>` +
+    html`<div class="rectot"><b class="num">${Math.round(t.tot.p)} g</b> proteína<span>${fmtM(t.tot, true)}</span></div>` +
+    html`<div class="acts">${e.cambio ? html`<button class="btn ghost" ${on('guardarReceta')}>Guardar cambios</button>` : ''}` +
+    html`<button class="btn" ${on('agregarRecetaHoy')}>Agregar a ${nombreDeComida(comidaActual()).toLowerCase()}</button></div>`;
 }
 // "12 g carbs · 5 g grasa · 230 kcal" (con proteína si se pide)
 function fmtM(m, sinP) {
   if (!m || m.k === null || m.k === undefined) return m && m.p ? Math.round(m.p) + ' g proteína' : '';
-  return (sinP ? '' : '<b>' + NUT.r1(m.p) + ' g</b> prot · ') + Math.round(m.c) + ' g carbs · ' + Math.round(m.f) + ' g grasa · ' + Math.round(m.k) + ' kcal';
+  return html`${sinP ? '' : html`<b>${NUT.r1(m.p)} g</b> prot · `}${Math.round(m.c)} g carbs · ${Math.round(m.f)} g grasa · ${Math.round(m.k)} kcal`;
 }
 function pasoCant(it) { const al = resolver(it.ref); const p = al && al.por && al.por[0] ? al.por[0][1] : 10; return p >= 100 ? 25 : p >= 30 ? 10 : 5; }
 function recCant(i, d) { const it = REC_ED.items[i]; it.q = Math.max(0, Math.round((Number(it.q) + d * pasoCant(it)) * 10) / 10); REC_ED.cambio = true; hap('tecla'); pintarReceta(); }
@@ -433,16 +433,16 @@ function abrirCenas() {
   const ta = NUT.receta(a, resolver).tot, tb = NUT.receta(b, resolver).tot, d = NUT.diferencia(ta, tb);
   const fila = (nom, k, u, mejorSiBaja) => {
     const dif = d[k], mejor = mejorSiBaja ? dif < 0 : dif > 0;
-    return '<div class="cf"><span>' + nom + '</span><b class="num">' + NUT.r1(ta[k]) + '</b><b class="num">' + NUT.r1(tb[k]) + '</b>' +
-      '<em class="' + (Math.abs(dif) < 0.5 ? '' : mejor ? 'bien' : 'mal') + '">' + (dif > 0 ? '+' : '') + (k === 'k' ? Math.round(dif) : NUT.r1(dif)) + (u ? ' ' + u : '') + '</em></div>';
+    return html`<div class="cf"><span>${nom}</span><b class="num">${NUT.r1(ta[k])}</b><b class="num">${NUT.r1(tb[k])}</b>` +
+      html`<em class="${Math.abs(dif) < 0.5 ? '' : mejor ? 'bien' : 'mal'}">${dif > 0 ? '+' : ''}${k === 'k' ? Math.round(dif) : NUT.r1(dif)}${u ? ' ' + u : ''}</em></div>`;
   };
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Tu cena</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
-    '<div class="muted" style="margin:2px 0 12px">Lo que cambia si pasas de harina a maíz con soya en el frijol.</div>' +
-    '<div class="cenas"><div class="cf cab"><span></span><b>🌮 Harina</b><b>🌽 Maíz + soya</b><em>Cambio</em></div>' +
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2">Tu cena</div><button class="cerrar" ${on('cerrarModal')} aria-label="Cerrar">✕</button></div>` +
+    html`<div class="muted" style="margin:2px 0 12px">Lo que cambia si pasas de harina a maíz con soya en el frijol.</div>` +
+    html`<div class="cenas"><div class="cf cab"><span></span><b>🌮 Harina</b><b>🌽 Maíz + soya</b><em>Cambio</em></div>` +
     fila('Proteína', 'p', 'g', false) + fila('Calorías', 'k', '', true) + fila('Carbohidratos', 'c', 'g', true) + fila('Grasa', 'f', 'g', true) + fila('Fibra', 'fib', 'g', false) + '</div>' +
-    '<div class="tip" style="margin:12px 0 0">' + esc(resumenCena(d)) + '</div>' +
-    '<div class="acts"><button class="btn ghost" ' + on('editarCena', 'cena-harina') + '>Editar harina</button><button class="btn ghost" ' + on('editarCena', 'cena-maiz') + '>Editar maíz</button></div>' +
-    '<div class="acts" style="margin-top:8px"><button class="btn ghost" ' + on('cenaHoy', 'cena-harina') + '>Cené harina</button><button class="btn" ' + on('cenaHoy', 'cena-maiz') + '>Cené maíz</button></div>';
+    html`<div class="tip" style="margin:12px 0 0">${resumenCena(d)}</div>` +
+    html`<div class="acts"><button class="btn ghost" ${on('editarCena', 'cena-harina')}>Editar harina</button><button class="btn ghost" ${on('editarCena', 'cena-maiz')}>Editar maíz</button></div>` +
+    html`<div class="acts" style="margin-top:8px"><button class="btn ghost" ${on('cenaHoy', 'cena-harina')}>Cené harina</button><button class="btn" ${on('cenaHoy', 'cena-maiz')}>Cené maíz</button></div>`;
   if (!$('modal').classList.contains('show')) abrirModal();
 }
 function resumenCena(d) {
@@ -469,16 +469,16 @@ function abrirTupper() {
 function pintarTupper() {
   const T = NUT.TUPPER, t = NUT.receta({ items: NUT.tupper(TUP) }, resolver).tot;
   const mios = Object.values(nutCfg().tuppers || {}).sort((a, b) => b.n - a.n || b.ts - a.ts).slice(0, 4);
-  const chip = (activo, txt, accion) => '<button class="tch' + (activo ? ' on' : '') + '" ' + accion + '>' + txt + '</button>';
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Tupper de mamá</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
-    (mios.length ? '<div class="tmios">' + mios.map(x => '<button ' + on('tupperDeSiempre', x.clave) + '><b>' + esc(x.nombre.replace(/^Tupper: /, '')) + '</b><small>' + x.p + ' g · ' + x.k + ' kcal · ' + x.n + '×</small></button>').join('') + '</div>' : '') +
-    '<div class="tpaso">1. ¿Qué trae?</div><div class="tchips">' + T.proteinas.map(p => chip(TUP.prot === p[0], p[2] + ' ' + p[1], on('tupProt', p[0]))).join('') + '</div>' +
-    '<div class="tpaso">2. ¿Con qué viene?</div><div class="tchips">' + T.lados.map(l => chip(TUP.lados.includes(l[0]), l[2] + ' ' + l[1], on('tupLado', l[0]))).join('') +
-      '<span class="ttort">🫓 Tortillas <button class="mini" ' + on('tupTortillas', -1) + ' aria-label="Menos">−</button><b class="num">' + TUP.tort + '</b><button class="mini" ' + on('tupTortillas', 1) + ' aria-label="Más">+</button></span></div>' +
-    '<div class="tpaso">3. ¿Qué tan lleno?</div><div class="tchips">' + T.tamanos.map(x => chip(TUP.tam === x[0], x[1], on('tupTam', x[0]))).join('') + '</div>' +
-    '<div class="rectot"><b class="num">' + Math.round(t.p) + ' g</b> proteína<span>' + fmtM(t, true) + '</span></div>' +
-    '<div class="muted" style="font-size:12.5px">Incluye el aceite del guisado (~1½ cucharaditas). Valores: tabla mexicana (INCMNSZ) y USDA.</div>' +
-    '<div class="acts"><button class="btn ghost" ' + on('abrirCamara', 'tupper') + '>📷 Mejor foto</button><button class="btn" ' + on('agregarTupper') + '>Agregar a comida</button></div>';
+  const chip = (activo, txt, accion) => html`<button class="tch${activo ? ' on' : ''}" ${accion}>${txt}</button>`;
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2">Tupper de mamá</div><button class="cerrar" ${on('cerrarModal')} aria-label="Cerrar">✕</button></div>` +
+    (mios.length ? html`<div class="tmios">${mios.map(x => html`<button ${on('tupperDeSiempre', x.clave)}><b>${x.nombre.replace(/^Tupper: /, '')}</b><small>${x.p} g · ${x.k} kcal · ${x.n}×</small></button>`)}</div>` : '') +
+    html`<div class="tpaso">1. ¿Qué trae?</div><div class="tchips">${T.proteinas.map(p => chip(TUP.prot === p[0], p[2] + ' ' + p[1], on('tupProt', p[0])))}</div>` +
+    html`<div class="tpaso">2. ¿Con qué viene?</div><div class="tchips">${T.lados.map(l => chip(TUP.lados.includes(l[0]), l[2] + ' ' + l[1], on('tupLado', l[0])))}` +
+      html`<span class="ttort">🫓 Tortillas <button class="mini" ${on('tupTortillas', -1)} aria-label="Menos">−</button><b class="num">${TUP.tort}</b><button class="mini" ${on('tupTortillas', 1)} aria-label="Más">+</button></span></div>` +
+    html`<div class="tpaso">3. ¿Qué tan lleno?</div><div class="tchips">${T.tamanos.map(x => chip(TUP.tam === x[0], x[1], on('tupTam', x[0])))}</div>` +
+    html`<div class="rectot"><b class="num">${Math.round(t.p)} g</b> proteína<span>${fmtM(t, true)}</span></div>` +
+    html`<div class="muted" style="font-size:12.5px">Incluye el aceite del guisado (~1½ cucharaditas). Valores: tabla mexicana (INCMNSZ) y USDA.</div>` +
+    html`<div class="acts"><button class="btn ghost" ${on('abrirCamara', 'tupper')}>📷 Mejor foto</button><button class="btn" ${on('agregarTupper')}>Agregar a comida</button></div>`;
 }
 function tupLado(l) { const i = TUP.lados.indexOf(l); if (i > -1) TUP.lados.splice(i, 1); else TUP.lados.push(l); hap('tecla'); pintarTupper(); }
 function tupperDeSiempre(clave) { const x = (nutCfg().tuppers || {})[clave]; if (!x) return; TUP = JSON.parse(JSON.stringify(x.sel)); agregarTupper(); }
@@ -518,15 +518,15 @@ function abrirBuscador(o) {
 }
 function pintarBuscador() {
   const b = BUS, res = b.q ? NUT.buscar(listaBusqueda(), b.q, 40) : nutCfg().productos.concat(Object.values(LS.get('gym_alim_usados', {}))).slice(-12).reverse();
-  const fila = a => '<button class="bres" ' + on('elegirNut', a.id) + '><span class="nm">' + esc(a.n) + (a.marca ? ' · ' + esc(a.marca) : '') +
-    '<small>' + fuenteTxt(a) + ' · por 100 ' + (a.u || 'g') + ': <b>' + NUT.r1(a.p) + ' g prot</b> · ' + Math.round(a.k) + ' kcal' + (a.crudo ? ' · crudo' : '') + (a.seco ? ' · <span class="seco">⚠️ seco o en polvo</span>' : '') + '</small></span></button>';
-  const offRes = b.off ? (b.off.length ? b.off.map(a => '<button class="bres" ' + on('elegirOFF', a.code) + '><span class="nm">' + esc(a.n) + (a.marca ? ' · ' + esc(a.marca) : '') +
-    '<small>Open Food Facts · por 100 ' + a.u + ': <b>' + NUT.r1(a.p) + ' g prot</b> · ' + Math.round(a.k || 0) + ' kcal</small></span></button>').join('') : '<div class="muted" style="margin:8px 2px">No encontré productos con ese nombre.</div>') : '';
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">' + (b.elegir ? 'Elige el ingrediente' : 'Buscar alimento') + '</div><button class="cerrar" ' + on('cerrarBuscador') + ' aria-label="Cerrar">✕</button></div>' +
-    '<input id="busNut" class="buscar" type="search" placeholder="Ej. tortilla de maíz, queso panela, avena…" value="' + esc(b.q) + '" ' + ev('input', 'buscarNut', VALOR) + '>' +
-    '<div class="bfuentes">' + (CATALOGO ? (CATALOGO.length + NUT.BASE.length).toLocaleString('es-MX') + ' alimentos: tabla mexicana (INCMNSZ), USDA y los tuyos' : 'Cargando el catálogo…') + '</div>' +
-    '<div class="blista" id="busRes">' + (res.length ? res.map(fila).join('') : b.q ? '<div class="muted" style="margin:8px 2px">Nada en el catálogo con «' + esc(b.q) + '».</div>' : '<div class="muted" style="margin:8px 2px">Escribe qué comiste. Lo que uses queda aquí para la próxima.</div>') +
-      (b.q ? '<button class="link" style="margin:8px 2px" ' + on('buscarOFF') + '>' + (b.cargando ? 'Buscando en Open Food Facts…' : '🛒 Buscar productos de marca (Open Food Facts)') + '</button>' + offRes : '') + '</div>';
+  const fila = a => html`<button class="bres" ${on('elegirNut', a.id)}><span class="nm">${a.n}${a.marca ? ' · ' + a.marca : ''}` +
+    html`<small>${fuenteTxt(a)} · por 100 ${a.u || 'g'}: <b>${NUT.r1(a.p)} g prot</b> · ${Math.round(a.k)} kcal${a.crudo ? ' · crudo' : ''}${a.seco ? html` · <span class="seco">⚠️ seco o en polvo</span>` : ''}</small></span></button>`;
+  const offRes = b.off ? (b.off.length ? b.off.map(a => crudo(html`<button class="bres" ${on('elegirOFF', a.code)}><span class="nm">${a.n}${a.marca ? ' · ' + a.marca : ''}` +
+    html`<small>Open Food Facts · por 100 ${a.u}: <b>${NUT.r1(a.p)} g prot</b> · ${Math.round(a.k || 0)} kcal</small></span></button>`)) : html`<div class="muted" style="margin:8px 2px">No encontré productos con ese nombre.</div>`) : '';
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2">${b.elegir ? 'Elige el ingrediente' : 'Buscar alimento'}</div><button class="cerrar" ${on('cerrarBuscador')} aria-label="Cerrar">✕</button></div>` +
+    html`<input id="busNut" class="buscar" type="search" placeholder="Ej. tortilla de maíz, queso panela, avena…" value="${b.q}" ${ev('input', 'buscarNut', VALOR)}>` +
+    html`<div class="bfuentes">${CATALOGO ? (CATALOGO.length + NUT.BASE.length).toLocaleString('es-MX') + ' alimentos: tabla mexicana (INCMNSZ), USDA y los tuyos' : 'Cargando el catálogo…'}</div>` +
+    html`<div class="blista" id="busRes">${res.length ? res.map(a => crudo(fila(a))) : b.q ? html`<div class="muted" style="margin:8px 2px">Nada en el catálogo con «${b.q}».</div>` : html`<div class="muted" style="margin:8px 2px">Escribe qué comiste. Lo que uses queda aquí para la próxima.</div>`}${
+      b.q ? html`<button class="link" style="margin:8px 2px" ${on('buscarOFF')}>${b.cargando ? 'Buscando en Open Food Facts…' : '🛒 Buscar productos de marca (Open Food Facts)'}</button>${offRes}` : ''}</div>`;
 }
 function fuenteTxt(a) { const s = a.src || String(a.id).split(':')[0]; return { b: 'Básico', usda: 'USDA', mx: 'Tabla mexicana', us: 'USDA', p: 'Tuyo', etiqueta: 'Tu etiqueta', off: 'Open Food Facts', calc: 'Calculado' }[s] || 'Catálogo'; }
 let BUS_T = null;
@@ -534,6 +534,7 @@ function buscarNut(q) {
   BUS.q = q; BUS.off = null;
   clearTimeout(BUS_T);
   BUS_T = setTimeout(() => {
+    if (!BUS) return;   // cerraste el buscador antes de que se repintara
     const i = $('busNut'), pos = i ? i.selectionStart : null;
     pintarBuscador();
     const j = $('busNut'); if (j) { j.focus(); if (pos !== null) j.setSelectionRange(pos, pos); }
@@ -603,19 +604,19 @@ function pedirCantidad(al, texto) {
 }
 function pintarCantidad() {
   const c = CANT, al = c.al, m = NUT.macros(al, c.q);
-  $('sheet').innerHTML = '<div class="row between"><div class="t2" style="padding-right:8px">' + esc(al.n) + '</div><button class="cerrar" ' + on('cerrarCantidad') + ' aria-label="Volver">✕</button></div>' +
-    '<div class="muted" style="margin:2px 0 10px">' + fuenteTxt(al) + (al.crudo ? ' · valores del alimento crudo: pésalo antes de cocinar' : '') + (al.nota ? ' · ' + esc(al.nota) : '') + '</div>' +
-    (al.seco ? '<div class="tip acc" style="margin:0 0 10px">⚠️ Esta ficha es de alimento seco o en polvo (' + NUT.r1(al.p) + ' g de proteína por 100 g). Si lo comiste preparado (frijoles de la olla, leche líquida…), busca el preparado.</div>' : '') +
-    '<div id="cantAvisos">' + avisosHtml(NUT.revisarMacros(m, c.q, al.n)) + '</div>' +
-    (c.dijo && c.q === c.dijo.q ? '<div class="tip" style="margin:0 0 10px">Escribiste ' + esc(c.dijo.texto) + ' = <b class="num">' + NUT.r1(c.q) + ' ' + (al.u || 'g') + '</b>. Si fue otra cantidad, cámbiala.</div>' : '') +
-    (al.por && al.por.length ? '<div class="tchips">' + al.por.concat(al.por.filter(p => p[0] === 'Todo el envase').map(p => ['La mitad del envase', NUT.r1(p[1] / 2)])).map(p => '<button class="tch' + (c.q === p[1] ? ' on' : '') + '" ' + on('cantFija', p[1]) + '>' + esc(p[0]) + ' · ' + p[1] + ' ' + (al.u || 'g') + '</button>').join('') + '</div>' : '') +
-    '<div class="cantfila"><button class="mini" ' + on('cantPaso', -1) + ' aria-label="Menos">−</button>' +
-    '<input class="cant num" inputmode="decimal" value="' + c.q + '" ' + ev('change', 'cantEscrita', VALOR) + ' aria-label="Cantidad"><span class="u">' + (al.u || 'g') + '</span>' +
-    '<button class="mini" ' + on('cantPaso', 1) + ' aria-label="Más">+</button></div>' +
-    '<div class="rectot"><b class="num">' + NUT.r1(m.p) + ' g</b> proteína<span>' + fmtM(m, true) + '</span></div>' +
-    '<div class="acts"><button class="btn" ' + on('usarCantidad') + '>' + (c.elegir ? 'Usar en la receta' : 'Agregar a ' + esc(nombreDeComida(comidaActual()).toLowerCase())) + '</button></div>';
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2" style="padding-right:8px">${al.n}</div><button class="cerrar" ${on('cerrarCantidad')} aria-label="Volver">✕</button></div>` +
+    html`<div class="muted" style="margin:2px 0 10px">${fuenteTxt(al)}${al.crudo ? ' · valores del alimento crudo: pésalo antes de cocinar' : ''}${al.nota ? ' · ' + al.nota : ''}</div>` +
+    (al.seco ? html`<div class="tip acc" style="margin:0 0 10px">⚠️ Esta ficha es de alimento seco o en polvo (${NUT.r1(al.p)} g de proteína por 100 g). Si lo comiste preparado (frijoles de la olla, leche líquida…), busca el preparado.</div>` : '') +
+    html`<div id="cantAvisos">${avisosHtml(NUT.revisarMacros(m, c.q, al.n))}</div>` +
+    (c.dijo && c.q === c.dijo.q ? html`<div class="tip" style="margin:0 0 10px">Escribiste ${c.dijo.texto} = <b class="num">${NUT.r1(c.q)} ${al.u || 'g'}</b>. Si fue otra cantidad, cámbiala.</div>` : '') +
+    (al.por && al.por.length ? html`<div class="tchips">${al.por.concat(al.por.filter(p => p[0] === 'Todo el envase').map(p => ['La mitad del envase', NUT.r1(p[1] / 2)])).map(p => html`<button class="tch${c.q === p[1] ? ' on' : ''}" ${on('cantFija', p[1])}>${p[0]} · ${p[1]} ${al.u || 'g'}</button>`)}</div>` : '') +
+    html`<div class="cantfila"><button class="mini" ${on('cantPaso', -1)} aria-label="Menos">−</button>` +
+    html`<input class="cant num" inputmode="decimal" value="${c.q}" ${ev('change', 'cantEscrita', VALOR)} aria-label="Cantidad"><span class="u">${al.u || 'g'}</span>` +
+    html`<button class="mini" ${on('cantPaso', 1)} aria-label="Más">+</button></div>` +
+    html`<div class="rectot"><b class="num">${NUT.r1(m.p)} g</b> proteína<span>${fmtM(m, true)}</span></div>` +
+    html`<div class="acts"><button class="btn" ${on('usarCantidad')}>${c.elegir ? 'Usar en la receta' : 'Agregar a ' + nombreDeComida(comidaActual()).toLowerCase()}</button></div>`;
 }
-const avisosHtml = av => av.length ? '<div class="tip acc" style="margin:0 0 10px">⚠️ ' + av.map(esc).join('<br>⚠️ ') + '</div>' : '';
+const avisosHtml = av => av.length ? html`<div class="tip acc" style="margin:0 0 10px">⚠️ ${av.map((a, i) => html`${i ? html`<br>⚠️ ` : ''}${a}`)}</div>` : '';
 function cerrarCantidad() { const b = CANT && CANT.bus; CANT = null; if (b) { BUS = b; pintarBuscador(); } else cerrarModal(); }
 function usarCantidad() {
   const c = CANT; CANT = null;
@@ -633,15 +634,15 @@ let FOTO = null, FOTO_GALERIA = false;
 function abrirCamara(tipo) {
   FOTO = { tipo: tipo || null };
   if (tipo) return pedirFoto(tipo);
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Foto o código</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
-    '<div class="camopts">' +
-    '<button ' + on('pedirFoto', 'etiqueta') + '><span>🏷️</span><b>Tabla nutricional</b><small>Leche, proteína o cualquier empaque: lee los macros solo</small></button>' +
-    '<button ' + on('pedirFoto', 'tupper') + '><span>🍱</span><b>Mi comida o el tupper</b><small>Cuando no sabes qué guisado es ni cuánto pesa</small></button>' +
-    '<button ' + on('pedirFoto', 'codigo') + '><span>🔢</span><b>Código de barras</b><small>Lo busca en Open Food Facts</small></button>' +
-    '<button ' + on('etiquetaAMano') + '><span>✍️</span><b>Escribir los datos</b><small>Cuando la foto no se lee: los números de la etiqueta a mano</small></button></div>' +
-    '<label class="galeria"><input type="checkbox" id="deGaleria"' + (FOTO_GALERIA ? ' checked' : '') + ' ' + ev('change', 'fotoDeGaleria', MARCADO) + '> Elegir una foto que ya tomé (galería)</label>' +
-    '<div class="row" style="gap:8px;margin-top:10px"><input id="codManual" class="campo" style="margin:0;flex:1" inputmode="numeric" placeholder="O escribe el número del código">' +
-    '<button class="btn" ' + on('codigoManual') + '>Buscar</button></div>';
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2">Foto o código</div><button class="cerrar" ${on('cerrarModal')} aria-label="Cerrar">✕</button></div>` +
+    html`<div class="camopts">` +
+    html`<button ${on('pedirFoto', 'etiqueta')}><span>🏷️</span><b>Tabla nutricional</b><small>Leche, proteína o cualquier empaque: lee los macros solo</small></button>` +
+    html`<button ${on('pedirFoto', 'tupper')}><span>🍱</span><b>Mi comida o el tupper</b><small>Cuando no sabes qué guisado es ni cuánto pesa</small></button>` +
+    html`<button ${on('pedirFoto', 'codigo')}><span>🔢</span><b>Código de barras</b><small>Lo busca en Open Food Facts</small></button>` +
+    html`<button ${on('etiquetaAMano')}><span>✍️</span><b>Escribir los datos</b><small>Cuando la foto no se lee: los números de la etiqueta a mano</small></button></div>` +
+    html`<label class="galeria"><input type="checkbox" id="deGaleria"${FOTO_GALERIA ? ' checked' : ''} ${ev('change', 'fotoDeGaleria', MARCADO)}> Elegir una foto que ya tomé (galería)</label>` +
+    html`<div class="row" style="gap:8px;margin-top:10px"><input id="codManual" class="campo" style="margin:0;flex:1" inputmode="numeric" placeholder="O escribe el número del código">` +
+    html`<button class="btn" ${on('codigoManual')}>Buscar</button></div>`;
   if (!$('modal').classList.contains('show')) abrirModal();
 }
 function pedirFoto(tipo) {
@@ -678,7 +679,7 @@ function achicarFoto(file, max) {
   });
 }
 function cargandoFoto(txt) {
-  $('sheet').innerHTML = '<div class="t2">' + esc(txt) + '</div><div class="esq" style="position:relative;height:120px;margin-top:12px;border-radius:16px"><div class="brillo"></div><span>Un momento…</span></div>';
+  $('sheet').innerHTML = html`<div class="t2">${txt}</div><div class="esq" style="position:relative;height:120px;margin-top:12px;border-radius:16px"><div class="brillo"></div><span>Un momento…</span></div>`;
   if (!$('modal').classList.contains('show')) abrirModal();
 }
 async function procesarFotoNut(files) {
@@ -763,9 +764,9 @@ const ETQ_UNIDAD = { piezas: 'piezas', porciones: 'porciones', envase: 'del enva
 const ETQ_PASO = { g: 5, piezas: 1, porciones: 0.5, envase: 0.25 };
 function etqTotalHtml() {
   const g = etqGramos(), u = ETQ.info.u;
-  if (g === null || !(g > 0)) return '<span class="muted">' + (g === null ? 'Falta saber cuánto trae el envase (arriba)' : 'Pon cuánto comiste') + '</span>';
+  if (g === null || !(g > 0)) return html`<span class="muted">${g === null ? 'Falta saber cuánto trae el envase (arriba)' : 'Pon cuánto comiste'}</span>`;
   const m = NUT.macros(ETQ.al, g);
-  return '<b class="num">' + NUT.r1(m.p) + ' g</b> proteína<span>' + NUT.r1(g) + ' ' + u + ' · ' + fmtM(m, true) + '</span>';
+  return html`<b class="num">${NUT.r1(m.p)} g</b> proteína<span>${NUT.r1(g)} ${u} · ${fmtM(m, true)}</span>`;
 }
 function pintarEtiqueta() {
   const E = ETQ, a = E.al, i = E.info, u = i.u, prev = E.prev && nutCfg().productos.find(x => x.id === E.prev);
@@ -774,33 +775,33 @@ function pintarEtiqueta() {
     (i.pieza ? ' 1 porción = ' + i.piezas + ' piezas, así que 1 pieza = ' + i.pieza + ' ' + u + '.' : '') +
     (i.envase ? ' Envase: ' + i.envase + ' ' + u + ({ neto: ' (contenido neto)', porciones: ' (porciones por envase × porción)', columna: ' (columna "por envase")', kcal: ' (sacado de la columna "por envase")', mano: ' (lo pusiste tú)' }[i.envaseDe] || '') + '.' : '');
   const modos = [['g', u], ['piezas', 'Piezas'], ['porciones', 'Porciones'], ['envase', 'Del envase']].filter(m => m[0] !== 'piezas' || i.pieza).filter(m => m[0] !== 'porciones' || i.porcionG);
-  const campo = (k, nom) => '<label class="pc"><span>' + nom + '</span><input class="num" inputmode="decimal" value="' + (a[k] === null || a[k] === undefined ? '' : a[k]) + '" ' + ev('change', 'etqNumero', k, VALOR) + '></label>';
+  const campo = (k, nom) => html`<label class="pc"><span>${nom}</span><input class="num" inputmode="decimal" value="${a[k] === null || a[k] === undefined ? '' : a[k]}" ${ev('change', 'etqNumero', k, VALOR)}></label>`;
   const g = etqGramos();
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Revisa antes de agregar</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
-    (E.avisos.length ? '<div class="tip acc" style="margin:8px 0">⚠️ ' + E.avisos.map(esc).join('<br>⚠️ ') + '</div>' : '') +
-    (E.falta === 'pieza' ? '<div class="tip acc" style="margin:8px 0">La tabla no dice cuántas piezas son una porción: pon los gramos o las porciones.</div>' : '') +
-    '<input class="campo" value="' + esc(a.n) + '" ' + ev('change', 'etqTexto', 'n', VALOR) + ' aria-label="Nombre">' +
-    '<input class="campo" value="' + esc(a.marca || '') + '" placeholder="Marca" ' + ev('change', 'etqTexto', 'marca', VALOR) + ' aria-label="Marca">' +
-    '<div class="muted etqdecl">' + esc(decl) + '</div>' +
-    (E.fotos.length && E.fotos.length < 3 ? '<button class="link" style="margin:0 2px 6px" ' + on('otraFotoEtiqueta') + '>📷 Agregar otra foto de la misma etiqueta (' + E.fotos.length + ' de 3)</button>' : '') +
-    (prev ? '<div class="tpaso">Ya tienes «' + esc(prev.n) + '» en tus productos</div><div class="tchips">' +
-      '<button class="tch' + (E.actualizar ? ' on' : '') + '" ' + on('etqActualizar', true) + '>Actualizar el que tengo</button>' +
-      '<button class="tch' + (!E.actualizar ? ' on' : '') + '" ' + on('etqActualizar', false) + '>Guardar como otro</button></div>' : '') +
-    '<div class="tpaso">¿Cuánto comiste?</div><div class="seg etqmodos">' + modos.map(m => '<button class="' + (E.modo === m[0] ? 'on' : '') + '" ' + on('etqModo', m[0]) + '>' + esc(m[1]) + '</button>').join('') + '</div>' +
-    (E.modo === 'envase' ? '<div class="tchips" style="margin-top:8px">' + [['Todo', 1], ['La mitad', 0.5], ['Un tercio', 0.333], ['Un cuarto', 0.25]]
-      .map(x => '<button class="tch' + (Math.abs(E.valor - x[1]) < 0.01 ? ' on' : '') + '" ' + on('etqFraccion', x[1]) + '>' + x[0] + '</button>').join('') + '</div>' +
-      (!i.envase ? '<div class="tip acc" style="margin:8px 0 4px">La tabla no dice cuánto trae el envase. Escríbelo (viene al frente: "Contenido neto"):</div>' +
-        '<div class="row etqenv"><input id="etqEnvG" class="cant num" inputmode="decimal" placeholder="—" ' + ev('change', 'etqEnvase', 'g', VALOR) + '><span class="muted">' + u + '</span>' +
-        (i.porcionG ? '<span class="muted">o</span><input id="etqEnvP" class="cant num" inputmode="decimal" placeholder="—" ' + ev('change', 'etqEnvase', 'porciones', VALOR) + '><span class="muted">porciones</span>' : '') + '</div>' : '') : '') +
-    '<div class="cantfila"><button class="mini" ' + on('etqPaso', -1) + ' aria-label="Menos">−</button>' +
-    '<input id="etqValor" class="cant num" inputmode="decimal" value="' + NUT.r1(E.valor) + '" ' + ev('input', 'etqValor', VALOR) + ' aria-label="Cantidad">' +
-    '<span class="u">' + esc(ETQ_UNIDAD[E.modo] || u) + '</span><button class="mini" ' + on('etqPaso', 1) + ' aria-label="Más">+</button></div>' +
-    '<div class="rectot" id="etqTot">' + etqTotalHtml() + '</div>' +
-    '<details class="etqdet"><summary>Valores por 100 ' + u + ' (corrige si algo se leyó mal)</summary><div class="pcs">' +
-      campo('p', 'Proteína') + campo('c', 'Carbos') + campo('f', 'Grasa') + campo('k', 'kcal') + campo('fib', 'Fibra') + '</div></details>' +
-    '<div class="tpaso">¿Es de tu licuado?</div><div class="tchips">' +
-      [['leche', '🥛 Mi leche de siempre'], ['proteina', '💪 Mi proteína de siempre'], ['', 'No']].map(r => '<button class="tch' + (a.rol === r[0] ? ' on' : '') + '" ' + on('etqRol', r[0]) + '>' + r[1] + '</button>').join('') + '</div>' +
-    '<div class="acts"><button class="btn ghost" ' + on('etqGuardar', false) + '>Solo guardar</button><button class="btn" id="etqAgregar"' + (g > 0 ? '' : ' disabled') + ' ' + on('etqGuardar', true) + '>Agregar</button></div>';
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2">Revisa antes de agregar</div><button class="cerrar" ${on('cerrarModal')} aria-label="Cerrar">✕</button></div>` +
+    (E.avisos.length ? html`<div class="tip acc" style="margin:8px 0">⚠️ ${E.avisos.map((x, k) => html`${k ? html`<br>⚠️ ` : ''}${x}`)}</div>` : '') +
+    (E.falta === 'pieza' ? html`<div class="tip acc" style="margin:8px 0">La tabla no dice cuántas piezas son una porción: pon los gramos o las porciones.</div>` : '') +
+    html`<input class="campo" value="${a.n}" ${ev('change', 'etqTexto', 'n', VALOR)} aria-label="Nombre">` +
+    html`<input class="campo" value="${a.marca || ''}" placeholder="Marca" ${ev('change', 'etqTexto', 'marca', VALOR)} aria-label="Marca">` +
+    html`<div class="muted etqdecl">${decl}</div>` +
+    (E.fotos.length && E.fotos.length < 3 ? html`<button class="link" style="margin:0 2px 6px" ${on('otraFotoEtiqueta')}>📷 Agregar otra foto de la misma etiqueta (${E.fotos.length} de 3)</button>` : '') +
+    (prev ? html`<div class="tpaso">Ya tienes «${prev.n}» en tus productos</div><div class="tchips">` +
+      html`<button class="tch${E.actualizar ? ' on' : ''}" ${on('etqActualizar', true)}>Actualizar el que tengo</button>` +
+      html`<button class="tch${!E.actualizar ? ' on' : ''}" ${on('etqActualizar', false)}>Guardar como otro</button></div>` : '') +
+    html`<div class="tpaso">¿Cuánto comiste?</div><div class="seg etqmodos">${modos.map(m => html`<button class="${E.modo === m[0] ? 'on' : ''}" ${on('etqModo', m[0])}>${m[1]}</button>`)}</div>` +
+    (E.modo === 'envase' ? html`<div class="tchips" style="margin-top:8px">${[['Todo', 1], ['La mitad', 0.5], ['Un tercio', 0.333], ['Un cuarto', 0.25]]
+      .map(x => html`<button class="tch${Math.abs(E.valor - x[1]) < 0.01 ? ' on' : ''}" ${on('etqFraccion', x[1])}>${x[0]}</button>`)}</div>` +
+      (!i.envase ? html`<div class="tip acc" style="margin:8px 0 4px">La tabla no dice cuánto trae el envase. Escríbelo (viene al frente: "Contenido neto"):</div>` +
+        html`<div class="row etqenv"><input id="etqEnvG" class="cant num" inputmode="decimal" placeholder="—" ${ev('change', 'etqEnvase', 'g', VALOR)}><span class="muted">${u}</span>${
+        i.porcionG ? html`<span class="muted">o</span><input id="etqEnvP" class="cant num" inputmode="decimal" placeholder="—" ${ev('change', 'etqEnvase', 'porciones', VALOR)}><span class="muted">porciones</span>` : ''}</div>` : '') : '') +
+    html`<div class="cantfila"><button class="mini" ${on('etqPaso', -1)} aria-label="Menos">−</button>` +
+    html`<input id="etqValor" class="cant num" inputmode="decimal" value="${NUT.r1(E.valor)}" ${ev('input', 'etqValor', VALOR)} aria-label="Cantidad">` +
+    html`<span class="u">${ETQ_UNIDAD[E.modo] || u}</span><button class="mini" ${on('etqPaso', 1)} aria-label="Más">+</button></div>` +
+    html`<div class="rectot" id="etqTot">${etqTotalHtml()}</div>` +
+    html`<details class="etqdet"><summary>Valores por 100 ${u} (corrige si algo se leyó mal)</summary><div class="pcs">` +
+      html`${campo('p', 'Proteína')}${campo('c', 'Carbos')}${campo('f', 'Grasa')}${campo('k', 'kcal')}${campo('fib', 'Fibra')}</div></details>` +
+    html`<div class="tpaso">¿Es de tu licuado?</div><div class="tchips">` +
+      html`${[['leche', '🥛 Mi leche de siempre'], ['proteina', '💪 Mi proteína de siempre'], ['', 'No']].map(r => html`<button class="tch${a.rol === r[0] ? ' on' : ''}" ${on('etqRol', r[0])}>${r[1]}</button>`)}</div>` +
+    html`<div class="acts"><button class="btn ghost" ${on('etqGuardar', false)}>Solo guardar</button><button class="btn" id="etqAgregar"${g > 0 ? '' : ' disabled'} ${on('etqGuardar', true)}>Agregar</button></div>`;
 }
 // Escribir la cantidad recalcula al instante sin repintar (no se cierra el teclado)
 function etqValor(v) {
@@ -858,14 +859,14 @@ function otraFotoEtiqueta() {
 let ETQ_MANO = null;
 function etiquetaAMano() {
   ETQ_MANO = ETQ_MANO || { nombre: '', u: 'g', cant: '', piezas: '', porciones: '', p: '', c: '', f: '', k: '' };
-  const M = ETQ_MANO, campo = (k, nom, ph) => '<label class="pc"><span>' + nom + '</span><input class="num" inputmode="decimal" placeholder="' + (ph || '') + '" value="' + esc(M[k]) + '" ' + ev('change', 'manoCampo', k, VALOR) + '></label>';
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Datos de la etiqueta</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
-    '<input class="campo" placeholder="Nombre (ej. Leche Lala entera)" value="' + esc(M.nombre) + '" ' + ev('change', 'manoCampo', 'nombre', VALOR) + '>' +
-    '<div class="tchips">' + [['g', 'Sólido (g)'], ['ml', 'Líquido (ml)']].map(x => '<button class="tch' + (M.u === x[0] ? ' on' : '') + '" ' + on('manoCampo', 'u', x[0]) + '>' + x[1] + '</button>').join('') + '</div>' +
-    '<div class="tpaso">1 porción</div><div class="pcs">' + campo('cant', 'Porción (' + M.u + ')', '250') + campo('piezas', 'Piezas', '—') + campo('porciones', 'Porciones por envase', '—') + '</div>' +
-    '<div class="tpaso">En esa porción</div><div class="pcs">' + campo('p', 'Proteína') + campo('c', 'Carbos') + campo('f', 'Grasa') + campo('k', 'kcal') + '</div>' +
-    '<div class="muted" style="font-size:12.5px;margin-top:6px">Si la etiqueta da "por 100 ' + M.u + '", pon 100 en la porción. Un galón son 3,785 ml.</div>' +
-    '<div class="acts"><button class="btn" ' + on('manoListo') + '>Continuar</button></div>';
+  const M = ETQ_MANO, campo = (k, nom, ph) => html`<label class="pc"><span>${nom}</span><input class="num" inputmode="decimal" placeholder="${ph || ''}" value="${M[k]}" ${ev('change', 'manoCampo', k, VALOR)}></label>`;
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2">Datos de la etiqueta</div><button class="cerrar" ${on('cerrarModal')} aria-label="Cerrar">✕</button></div>` +
+    html`<input class="campo" placeholder="Nombre (ej. Leche Lala entera)" value="${M.nombre}" ${ev('change', 'manoCampo', 'nombre', VALOR)}>` +
+    html`<div class="tchips">${[['g', 'Sólido (g)'], ['ml', 'Líquido (ml)']].map(x => html`<button class="tch${M.u === x[0] ? ' on' : ''}" ${on('manoCampo', 'u', x[0])}>${x[1]}</button>`)}</div>` +
+    html`<div class="tpaso">1 porción</div><div class="pcs">${campo('cant', 'Porción (' + M.u + ')', '250')}${campo('piezas', 'Piezas', '—')}${campo('porciones', 'Porciones por envase', '—')}</div>` +
+    html`<div class="tpaso">En esa porción</div><div class="pcs">${campo('p', 'Proteína')}${campo('c', 'Carbos')}${campo('f', 'Grasa')}${campo('k', 'kcal')}</div>` +
+    html`<div class="muted" style="font-size:12.5px;margin-top:6px">Si la etiqueta da "por 100 ${M.u}", pon 100 en la porción. Un galón son 3,785 ml.</div>` +
+    html`<div class="acts"><button class="btn" ${on('manoListo')}>Continuar</button></div>`;
   if (!$('modal').classList.contains('show')) abrirModal();
 }
 function manoCampo(k, v) { if (k === 'nombre' || k === 'u') ETQ_MANO[k] = String(v).slice(0, 60); else ETQ_MANO[k] = v; if (k === 'u') etiquetaAMano(); }
@@ -900,20 +901,20 @@ function confirmarProducto(al, avisos, crudo) {
 }
 function pintarProducto() {
   const a = PROD.al, u = a.u || 'g', por = a.por && a.por[0];
-  const campo = (k, nom) => '<label class="pc"><span>' + nom + '</span><input class="num" inputmode="decimal" value="' + (a[k] === null || a[k] === undefined ? '' : a[k]) + '" ' + ev('change', 'prodNumero', k, VALOR) + '></label>';
+  const campo = (k, nom) => html`<label class="pc"><span>${nom}</span><input class="num" inputmode="decimal" value="${a[k] === null || a[k] === undefined ? '' : a[k]}" ${ev('change', 'prodNumero', k, VALOR)}></label>`;
   const pm = por ? NUT.macros(a, por[1]) : null;
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Revisa el producto</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
-    (PROD.avisos.length ? '<div class="tip acc" style="margin:8px 0">⚠️ ' + PROD.avisos.map(esc).join('<br>⚠️ ') + '</div>' : '') +
-    '<input class="campo" value="' + esc(a.n) + '" ' + ev('change', 'prodTexto', 'n', VALOR) + ' aria-label="Nombre">' +
-    '<input class="campo" value="' + esc(a.marca || '') + '" placeholder="Marca" ' + ev('change', 'prodTexto', 'marca', VALOR) + ' aria-label="Marca">' +
-    '<div class="muted" style="margin:2px 0 6px">Por 100 ' + u + ' (si la etiqueta solo traía la porción, ya se convirtió):</div>' +
-    '<div class="pcs">' + campo('p', 'Proteína') + campo('c', 'Carbos') + campo('f', 'Grasa') + campo('k', 'kcal') + campo('fib', 'Fibra') + '</div>' +
-    '<div class="row" style="gap:8px;align-items:center;margin:10px 0"><span class="muted">1 porción =</span><input class="cant num" style="width:80px" inputmode="decimal" value="' + (por ? por[1] : '') + '" placeholder="—" ' +
-      ev('change', 'prodPorcion', VALOR) + '><span class="muted">' + u + (pm ? ' → <b style="color:var(--text)">' + NUT.r1(pm.p) + ' g prot</b> · ' + Math.round(pm.k) + ' kcal' : '') + '</span></div>' +
-    '<div class="tpaso">¿Es de tu licuado?</div><div class="tchips">' +
-      [['leche', '🥛 Mi leche de siempre'], ['proteina', '💪 Mi proteína de siempre'], ['', 'No']].map(r => '<button class="tch' + (a.rol === r[0] ? ' on' : '') + '" ' + on('prodRol', r[0]) + '>' + r[1] + '</button>').join('') + '</div>' +
-    (a.rol === 'proteina' && !por ? '<div class="muted" style="font-size:12.5px">Pon cuánto pesa 1 scoop para que tu licuado use uno.</div>' : '') +
-    '<div class="acts"><button class="btn ghost" ' + on('guardarProducto', false) + '>Guardar</button><button class="btn" ' + on('guardarProducto', true) + '>Guardar y agregar' + (por ? ' 1 porción' : '') + '</button></div>';
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2">Revisa el producto</div><button class="cerrar" ${on('cerrarModal')} aria-label="Cerrar">✕</button></div>` +
+    (PROD.avisos.length ? html`<div class="tip acc" style="margin:8px 0">⚠️ ${PROD.avisos.map((x, k) => html`${k ? html`<br>⚠️ ` : ''}${x}`)}</div>` : '') +
+    html`<input class="campo" value="${a.n}" ${ev('change', 'prodTexto', 'n', VALOR)} aria-label="Nombre">` +
+    html`<input class="campo" value="${a.marca || ''}" placeholder="Marca" ${ev('change', 'prodTexto', 'marca', VALOR)} aria-label="Marca">` +
+    html`<div class="muted" style="margin:2px 0 6px">Por 100 ${u} (si la etiqueta solo traía la porción, ya se convirtió):</div>` +
+    html`<div class="pcs">${campo('p', 'Proteína')}${campo('c', 'Carbos')}${campo('f', 'Grasa')}${campo('k', 'kcal')}${campo('fib', 'Fibra')}</div>` +
+    html`<div class="row" style="gap:8px;align-items:center;margin:10px 0"><span class="muted">1 porción =</span><input class="cant num" style="width:80px" inputmode="decimal" value="${por ? por[1] : ''}" placeholder="—" ` +
+      html`${ev('change', 'prodPorcion', VALOR)}><span class="muted">${u}${pm ? html` → <b style="color:var(--text)">${NUT.r1(pm.p)} g prot</b> · ${Math.round(pm.k)} kcal` : ''}</span></div>` +
+    html`<div class="tpaso">¿Es de tu licuado?</div><div class="tchips">` +
+      html`${[['leche', '🥛 Mi leche de siempre'], ['proteina', '💪 Mi proteína de siempre'], ['', 'No']].map(r => html`<button class="tch${a.rol === r[0] ? ' on' : ''}" ${on('prodRol', r[0])}>${r[1]}</button>`)}</div>` +
+    (a.rol === 'proteina' && !por ? html`<div class="muted" style="font-size:12.5px">Pon cuánto pesa 1 scoop para que tu licuado use uno.</div>` : '') +
+    html`<div class="acts"><button class="btn ghost" ${on('guardarProducto', false)}>Guardar</button><button class="btn" ${on('guardarProducto', true)}>Guardar y agregar${por ? ' 1 porción' : ''}</button></div>`;
 }
 function guardarProducto(agregar) {
   const a = PROD.al, c = nutCfg();
@@ -938,17 +939,17 @@ function pedirCantidadDirecta(al, q) { CANT = { al: al, q: q, elegir: null, bus:
 /* ----- Metas: cómo se calcularon y, si quieres, las tuyas ----- */
 function abrirMetas() {
   const m = metasHoy(), t = totalMacros();
-  const fila = (nom, v, meta, u) => '<div class="mt"><span>' + nom + '</span><b class="num">' + v.toLocaleString('es-MX') + '</b><span class="muted">de ' + meta.toLocaleString('es-MX') + ' ' + u + '</span></div>';
-  $('sheet').innerHTML = '<div class="row between"><div class="t2">Tus metas de hoy</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
-    '<div class="metas">' + fila('Proteína', t.p, m.p, 'g') + fila('Calorías', t.k, m.k, 'kcal') + fila('Carbohidratos', t.c, m.c, 'g') + fila('Grasa', t.f, m.f, 'g') + fila('Fibra', t.fib, m.fib, 'g') + '</div>' +
-    (m.auto ? '<div class="tip" style="margin:12px 0 0">Calculadas con tus datos: ' + m.kg + ' kg, ' + (DATA.dias || []).length + ' días de gym y tus km de trote. Mantenimiento ~' + m.mant.toLocaleString('es-MX') +
-      ' kcal; −' + m.deficit + ' kcal para bajar grasa sin perder músculo' + (m.ajuste ? ' y ' + (m.ajuste > 0 ? '+' : '') + m.ajuste + ' porque ' + esc(m.porque) : '') +
-      '. Proteína: tu meta. Grasa: 0.8 g por kg. Carbohidratos: lo que queda. Se recalculan solas con tu peso y tu ritmo. Panel muestra estas mismas.</div>'
-      : '<div class="tip" style="margin:12px 0 0">Son las que pusiste tú. La proteína sigue siendo tu meta de siempre.</div>') +
+  const fila = (nom, v, meta, u) => html`<div class="mt"><span>${nom}</span><b class="num">${v.toLocaleString('es-MX')}</b><span class="muted">de ${meta.toLocaleString('es-MX')} ${u}</span></div>`;
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2">Tus metas de hoy</div><button class="cerrar" ${on('cerrarModal')} aria-label="Cerrar">✕</button></div>` +
+    html`<div class="metas">${fila('Proteína', t.p, m.p, 'g')}${fila('Calorías', t.k, m.k, 'kcal')}${fila('Carbohidratos', t.c, m.c, 'g')}${fila('Grasa', t.f, m.f, 'g')}${fila('Fibra', t.fib, m.fib, 'g')}</div>` +
+    (m.auto ? html`<div class="tip" style="margin:12px 0 0">Calculadas con tus datos: ${m.kg} kg, ${(DATA.dias || []).length} días de gym y tus km de trote. Mantenimiento ~${m.mant.toLocaleString('es-MX')}` +
+      html` kcal; −${m.deficit} kcal para bajar grasa sin perder músculo${m.ajuste ? ' y ' + (m.ajuste > 0 ? '+' : '') + m.ajuste + ' porque ' + m.porque : ''}` +
+      html`. Proteína: tu meta. Grasa: 0.8 g por kg. Carbohidratos: lo que queda. Se recalculan solas con tu peso y tu ritmo. Panel muestra estas mismas.</div>`
+      : html`<div class="tip" style="margin:12px 0 0">Son las que pusiste tú. La proteína sigue siendo tu meta de siempre.</div>`) +
     tipMantReal(m) +
-    '<div class="tpaso">¿Quieres poner las tuyas?</div><div class="pcs">' +
-      ['k', 'c', 'f'].map(k => '<label class="pc"><span>' + { k: 'kcal', c: 'Carbos', f: 'Grasa' }[k] + '</span><input id="mt_' + k + '" class="num" inputmode="numeric" value="' + m[k] + '"></label>').join('') + '</div>' +
-    '<div class="acts">' + (m.auto ? '' : '<button class="btn ghost" ' + on('metasAuto') + '>Volver a las calculadas</button>') + '<button class="btn" ' + on('guardarMetas') + '>Usar estas</button></div>';
+    html`<div class="tpaso">¿Quieres poner las tuyas?</div><div class="pcs">` +
+      html`${['k', 'c', 'f'].map(k => html`<label class="pc"><span>${{ k: 'kcal', c: 'Carbos', f: 'Grasa' }[k]}</span><input id="mt_${k}" class="num" inputmode="numeric" value="${m[k]}"></label>`)}</div>` +
+    html`<div class="acts">${m.auto ? '' : html`<button class="btn ghost" ${on('metasAuto')}>Volver a las calculadas</button>`}<button class="btn" ${on('guardarMetas')}>Usar estas</button></div>`;
   abrirModal();
 }
 // Panel muestra las metas de Gym (opción A: Gym las calcula con tu peso y tu ritmo). Se mandan solo cuando cambian
@@ -968,10 +969,10 @@ function tipMantReal(m) {
   const mr = mantReal();
   if (!mr) return '';
   const bajo = m.mant && mr.mant < m.mant - 300;
-  return '<div class="tip" style="margin:10px 0 0">📊 Con tus datos reales (' + (DATA.macros7.dias) + ' días completos): comes ~' + mr.kcal.toLocaleString('es-MX') + ' kcal y tu peso cambió ' +
-    (mr.cambio > 0 ? '+' : '') + NUT.r1(mr.cambio) + ' kg/sem → tu mantenimiento real anda en ~' + mr.mant.toLocaleString('es-MX') + ' kcal' + (m.mant ? ' (la fórmula dice ' + m.mant.toLocaleString('es-MX') + ')' : '') + '. ' +
-    (bajo ? 'Es bastante menos que la fórmula: lo más probable es que algo no se esté anotando (aceite, bebidas, botanas, probadas). ' : '') +
-    (!mr.confiable ? 'Con pocos días todavía es una idea, no un dato.' : '') + '</div>';
+  return crudo(html`<div class="tip" style="margin:10px 0 0">📊 Con tus datos reales (${DATA.macros7.dias} días completos): comes ~${mr.kcal.toLocaleString('es-MX')} kcal y tu peso cambió ` +
+    html`${mr.cambio > 0 ? '+' : ''}${NUT.r1(mr.cambio)} kg/sem → tu mantenimiento real anda en ~${mr.mant.toLocaleString('es-MX')} kcal${m.mant ? ' (la fórmula dice ' + m.mant.toLocaleString('es-MX') + ')' : ''}. ` +
+    html`${bajo ? 'Es bastante menos que la fórmula: lo más probable es que algo no se esté anotando (aceite, bebidas, botanas, probadas). ' : ''}` +
+    html`${!mr.confiable ? 'Con pocos días todavía es una idea, no un dato.' : ''}</div>`);
 }
 function guardarMetas() {
   const v = k => Math.round(Number(($('mt_' + k) || {}).value) || 0), c = nutCfg();

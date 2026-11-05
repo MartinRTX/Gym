@@ -46,10 +46,10 @@ function pideReady() {
   return planAplica() && !planHoy() && !readyHoy() && !sesion().log.length && !Object.keys(state).some(k => !esPar(k) && state[k].sets.some(x => x.ok));
 }
 function tarjetaReady() {
-  return '<div class="card ready entra"><div class="row between"><div class="t1">¿Cómo vienes hoy?</div><button class="link" ' + on('guardarReady', true) + '>Saltar</button></div>' +
-    '<div class="muted" style="font-size:13px">3 toques: tu coach ajusta el plan y el esfuerzo de hoy</div>' +
-    Object.keys(READY).map(k => '<div class="fila"><div class="muted">' + READY_TIT[k] + '</div><div class="pills">' +
-      READY[k].map(v => '<button class="' + (READY_TMP[k] === v ? 'on' : '') + '" ' + on('elegirReady', String(k), String(v)) + '>' + v + '</button>').join('') + '</div></div>').join('') + '</div>';
+  return crudo(html`<div class="card ready entra"><div class="row between"><div class="t1">¿Cómo vienes hoy?</div><button class="link" ${on('guardarReady', true)}>Saltar</button></div>` +
+    html`<div class="muted" style="font-size:13px">3 toques: tu coach ajusta el plan y el esfuerzo de hoy</div>` +
+    html`${Object.keys(READY).map(k => html`<div class="fila"><div class="muted">${READY_TIT[k]}</div><div class="pills">${
+      READY[k].map(v => html`<button class="${READY_TMP[k] === v ? 'on' : ''}" ${on('elegirReady', String(k), String(v))}>${v}</button>`)}</div></div>`)}</div>`);
 }
 function elegirReady(k, v) {
   READY_TMP[k] = v; hap('tecla');
@@ -70,17 +70,17 @@ function tarjetaFoco() {
   if (!planAplica()) return '';
   if (pideReady()) return tarjetaReady();
   const p = planHoy();
-  if (p && p.foco) return '<div class="foco' + (ANIM_PLAN ? ' entra' : '') + '"><span class="i">✨</span><div><b>Lo importante hoy:</b> ' + esc(p.foco) + '</div></div>';
-  if (PLAN_CARGANDO) return '<div class="foco"><span class="i">✨</span><div style="flex:1"><div class="muted" style="font-size:13px">Tu coach está preparando el plan de hoy…</div>' +
-    '<div class="brillo linea-esq" style="width:90%"></div><div class="brillo linea-esq" style="width:60%"></div></div></div>';
+  if (p && p.foco) return html`<div class="foco${ANIM_PLAN ? ' entra' : ''}"><span class="i">✨</span><div><b>Lo importante hoy:</b> ${p.foco}</div></div>`;
+  if (PLAN_CARGANDO) return crudo(html`<div class="foco"><span class="i">✨</span><div style="flex:1"><div class="muted" style="font-size:13px">Tu coach está preparando el plan de hoy…</div>` +
+    html`<div class="brillo linea-esq" style="width:90%"></div><div class="brillo linea-esq" style="width:60%"></div></div></div>`);
   return '';
 }
 
 /* ----- Menú ⋮ del ejercicio: lo secundario, fuera de la vista mientras entrenas ----- */
 function menuEjercicio(k) {
   const ex = exDe(k), st = state[k], n = jsq(k), base = baseVista(k), par = esPar(k) ? null : companero(k);
-  const item = (ico, txt, sub, accion) => '<button ' + accion + '><span class="i">' + ico + '</span><span><b>' + esc(txt) + '</b>' + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></button>';
-  let h = '<div class="row between"><div class="t2">' + esc(ex.ejercicio) + (esPar(k) ? ' · ' + esc(PAR.nombre) : '') + '</div><button class="btn ghost sm" ' + on('cerrarModal') + '>✕</button></div><div class="menu">';
+  const item = (ico, txt, sub, accion) => html`<button ${accion}><span class="i">${ico}</span><span><b>${txt}</b>${sub ? html`<small>${sub}</small>` : ''}</span></button>`;
+  let h = html`<div class="row between"><div class="t2">${ex.ejercicio}${esPar(k) ? ' · ' + PAR.nombre : ''}</div><button class="btn ghost sm" ${on('cerrarModal')}>✕</button></div><div class="menu">`;
   h += item('▶', 'Técnica y video', ex.tecnica ? 'Cómo se hace, punto por punto' : 'Agrega un video o GIF', on('verTecnica', k));
   if (!st.sets.some(s => s.t === 'C') && calientaConSeries(ex)) h += item('🔥', 'Agregar calentamiento', 'Series ligeras antes del peso de trabajo', on('cerrarY', 'agregarCalentamiento', k));
   const bf = jsq(baseDe(k));
@@ -100,16 +100,16 @@ function menuEjercicio(k) {
 }
 function menuPaso(k) {
   const ex = exDe(k), st = state[k], p = pasoEj(ex, st);
-  $('sheet').innerHTML = '<div class="t2">¿De cuánto en cuánto sube?</div><div class="muted" style="margin:4px 0 10px">' + esc(ex.ejercicio) + ' · ' + esc(ex.howTo) +
-    '. Con esto ningún consejo te pedirá un peso que no existe en ese equipo.</div><div class="pills" style="display:grid;grid-template-columns:repeat(4,1fr)">' +
-    (st.unit === 'kg' ? [1, 1.25, 2.5, 5, 10, 2, 4, 20] : [1, 2.5, 5, 10, 15, 20, 7.5, 12.5]).map(v => '<button class="' + (v === p ? 'on' : '') + '" ' + on('cerrarY', 'fijarPaso', k, v) + '>' + v + ' ' + st.unit + '</button>').join('') +
-    '</div><div class="acts"><button class="btn ghost" ' + on('cerrarModal') + '>Cancelar</button></div>';
+  $('sheet').innerHTML = html`<div class="t2">¿De cuánto en cuánto sube?</div><div class="muted" style="margin:4px 0 10px">${ex.ejercicio} · ${ex.howTo}` +
+    html`. Con esto ningún consejo te pedirá un peso que no existe en ese equipo.</div><div class="pills" style="display:grid;grid-template-columns:repeat(4,1fr)">` +
+    html`${(st.unit === 'kg' ? [1, 1.25, 2.5, 5, 10, 2, 4, 20] : [1, 2.5, 5, 10, 15, 20, 7.5, 12.5]).map(v => html`<button class="${v === p ? 'on' : ''}" ${on('cerrarY', 'fijarPaso', k, v)}>${v} ${st.unit}</button>`)}` +
+    html`</div><div class="acts"><button class="btn ghost" ${on('cerrarModal')}>Cancelar</button></div>`;
   abrirModal();
 }
 function notaDeHoy(k) {
-  $('sheet').innerHTML = '<div class="t2">Nota de hoy</div><div class="muted" style="margin:4px 0 8px">' + esc(exDe(k).ejercicio) + ' · solo de esta sesión; la próxima vez te aparece como «La última vez anotaste»</div>' +
-    '<textarea id="notaTxt" rows="3" maxlength="200" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--card2);color:var(--text);font:inherit">' + esc(state[k].notas || '') + '</textarea>' +
-    '<div class="acts"><button class="btn ghost" ' + on('cerrarModal') + '>Cancelar</button><button class="btn" ' + on('guardarNotaDeHoy', k) + '>Guardar</button></div>';
+  $('sheet').innerHTML = html`<div class="t2">Nota de hoy</div><div class="muted" style="margin:4px 0 8px">${exDe(k).ejercicio} · solo de esta sesión; la próxima vez te aparece como «La última vez anotaste»</div>` +
+    html`<textarea id="notaTxt" rows="3" maxlength="200" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--card2);color:var(--text);font:inherit">${state[k].notas || ''}</textarea>` +
+    html`<div class="acts"><button class="btn ghost" ${on('cerrarModal')}>Cancelar</button><button class="btn" ${on('guardarNotaDeHoy', k)}>Guardar</button></div>`;
   abrirModal();
   setTimeout(() => { const t = $('notaTxt'); if (t) t.focus(); }, 60);
 }
@@ -122,31 +122,30 @@ function tarjetaPareja(ex) {
   const cuenta = x => { const t = x.sets.filter(s => s.t !== 'C'); return { h: t.filter(s => s.ok).length, t: t.length }; };
   const cy = cuenta(yo), cp = cuenta(pa);
   const prog = (x, c, l) => x.done ? '✓' : saltado(base, l) ? 'no hoy' : c.h + '/' + c.t;
-  const meta = badgeMod(ex) + 'Tú ' + prog(yo, cy, 'yo') + ' · ' + esc(PAR.nombre) + (mapeado && exDe(pk) ? ' (' + esc(exDe(pk).ejercicio.split(' (')[0]) + ')' : '') + ' ' + prog(pa, cp, 'par');
+  const meta = html`${badgeMod(ex)}Tú ${prog(yo, cy, 'yo')} · ${PAR.nombre}${mapeado && exDe(pk) ? ' (' + exDe(pk).ejercicio.split(' (')[0] + ')' : ''} ${prog(pa, cp, 'par')}`;
   const enCurso = !hecho && (cy.h + cp.h > 0 || yo.done || pa.done);
-  const ico = hecho ? ICO.check : anillo(cy.h + cp.h + (yo.done ? cy.t - cy.h : 0) + (pa.done ? cp.t - cp.h : 0), cy.t + cp.t, false);
-  const n = jsq(base);
-  let h = '<div class="ex' + (abierto ? ' open' : '') + (hecho ? ' done' : '') + (enCurso ? ' prog' : '') + '" id="ex-' + esc(base) + '" style="view-transition-name:ex' + DATA.exercises.indexOf(ex) + '">' +
-    '<div class="ex-head" ' + on('abrir', base) + '><div class="ex-ico">' + ico + '</div>' +
-    '<div style="flex:1;min-width:0"><div class="ex-name">' + esc(ex.ejercicio) + botonTecnica(ex) + '</div><div class="ex-meta">' + (abierto && !hecho ? badgeMod(ex) : meta) + '</div></div>' +
-    (abierto && !hecho ? '<button class="swapbtn" ' + on('elegirCambio', base) + ' aria-label="Máquina ocupada: cambiar ejercicio">⇄</button>' : '') +
-    (abierto && exV && !st.done ? '<button class="menubtn" ' + on('menuEjercicio', k) + ' aria-label="Más opciones">⋮</button>' : '') + '</div>';
+  const ico = hecho ? crudo(ICO.check) : anillo(cy.h + cp.h + (yo.done ? cy.t - cy.h : 0) + (pa.done ? cp.t - cp.h : 0), cy.t + cp.t, false);
+  let h = html`<div class="ex${abierto ? ' open' : ''}${hecho ? ' done' : ''}${enCurso ? ' prog' : ''}" id="ex-${base}" style="view-transition-name:ex${DATA.exercises.indexOf(ex)}">` +
+    html`<div class="ex-head" ${on('abrir', base)}><div class="ex-ico">${ico}</div>` +
+    html`<div style="flex:1;min-width:0"><div class="ex-name">${ex.ejercicio}${botonTecnica(ex)}</div><div class="ex-meta">${abierto && !hecho ? badgeMod(ex) : meta}</div></div>` +
+    (abierto && !hecho ? html`<button class="swapbtn" ${on('elegirCambio', base)} aria-label="Máquina ocupada: cambiar ejercicio">⇄</button>` : '') +
+    (abierto && exV && !st.done ? html`<button class="menubtn" ${on('menuEjercicio', k)} aria-label="Más opciones">⋮</button>` : '') + '</div>';
   if (!abierto) return h + '</div>';
-  h += '<div class="ex-body' + (ANIM_ABRE === base ? ' entra' : '') + '"><div class="quien">' +
-    '<button class="' + (lado === 'yo' ? 'on' : '') + '" ' + on('verLado', base, 'yo') + '>Tú · ' + prog(yo, cy, 'yo') + '</button>' +
-    '<button class="' + (lado === 'par' ? 'on' : '') + '" ' + on('verLado', base, 'par') + '>' + esc(PAR.nombre) + ' · ' + prog(pa, cp, 'par') + '</button></div>';
+  h += html`<div class="ex-body${ANIM_ABRE === base ? ' entra' : ''}"><div class="quien">` +
+    html`<button class="${lado === 'yo' ? 'on' : ''}" ${on('verLado', base, 'yo')}>Tú · ${prog(yo, cy, 'yo')}</button>` +
+    html`<button class="${lado === 'par' ? 'on' : ''}" ${on('verLado', base, 'par')}>${PAR.nombre} · ${prog(pa, cp, 'par')}</button></div>`;
   // Cada quien puede no hacer este ejercicio: así no se registra nada a su nombre y la tarjeta se puede completar
   const asig = asignadoDe(base), habitual = asig && saltado(base, lado) && (saltosPar()[base] || {})[lado] === undefined;
-  if (saltado(base, lado)) return h + '<div class="mapa"><span>' + (lado === 'par' ? esc(PAR.nombre) + ' no lo hace hoy' : 'Hoy no lo haces') +
-    (habitual ? '<br><small class="muted">Normalmente lo hace solo ' + esc(asig) + '</small>' : '') + '</span><button class="link" ' + on('saltarLado', base, String(lado)) + '>' +
-    (lado === 'par' ? 'Sí lo hace hoy' : 'Sí lo hago hoy') + '</button></div></div></div>';
-  if (st && !st.done && !st.sets.some(x => x.ok)) h += '<div class="saltar"><button class="link" ' + on('saltarLado', base, String(lado)) + '>' +
-    (lado === 'par' ? esc(PAR.nombre) + ' no lo hace hoy' : 'Hoy no lo hago') + '</button></div>';
-  if (lado === 'par' && mapeado && exV) h += '<div class="mapa"><span>' + esc(PAR.nombre) + ' hace <b>' + esc(exV.ejercicio) + '</b></span>' +
-    '<button class="link" ' + on('quitarMapa', base) + '>Que haga ' + esc(ex.ejercicio.split(' (')[0]) + '</button></div>';
-  if (!exV) h += '<div class="tip">Este ejercicio no está en el catálogo de ' + esc(PAR.nombre) + '.</div>';
-  else if (st.done) h += '<div class="acts">' + (st.uid ? '<button class="btn ghost sm" ' + on('deshacer', k) + '>Borrar</button>' : '') +
-    '<button class="btn ghost sm" ' + on('corregir', k) + '>' + (st.uid ? 'Corregir' : 'Registrar otra vez') + '</button></div>';
+  if (saltado(base, lado)) return h + html`<div class="mapa"><span>${lado === 'par' ? PAR.nombre + ' no lo hace hoy' : 'Hoy no lo haces'}${
+    habitual ? html`<br><small class="muted">Normalmente lo hace solo ${asig}</small>` : ''}</span><button class="link" ${on('saltarLado', base, String(lado))}>${
+    lado === 'par' ? 'Sí lo hace hoy' : 'Sí lo hago hoy'}</button></div></div></div>`;
+  if (st && !st.done && !st.sets.some(x => x.ok)) h += html`<div class="saltar"><button class="link" ${on('saltarLado', base, String(lado))}>${
+    lado === 'par' ? PAR.nombre + ' no lo hace hoy' : 'Hoy no lo hago'}</button></div>`;
+  if (lado === 'par' && mapeado && exV) h += html`<div class="mapa"><span>${PAR.nombre} hace <b>${exV.ejercicio}</b></span>` +
+    html`<button class="link" ${on('quitarMapa', base)}>Que haga ${ex.ejercicio.split(' (')[0]}</button></div>`;
+  if (!exV) h += html`<div class="tip">Este ejercicio no está en el catálogo de ${PAR.nombre}.</div>`;
+  else if (st.done) h += html`<div class="acts">${st.uid ? html`<button class="btn ghost sm" ${on('deshacer', k)}>Borrar</button>` : ''}` +
+    html`<button class="btn ghost sm" ${on('corregir', k)}>${st.uid ? 'Corregir' : 'Registrar otra vez'}</button></div>`;
   else h += cuerpoEjercicio(exV, st);
   return h + '</div></div>';
 }
@@ -154,33 +153,33 @@ function cuerpoEjercicio(ex, st) {
   const n = jsq(ex.name), facil = sencillo() && !esPar(ex.name), foto = fotoMaqDe(baseDe(ex.name));
   const vars = esPar(ex.name) ? [] : variantesDe(ex.name);
   // Arriba: la foto de tu máquina (si la tomaste) y la animación del movimiento, lado a lado
-  const fotoH = foto ? '<img class="exfoto' + (facil ? ' grande' : '') + '" src="' + foto + '" alt="Tu máquina" ' + on('verFotoMaq', baseDe(ex.name)) + '>' : '';
+  const fotoH = foto ? html`<img class="exfoto${facil ? ' grande' : ''}" src="${foto}" alt="Tu máquina" ${on('verFotoMaq', baseDe(ex.name))}>` : '';
   const animH = placaAnimacion(ex, st, facil);
-  let h = fotoH || animH ? '<div class="exvis' + (fotoH && animH ? ' dos' : '') + '">' + fotoH + animH + '</div>' : '';
-  if (!foto && facil) h += '<button class="exfoto-vacia" ' + on('fotoParaEjercicio', baseDe(ex.name)) + '>📷 Tómale foto a tu máquina<small>Para reconocerla la próxima vez</small></button>';
-  h += '<div class="row between" style="margin-bottom:10px"><div class="muted">' + ex.min + '–' + ex.max + ' reps · ' + esc(ex.howTo) +
-    (vars.length ? ' <button class="equipo" ' + on('elegirCambio', ex.name) + '>' + esc(ex.modalidad || 'Equipo') + ' ⇄</button>' : '') + '</div>' +
-    '<div class="unit">' + ['lb', 'kg'].map(u => '<button class="' + (st.unit === u ? 'on' : '') + '" ' + on('setUnit', ex.name, String(u)) + '>' + u + '</button>').join('') + '</div></div>';
+  let h = fotoH || animH ? html`<div class="exvis${fotoH && animH ? ' dos' : ''}">${fotoH}${animH}</div>` : '';
+  if (!foto && facil) h += html`<button class="exfoto-vacia" ${on('fotoParaEjercicio', baseDe(ex.name))}>📷 Tómale foto a tu máquina<small>Para reconocerla la próxima vez</small></button>`;
+  h += html`<div class="row between" style="margin-bottom:10px"><div class="muted">${ex.min}–${ex.max} reps · ${ex.howTo}${
+    vars.length ? html` <button class="equipo" ${on('elegirCambio', ex.name)}>${ex.modalidad || 'Equipo'} ⇄</button>` : ''}</div>` +
+    html`<div class="unit">${['lb', 'kg'].map(u => html`<button class="${st.unit === u ? 'on' : ''}" ${on('setUnit', ex.name, String(u))}>${u}</button>`)}</div></div>`;
   const trabAnt = ex.anterior.filter(a => a.t !== 'C');
   const pesoAnt = trabAnt.length ? Math.max.apply(null, trabAnt.map(a => Number(a.w) || 0)) : null;
   const meta = !esPar(ex.name) && planHoy() ? (planHoy().ej || {})[ex.name] : null;
-  if (facil) h += '<div class="facil">' + esc(instruccionFacil(ex, st)) + '</div>';
-  else if (meta) h += '<div class="tip plan">🎯 ' + esc(meta) + '</div>';
-  else if (ex.up && !FECHA && !esPar(ex.name) && descargaActiva()) h += '<div class="tip">Semana de descarga: estas series ya vienen con −10 % y la mitad. Sin llegar al fallo.</div>';
-  else if (ex.up) h += '<div class="tip acc">' + ICO.up + esc(ex.hint) + '</div>';
-  else if (ex.prog && ex.hint) h += '<div class="tip' + (ex.prog.accion === 'bajar' ? ' baja' : '') + '">' + (ex.prog.accion === 'bajar' ? '↓ ' : '') + esc(ex.hint) + '</div>';
-  else if (ex.hint && /al fallo/.test(ex.hint)) h += '<div class="tip">' + esc(ex.hint) + '</div>';
-  else if (ex.sugerido && (pesoAnt === null || ex.sugerido.w > pesoAnt)) h += '<div class="sug">Sugerido hoy: ' + ex.sugerido.w + ' ' + ex.unit + ' × ' + ex.sugerido.r + ' (RPE 8)' +
-    '<button class="btn" ' + on('usarSugerido', ex.name) + '>Usar</button></div>';
-  else if (!trabAnt.length) h += '<div class="tip">Elige un peso que te deje ' + ex.min + '–' + ex.max + ' reps y que te queden 1 o 2 por hacer</div>';
-  else if (!/Semana de carrera/.test(ex.hint || '')) h += '<div class="tip">Meta de hoy: mismo peso y 1 rep más en alguna serie (la última vez: ' + trabAnt.map(a => a.r).join(', ') + ')</div>';
-  else h += '<div class="tip">' + esc(ex.hint) + '</div>';
-  if (st.editAjuste) h += '<div class="ajuste-ed"><input id="aj-' + esc(ex.name) + '" maxlength="120" placeholder="Ej. banco a 30°, asiento en 4, agarre neutro" value="' + esc(BORR['aj-' + ex.name] !== undefined ? BORR['aj-' + ex.name] : (ex.ajuste || '')) + '" ' + ev('input', 'borrador', 'aj-' + ex.name, VALOR) + '>' +
-    '<button class="btn sm" ' + on('guardarAjuste', ex.name) + '>Guardar</button></div>';
-  else if (ex.ajuste) h += '<button class="nota" ' + on('editarAjuste', ex.name) + '>⚙️ ' + esc(ex.ajuste) + '<span class="ed">Editar</span></button>';
-  if (ex.notaUlt) h += '<div class="muted" style="margin:-4px 2px 10px;font-size:13px">La última vez anotaste: «' + esc(ex.notaUlt) + '»</div>';
-  h += facil ? '<div class="sets-h"><span>#</span><span>Antes</span><span>Peso</span><span>Veces</span><span></span></div>'
-    : '<div class="sets-h"><span>#</span><span>Anterior</span><span>' + st.unit + '</span><span>Reps</span><span></span></div>';
+  if (facil) h += html`<div class="facil">${instruccionFacil(ex, st)}</div>`;
+  else if (meta) h += html`<div class="tip plan">🎯 ${meta}</div>`;
+  else if (ex.up && !FECHA && !esPar(ex.name) && descargaActiva()) h += html`<div class="tip">Semana de descarga: estas series ya vienen con −10 % y la mitad. Sin llegar al fallo.</div>`;
+  else if (ex.up) h += html`<div class="tip acc">${crudo(ICO.up)}${ex.hint}</div>`;
+  else if (ex.prog && ex.hint) h += html`<div class="tip${ex.prog.accion === 'bajar' ? ' baja' : ''}">${ex.prog.accion === 'bajar' ? '↓ ' : ''}${ex.hint}</div>`;
+  else if (ex.hint && /al fallo/.test(ex.hint)) h += html`<div class="tip">${ex.hint}</div>`;
+  else if (ex.sugerido && (pesoAnt === null || ex.sugerido.w > pesoAnt)) h += html`<div class="sug">Sugerido hoy: ${ex.sugerido.w} ${ex.unit} × ${ex.sugerido.r} (RPE 8)` +
+    html`<button class="btn" ${on('usarSugerido', ex.name)}>Usar</button></div>`;
+  else if (!trabAnt.length) h += html`<div class="tip">Elige un peso que te deje ${ex.min}–${ex.max} reps y que te queden 1 o 2 por hacer</div>`;
+  else if (!/Semana de carrera/.test(ex.hint || '')) h += html`<div class="tip">Meta de hoy: mismo peso y 1 rep más en alguna serie (la última vez: ${trabAnt.map(a => a.r).join(', ')})</div>`;
+  else h += html`<div class="tip">${ex.hint}</div>`;
+  if (st.editAjuste) h += html`<div class="ajuste-ed"><input id="aj-${ex.name}" maxlength="120" placeholder="Ej. banco a 30°, asiento en 4, agarre neutro" value="${BORR['aj-' + ex.name] !== undefined ? BORR['aj-' + ex.name] : (ex.ajuste || '')}" ${ev('input', 'borrador', 'aj-' + ex.name, VALOR)}>` +
+    html`<button class="btn sm" ${on('guardarAjuste', ex.name)}>Guardar</button></div>`;
+  else if (ex.ajuste) h += html`<button class="nota" ${on('editarAjuste', ex.name)}>⚙️ ${ex.ajuste}<span class="ed">Editar</span></button>`;
+  if (ex.notaUlt) h += html`<div class="muted" style="margin:-4px 2px 10px;font-size:13px">La última vez anotaste: «${ex.notaUlt}»</div>`;
+  h += facil ? html`<div class="sets-h"><span>#</span><span>Antes</span><span>Peso</span><span>Veces</span><span></span></div>`
+    : html`<div class="sets-h"><span>#</span><span>Anterior</span><span>${st.unit}</span><span>Reps</span><span></span></div>`;
   const kUlt = ultimaMarcada(st), kSig = st.sets.findIndex(x => !x.ok);
   let num = 0, nc = 0;
   const antC = ex.anterior.filter(a => a.t === 'C'), antT = ex.anterior.filter(a => a.t !== 'C');
@@ -188,30 +187,30 @@ function cuerpoEjercicio(ex, st) {
     if (s.t !== 'C') num++; else nc++;
     const a = s.t === 'C' ? antC[nc - 1] : antT[num - 1];
     const etiqueta = s.t === 'C' ? 'C' : s.t === 'D' ? 'D' : num;
-    h += '<div class="set' + (s.ok ? ' hecho' : '') + (i === kSig ? ' sig' : '') + (ANIM_SET === ex.name + '#' + i ? ' recien' : '') + '">' +
-      '<button class="tipo ' + (s.t === 'T' ? '' : s.t) + '" ' + on('cambiarTipo', ex.name, i) + ' aria-label="Tipo de serie">' + etiqueta + '</button>' +
-      '<button class="ant num" ' + on('copiarAnterior', ex.name, i) + '>' + (a ? a.w + '×' + a.r : '—') + '</button>' +
-      '<button class="val num' + (vacio(s.w) ? ' vacio' : '') + '" ' + on('teclado', ex.name, i, 'w') + '>' + (vacio(s.w) ? 'peso' : s.w) + '</button>' +
-      '<button class="val num' + (vacio(s.r) ? ' vacio' : '') + '" ' + on('teclado', ex.name, i, 'r') + '>' + (vacio(s.r) ? (facil ? 'veces' : 'reps') : s.r) + '</button>' +
-      '<button class="chk" ' + on('marcar', ex.name, i) + ' aria-label="Serie hecha">' + ICO.check + (s.ok && s.e ? '<span class="e">' + ETQ_E[s.e] + '</span>' : '') + '</button></div>';
+    h += html`<div class="set${s.ok ? ' hecho' : ''}${i === kSig ? ' sig' : ''}${ANIM_SET === ex.name + '#' + i ? ' recien' : ''}">` +
+      html`<button class="tipo ${s.t === 'T' ? '' : s.t}" ${on('cambiarTipo', ex.name, i)} aria-label="Tipo de serie">${etiqueta}</button>` +
+      html`<button class="ant num" ${on('copiarAnterior', ex.name, i)}>${a ? a.w + '×' + a.r : '—'}</button>` +
+      html`<button class="val num${vacio(s.w) ? ' vacio' : ''}" ${on('teclado', ex.name, i, 'w')}>${vacio(s.w) ? 'peso' : s.w}</button>` +
+      html`<button class="val num${vacio(s.r) ? ' vacio' : ''}" ${on('teclado', ex.name, i, 'r')}>${vacio(s.r) ? (facil ? 'veces' : 'reps') : s.r}</button>` +
+      html`<button class="chk" ${on('marcar', ex.name, i)} aria-label="Serie hecha">${crudo(ICO.check)}${s.ok && s.e ? html`<span class="e">${ETQ_E[s.e]}</span>` : ''}</button></div>`;
     if (i === kUlt) h += filaEsfuerzo(n, st, s) + tipIA(n, st);
   });
   const vistas = LS.get('gym_tipcount', 0);
-  if (vistas < 3 && !facil) h += '<div class="muted" style="margin:-2px 0 8px;font-size:12px">Toca el # para cambiarla a calentamiento (C) o drop (D) · "Anterior" la copia · ⋮ arriba: calentamiento, ajuste, nota y superserie</div>';
+  if (vistas < 3 && !facil) h += html`<div class="muted" style="margin:-2px 0 8px;font-size:12px">Toca el # para cambiarla a calentamiento (C) o drop (D) · "Anterior" la copia · ⋮ arriba: calentamiento, ajuste, nota y superserie</div>`;
   // Si toca subir, "Igual que antes" te regresaría al peso viejo: no se muestra
   const igual = ex.anterior.length && !ex.up;
-  h += '<div class="setacts" style="grid-template-columns:' + (igual ? '1.6fr 1fr 1fr' : '1fr 1fr') + '">' +
-    (igual ? '<button class="btn ghost sm" ' + on('igualQueAntes', ex.name) + '>Igual que antes</button>' : '') +
-    '<button class="btn ghost sm" ' + on('addSet', ex.name) + '' + (st.sets.length >= 10 ? ' disabled' : '') + '>+ Serie</button>' +
-    '<button class="btn ghost sm" ' + on('delSet', ex.name) + '' + (st.sets.length <= 1 ? ' disabled' : '') + '>− Serie</button></div>';
+  h += html`<div class="setacts" style="grid-template-columns:${igual ? '1.6fr 1fr 1fr' : '1fr 1fr'}">` +
+    (igual ? html`<button class="btn ghost sm" ${on('igualQueAntes', ex.name)}>Igual que antes</button>` : '') +
+    html`<button class="btn ghost sm" ${on('addSet', ex.name)}${st.sets.length >= 10 ? ' disabled' : ''}>+ Serie</button>` +
+    html`<button class="btn ghost sm" ${on('delSet', ex.name)}${st.sets.length <= 1 ? ' disabled' : ''}>− Serie</button></div>`;
   // Lo secundario (calentamiento, ajuste, superserie, nota) vive en el menú ⋮; aquí solo se muestra si ya existe
   const par = esPar(ex.name) ? null : companero(ex.name);
-  if (par) h += '<div class="muted" style="font-size:13px;margin-top:8px">' + ICO.swap + ' Alternado con <b>' + esc(exDe(par).ejercicio) + '</b></div>';
-  if (st.notas) h += '<button class="nota" style="margin-top:8px" ' + on('notaDeHoy', ex.name) + '>📝 ' + esc(st.notas) + '<span class="ed">Editar</span></button>';
+  if (par) h += html`<div class="muted" style="font-size:13px;margin-top:8px">${crudo(ICO.swap)} Alternado con <b>${exDe(par).ejercicio}</b></div>`;
+  if (st.notas) h += html`<button class="nota" style="margin-top:8px" ${on('notaDeHoy', ex.name)}>📝 ${st.notas}<span class="ed">Editar</span></button>`;
 
   const hechas = st.sets.filter(s => s.ok).length;
-  h += '<div class="acts"><button class="btn" ' + on('guardar', ex.name) + '>' +
-    (hechas && hechas < st.sets.length ? 'Guardar ' + hechas + ' series' : 'Guardar ejercicio') + '</button></div>';
+  h += html`<div class="acts"><button class="btn" ${on('guardar', ex.name)}>${
+    hechas && hechas < st.sets.length ? 'Guardar ' + hechas + ' series' : 'Guardar ejercicio'}</button></div>`;
   return h;
 }
 
@@ -219,8 +218,8 @@ function cuerpoEjercicio(ex, st) {
 const CORTO_E = { 'Al fallo': 'Al fallo', 'Casi (1–2 más)': 'Quedaban 1–2', 'Sobraban 3+': 'Sobraban 3+' };
 function filaEsfuerzo(n, st, s) {
   const final = terminado(st);
-  return '<div class="rirx' + (final && !s.e ? ' pide' : '') + '"><div class="q">' + (final ? (s.e ? 'Última serie: ' : '¿Cómo terminó? Toca uno y se guarda') : '¿Cómo terminó esta serie?') + '</div><div class="pills">' +
-    Object.keys(RPE).map(v => '<button class="' + (s.e === v ? 'on' : '') + '" ' + on('setRir', String(n), String(v)) + '>' + CORTO_E[v] + '</button>').join('') + '</div></div>';
+  return html`<div class="rirx${final && !s.e ? ' pide' : ''}"><div class="q">${final ? (s.e ? 'Última serie: ' : '¿Cómo terminó? Toca uno y se guarda') : '¿Cómo terminó esta serie?'}</div><div class="pills">${
+    Object.keys(RPE).map(v => html`<button class="${s.e === v ? 'on' : ''}" ${on('setRir', String(n), String(v))}>${CORTO_E[v]}</button>`)}</div></div>`;
 }
 // Barra y máquinas de discos: qué discos poner o quitar por lado para el peso sugerido
 function cambioDiscos(ex, de, a, unit) {
@@ -234,16 +233,16 @@ function cambioDiscos(ex, de, a, unit) {
     [quitar.length ? 'quita ' + fmt(quitar) : '', poner.length ? 'pon ' + fmt(poner) : ''].filter(Boolean).join(' y ') : '');
 }
 function tipIA(n, st) {
-  if (st.ia && st.ia.pideRir) return '<div class="ia pide' + (ANIM_IA === n ? ' entra' : '') + '"><span>👆 Toca cómo terminó y te digo peso y reps de la siguiente</span></div>';
+  if (st.ia && st.ia.pideRir) return html`<div class="ia pide${ANIM_IA === n ? ' entra' : ''}"><span>👆 Toca cómo terminó y te digo peso y reps de la siguiente</span></div>`;
   if (!st.ia || !st.ia.mensaje) return '';
   const p = st.ia.motor ? st.ia.motor.paso : null;
   const sAct = st.sets[st.ia.i], disc = sAct ? cambioDiscos(exDe(n), sAct.w, st.ia.peso, st.unit) : '';
-  return '<div class="ia' + (ANIM_IA === n ? ' entra' : '') + '"><span>' + (st.ia.fuente === 'ia' ? '✨ ' : '💡 ') + esc(st.ia.mensaje) +
-    (st.ia.afinando ? ' <i class="muted" style="font-size:12px">· tu coach lo revisa…</i>' : '') + '</span>' +
-    (st.ia.usar ? '<button class="btn sm" ' + on('usarIA', String(n)) + '>Usar</button>' : '') + '</div>' +
-    (disc ? '<div class="discos">🏋️ ' + esc(disc) + '</div>' : '') +
-    (st.ia.pasoDudoso && p ? '<div class="pasoq"><span>¿De cuánto en cuánto sube este equipo? (' + esc(st.unit) + ')</span><div>' +
-      (st.unit === 'kg' ? [1.25, 2.5, 5, 10] : [2.5, 5, 10, 15]).map(v => '<button class="' + (v === p ? 'on' : '') + '" ' + on('fijarPaso', String(n), v) + '>' + v + '</button>').join('') + '</div></div>' : '');
+  return crudo(html`<div class="ia${ANIM_IA === n ? ' entra' : ''}"><span>${st.ia.fuente === 'ia' ? '✨ ' : '💡 '}${st.ia.mensaje}${
+    st.ia.afinando ? html` <i class="muted" style="font-size:12px">· tu coach lo revisa…</i>` : ''}</span>` +
+    html`${st.ia.usar ? html`<button class="btn sm" ${on('usarIA', String(n))}>Usar</button>` : ''}</div>` +
+    html`${disc ? html`<div class="discos">🏋️ ${disc}</div>` : ''}` +
+    html`${st.ia.pasoDudoso && p ? html`<div class="pasoq"><span>¿De cuánto en cuánto sube este equipo? (${st.unit})</span><div>${
+      (st.unit === 'kg' ? [1.25, 2.5, 5, 10] : [2.5, 5, 10, 15]).map(v => html`<button class="${v === p ? 'on' : ''}" ${on('fijarPaso', String(n), v)}>${v}</button>`)}</div></div>` : ''}`);
 }
 
 // El siguiente ejercicio pendiente: primero en la sección del que acabas de hacer, luego en las demás
@@ -417,23 +416,22 @@ function elegirCambio(name, todos) {
   const orden = (a, b) => (b.anterior.length ? 1 : 0) - (a.anterior.length ? 1 : 0);
   const mismo = ex.patron ? libres.filter(e => e.patron === ex.patron).sort(orden) : [];
   const musc = libres.filter(e => e.musculo === ex.musculo && !mismo.includes(e)).sort(orden);
-  const fila = e => '<button ' + on('usarCambio', e.name) + '><b style="flex:1">' + esc(e.ejercicio) + '</b><span class="muted">' +
-    (e.anterior.length ? resumenSets(e.anterior) : 'nuevo') + '</span></button>';
+  const fila = e => html`<button ${on('usarCambio', e.name)}><b style="flex:1">${e.ejercicio}</b><span class="muted">${e.anterior.length ? resumenSets(e.anterior) : 'nuevo'}</span></button>`;
   const vars = esPar(name) ? [] : variantesDe(name).filter(e => libres.includes(e));
-  const filaVar = e => '<button ' + on('elegirVariante', name, e.name) + '><b style="flex:1">' + badgeMod(e) + esc(e.ejercicio) + '</b><span class="muted">' +
-    (e.anterior.length ? resumenSets(e.anterior) + ' ' + e.unit : 'nuevo') + '</span></button>';
+  const filaVar = e => html`<button ${on('elegirVariante', name, e.name)}><b style="flex:1">${badgeMod(e)}${e.ejercicio}</b><span class="muted">${
+    e.anterior.length ? resumenSets(e.anterior) + ' ' + e.unit : 'nuevo'}</span></button>`;
   const sinVar = l => l.filter(e => !vars.includes(e));
   const top = sinVar(mismo.length ? mismo : musc).slice(0, 3), resto = sinVar(mismo.concat(musc)).filter(e => !top.includes(e));
-  const q = parOn() ? '<div class="cquien">' + [['ambos', 'Los dos'], ['yo', 'Solo yo'], ['par', 'Solo ' + PAR.nombre]].map(o =>
-    '<button class="' + (CAMBIO.quien === o[0] ? 'on' : '') + '" ' + on('cambioQuien', o[0], name, !!todos) + '>' + esc(o[1]) + '</button>').join('') + '</div>' : '';
-  $('sheet').innerHTML = '<div class="t2">Cambiar ' + esc(ex.ejercicio) + '</div>' + q +
-    (vars.length ? '<div class="muted" style="margin:4px 0 6px">Mismo ejercicio, otro equipo (ahora: ' + esc(ex.modalidad || ex.howTo) + ')</div><div class="lista vars">' + vars.map(filaVar).join('') + '</div>' +
-      '<div class="muted" style="margin:12px 0 0">O algo parecido:</div>' : '') + '<div class="muted" style="margin:4px 0 8px">' +
-    (mismo.length ? 'Mismo movimiento (' + esc(ex.patron.toLowerCase()) + '). ' : 'Mismo músculo (' + esc(ex.musculo) + '). ') + 'Te carga tu peso de la última vez.</div>' +
-    '<div class="lista">' + (top.length ? top.map(fila).join('') : '<div class="muted" style="padding:12px 0">No hay otro ejercicio equivalente en tu catálogo.</div>') +
-    (todos && resto.length ? '<div class="muted" style="padding:10px 2px 2px">Otros de ' + esc(ex.musculo) + '</div>' + resto.map(fila).join('') : '') + '</div>' +
-    '<div class="acts">' + (!todos && resto.length ? '<button class="btn ghost" ' + on('elegirCambio', name, true) + '>Ver ' + resto.length + ' más</button>' : '') +
-    '<button class="btn ghost" ' + on('cerrarModal') + '>Cancelar</button></div>';
+  const q = parOn() ? html`<div class="cquien">${[['ambos', 'Los dos'], ['yo', 'Solo yo'], ['par', 'Solo ' + PAR.nombre]].map(o =>
+    html`<button class="${CAMBIO.quien === o[0] ? 'on' : ''}" ${on('cambioQuien', o[0], name, !!todos)}>${o[1]}</button>`)}</div>` : '';
+  $('sheet').innerHTML = html`<div class="t2">Cambiar ${ex.ejercicio}</div>${q}` +
+    (vars.length ? html`<div class="muted" style="margin:4px 0 6px">Mismo ejercicio, otro equipo (ahora: ${ex.modalidad || ex.howTo})</div><div class="lista vars">${vars.map(filaVar)}</div>` +
+      html`<div class="muted" style="margin:12px 0 0">O algo parecido:</div>` : '') + html`<div class="muted" style="margin:4px 0 8px">` +
+    html`${mismo.length ? 'Mismo movimiento (' + ex.patron.toLowerCase() + '). ' : 'Mismo músculo (' + ex.musculo + '). '}Te carga tu peso de la última vez.</div>` +
+    html`<div class="lista">${top.length ? top.map(fila) : html`<div class="muted" style="padding:12px 0">No hay otro ejercicio equivalente en tu catálogo.</div>`}${
+      todos && resto.length ? html`<div class="muted" style="padding:10px 2px 2px">Otros de ${ex.musculo}</div>${resto.map(fila)}` : ''}</div>` +
+    html`<div class="acts">${!todos && resto.length ? html`<button class="btn ghost" ${on('elegirCambio', name, true)}>Ver ${resto.length} más</button>` : ''}` +
+    html`<button class="btn ghost" ${on('cerrarModal')}>Cancelar</button></div>`;
   abrirModal();
 }
 function usarCambio(name) {
@@ -476,12 +474,12 @@ const originalDe = name => Object.keys(cambiosHoy()).find(k => cambiosHoy()[k] =
 function elegirVariante(de, a) {
   const ex = exDe(originalDe(de) || de), v = exDe(a), enRutina = ex.bloque === 'A' || ex.bloque === 'B';
   if (parOn()) { CAMBIO = { de: de, quien: CAMBIO.quien }; return usarCambio(a); }   // en pareja: el cambio de siempre (los dos, solo yo o solo él)
-  $('sheet').innerHTML = '<div class="t2">' + esc(v.ejercicio) + '</div><div class="muted" style="margin:4px 0 12px">En lugar de ' + esc(ex.ejercicio) +
-    '. ' + esc(MOTOR.comoAnotar(v).texto) + '.</div><div class="menu">' +
-    '<button ' + on('usarVariante', de, a, false) + '><span class="i">📅</span><span><b>' + (FECHA ? 'Usarlo ese día' : 'Solo hoy') + '</b><small>' +
-      (FECHA ? 'Sin cambiar tu rutina' : 'Mañana vuelve ' + esc(ex.ejercicio.split(' (')[0])) + '</small></span></button>' +
-    (enRutina ? '<button ' + on('usarVariante', de, a, true) + '><span class="i">📌</span><span><b>Siempre en mi rutina</b><small>Queda en tu bloque ' + ex.bloque + ' (también en tu hoja)</small></span></button>' : '') +
-    '</div><div class="acts"><button class="btn ghost" ' + on('elegirCambio', de) + '>Atrás</button></div>';
+  $('sheet').innerHTML = html`<div class="t2">${v.ejercicio}</div><div class="muted" style="margin:4px 0 12px">En lugar de ${ex.ejercicio}` +
+    html`. ${MOTOR.comoAnotar(v).texto}.</div><div class="menu">` +
+    html`<button ${on('usarVariante', de, a, false)}><span class="i">📅</span><span><b>${FECHA ? 'Usarlo ese día' : 'Solo hoy'}</b><small>${
+      FECHA ? 'Sin cambiar tu rutina' : 'Mañana vuelve ' + ex.ejercicio.split(' (')[0]}</small></span></button>` +
+    (enRutina ? html`<button ${on('usarVariante', de, a, true)}><span class="i">📌</span><span><b>Siempre en mi rutina</b><small>Queda en tu bloque ${ex.bloque} (también en tu hoja)</small></span></button>` : '') +
+    html`</div><div class="acts"><button class="btn ghost" ${on('elegirCambio', de)}>Atrás</button></div>`;
   abrirModal();
 }
 function usarVariante(de, a, siempre) {
@@ -514,9 +512,9 @@ function volverOriginal(a) {
 function elegirSuper(name) {
   const ex = exDe(name);
   const opciones = DATA.exercises.filter(e => e.group === ex.group && e.name !== name && !state[e.name].done);
-  $('sheet').innerHTML = '<div class="t2">Alternar con…</div><div class="muted" style="margin:4px 0 8px">Haces una serie de cada uno, alternando. El descanso se sugiere al terminar el par.</div>' +
-    '<div class="lista">' + opciones.map(e => '<button ' + on('ponerSuper', name, e.name) + '><b style="flex:1">' + esc(e.ejercicio) + '</b><span class="muted">' + esc(e.musculo) + '</span></button>').join('') + '</div>' +
-    '<div class="acts"><button class="btn ghost" ' + on('cerrarModal') + '>Cancelar</button></div>';
+  $('sheet').innerHTML = html`<div class="t2">Alternar con…</div><div class="muted" style="margin:4px 0 8px">Haces una serie de cada uno, alternando. El descanso se sugiere al terminar el par.</div>` +
+    html`<div class="lista">${opciones.map(e => html`<button ${on('ponerSuper', name, e.name)}><b style="flex:1">${e.ejercicio}</b><span class="muted">${e.musculo}</span></button>`)}</div>` +
+    html`<div class="acts"><button class="btn ghost" ${on('cerrarModal')}>Cancelar</button></div>`;
   abrirModal();
 }
 function ponerSuper(a, b) { LS.set('gym_super_' + diaReg(), [a, b]); cerrarModal(); OPEN = a; pintarEntrenar(); irA(a); }
@@ -541,19 +539,19 @@ function teclado(name, i, f) {
   const unicos = quick.filter((v, k) => quick.indexOf(v) === k);
   const num = st.sets.slice(0, i + 1).filter(x => x.t !== 'C').length;
   const como = MOTOR.comoAnotar(ex);
-  const titulo = (s.t === 'C' ? 'Calentamiento' : s.t === 'D' ? 'Drop' : 'Serie ' + num) + ' · ' + (f === 'w' ? '<b class="anota">' + esc(como.texto || 'Peso') + ' (' + st.unit + ')</b>' : 'repeticiones');
-  $('kpSheet').innerHTML = '<div class="row between"><div class="t1">' + esc(ex.ejercicio) + '</div><button class="btn ghost sm" ' + on('cerrarTeclado') + '>✕</button></div>' +
-    '<div class="muted" style="text-align:center;margin-top:8px">' + titulo + '</div><div class="disp num" id="kpDisp"></div>' +
-    (f === 'w' && ex.mult === 2 ? '<div class="platos" id="kpPlatos"></div>' : '') +
-    (f === 'w' && como.corto === 'total' ? '<div class="platos">Es el total' + (ex.modalidad === 'Barra fija' ? ' de la barra fija' : '') + ': no lo dividas entre 2</div>' : '') +
-    '<div class="quick" style="grid-template-columns:repeat(' + unicos.length + ',1fr)">' + unicos.map(v => '<button ' + on('kpSumar', v) + '>' + (v > 0 ? '+' : '−') + Math.abs(v) + '</button>').join('') + '</div>' +
+  const titulo = html`${s.t === 'C' ? 'Calentamiento' : s.t === 'D' ? 'Drop' : 'Serie ' + num} · ${f === 'w' ? html`<b class="anota">${como.texto || 'Peso'} (${st.unit})</b>` : 'repeticiones'}`;
+  $('kpSheet').innerHTML = html`<div class="row between"><div class="t1">${ex.ejercicio}</div><button class="btn ghost sm" ${on('cerrarTeclado')}>✕</button></div>` +
+    html`<div class="muted" style="text-align:center;margin-top:8px">${titulo}</div><div class="disp num" id="kpDisp"></div>` +
+    (f === 'w' && ex.mult === 2 ? html`<div class="platos" id="kpPlatos"></div>` : '') +
+    (f === 'w' && como.corto === 'total' ? html`<div class="platos">Es el total${ex.modalidad === 'Barra fija' ? ' de la barra fija' : ''}: no lo dividas entre 2</div>` : '') +
+    html`<div class="quick" style="grid-template-columns:repeat(${unicos.length},1fr)">${unicos.map(v => html`<button ${on('kpSumar', v)}>${v > 0 ? '+' : '−'}${Math.abs(v)}</button>`)}</div>` +
     teclas() +
-    '<div class="acts"><button class="btn ghost" ' + on('kpListo', false) + '>Listo</button>' +
-    '<button class="btn" ' + on('kpListo', true) + '>' + ICO.check.replace('class="icon"', 'class="icon" style="vertical-align:-4px;margin-right:4px"') + 'Y serie hecha</button></div>';
+    html`<div class="acts"><button class="btn ghost" ${on('kpListo', false)}>Listo</button>` +
+    html`<button class="btn" ${on('kpListo', true)}>${crudo(ICO.check.replace('class="icon"', 'class="icon" style="vertical-align:-4px;margin-right:4px"'))}Y serie hecha</button></div>`;
   kpPintar();
   $('kp').classList.add('show');
 }
-function teclas() { return '<div class="keys">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'].map(k => '<button ' + on('kpTecla', String(k)) + '>' + k + '</button>').join('') + '</div>'; }
+function teclas() { return html`<div class="keys">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'].map(k => html`<button ${on('kpTecla', String(k))}>${k}</button>`)}</div>`; }
 function kpPintar() {
   $('kpDisp').textContent = KP.val === '' ? '0' : KP.val;
   const el = $('kpPlatos');
@@ -561,7 +559,7 @@ function kpPintar() {
     const ex = exDe(KP.name), unit = state[KP.name].unit, w = Number(KP.val) || 0;
     const lista = platos(w, unit);
     const total = Math.round((w * 2 + (unit === 'kg' ? Math.round(ex.barra / KG_A_LB) : ex.barra)) * 10) / 10;
-    el.innerHTML = w ? 'Por lado: <b>' + (lista ? lista.join(' + ') : 'no sale exacto con discos') + '</b> · total ' + total + ' ' + unit + (ex.barra ? ' con barra' : '') : 'Pon el peso de un lado';
+    el.innerHTML = w ? html`Por lado: <b>${lista ? lista.join(' + ') : 'no sale exacto con discos'}</b> · total ${total} ${unit}${ex.barra ? ' con barra' : ''}` : 'Pon el peso de un lado';
   }
 }
 function kpTecla(k) {
@@ -591,12 +589,12 @@ function tecladoPeso(dia) {
   const tmp = PESO_TMP === null || PESO_TMP === undefined ? '' : PESO_TMP, ult = DATA.ultimoPeso;
   const base = tmp !== '' ? tmp : ult !== null && ult !== undefined ? ult : '';
   KP = { peso: true, val: base === '' ? '' : String(base), nuevo: true, f: 'w' };
-  $('kpSheet').innerHTML = '<div class="row between"><div class="t1">Peso en ayunas (kg)</div><button class="btn ghost sm" ' + on('cerrarTeclado') + '>✕</button></div>' +
-    (tmp === '' && base !== '' ? '<div class="muted" style="text-align:center;margin-top:6px">Te puse el último (' + ult + ' kg): ajústalo con − / + o escribe el nuevo</div>'
-      : ult !== null && ult !== undefined ? '<div class="muted" style="text-align:center;margin-top:6px">Último: ' + ult + ' kg</div>' : '') +
-    '<div class="disp num" id="kpDisp"></div><div class="quick" style="grid-template-columns:repeat(4,1fr)">' +
-    [-0.5, -0.1, 0.1, 0.5].map(v => '<button ' + on('kpSumar', v) + '>' + (v > 0 ? '+' : '−') + Math.abs(v) + '</button>').join('') + '</div>' + teclas() +
-    '<div class="acts"><button class="btn ghost" ' + on('kpPeso', false) + '>Listo</button><button class="btn" ' + on('kpPeso', true) + '>Guardar peso</button></div>';
+  $('kpSheet').innerHTML = html`<div class="row between"><div class="t1">Peso en ayunas (kg)</div><button class="btn ghost sm" ${on('cerrarTeclado')}>✕</button></div>` +
+    (tmp === '' && base !== '' ? html`<div class="muted" style="text-align:center;margin-top:6px">Te puse el último (${ult} kg): ajústalo con − / + o escribe el nuevo</div>`
+      : ult !== null && ult !== undefined ? html`<div class="muted" style="text-align:center;margin-top:6px">Último: ${ult} kg</div>` : '') +
+    html`<div class="disp num" id="kpDisp"></div><div class="quick" style="grid-template-columns:repeat(4,1fr)">` +
+    html`${[-0.5, -0.1, 0.1, 0.5].map(v => html`<button ${on('kpSumar', v)}>${v > 0 ? '+' : '−'}${Math.abs(v)}</button>`)}</div>${teclas()}` +
+    html`<div class="acts"><button class="btn ghost" ${on('kpPeso', false)}>Listo</button><button class="btn" ${on('kpPeso', true)}>Guardar peso</button></div>`;
   kpPintar(); $('kp').classList.add('show');
 }
 function kpPeso(guardarYa) { PESO_TMP = KP.val === '' ? '' : Number(KP.val); cerrarTeclado(); if (guardarYa) guardarPeso(); else pintarEntrenar(); }

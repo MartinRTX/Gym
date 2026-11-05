@@ -1,4 +1,5 @@
-// Pantallas que ya se pintan con la plantilla html`…` (v9.9: Coach, Trote y Sesión; v10.0: Ajustes; v10.1: Comida, Entrenar, Progreso y Músculos). Dos riesgos al pasarlas: que algo de afuera se vuelva HTML
+// Pantallas que ya se pintan con la plantilla html`…` (v9.9: Coach, Trote y Sesión; v10.0: Ajustes; v10.1: Comida, Entrenar, Progreso y Músculos;
+// v10.2: series, menú del ejercicio, teclados, buscador, recetas, tupper, etiquetas y metas: ya toda la app). Dos riesgos al pasarlas: que algo de afuera se vuelva HTML
 // (se escapa de menos) o que un pedazo de la app salga como texto "<div…" (se escapa de más: html`a` + html`b` ya es texto).
 const BASE = process.env.E2E_URL || 'http://localhost:8770/';
 const { chromium } = require('playwright');
@@ -99,6 +100,36 @@ const X = '<b data-inyectado="1">X</b>';
     ok('Músculos de hoy: mapa y leyenda como elementos, sin etiquetas como texto', await p.locator('#vMusculos .cuerpo svg').count() === 2 && await p.locator('#vMusculos .leyenda span').count() === 4 &&
       !(await inyectados()) && !(await etiquetasSueltas('#vMusculos')).length, await etiquetasSueltas('#vMusculos'));
     await p.evaluate(() => verTab('Entrenar'));
+    // v10.2: lo que pintan series.js y comida.js (hojas de abajo y teclados)
+    const X2 = '<b data-inyectado="1">X</b>';
+    const hojas = [
+      ['Menú ⋮', () => { const e = DATA.exercises.find(x => x.group === GRUPO); state[e.name].notas = 'nota<b data-inyectado="1">X</b>'; menuEjercicio(e.name); }, '#sheet', '#sheet .menu button', 6],
+      ['Paso del equipo', () => menuPaso(DATA.exercises.find(x => x.group === GRUPO).name), '#sheet', '#sheet .pills button', 8],
+      ['Nota de hoy', () => notaDeHoy(DATA.exercises.find(x => x.group === GRUPO).name), '#sheet', '#sheet textarea', 1],
+      ['Cambiar ejercicio', () => elegirCambio(DATA.exercises.find(x => x.group === GRUPO).name, true), '#sheet', '#sheet .lista button', 1],
+      ['Alternar con…', () => elegirSuper(DATA.exercises.find(x => x.group === GRUPO).name), '#sheet', '#sheet .lista button', 1],
+      ['Teclado de serie', () => { cerrarModal(); teclado(DATA.exercises.find(x => x.group === GRUPO).name, 0, 'w'); }, '#kpSheet', '#kpSheet .keys button', 12],
+      ['Teclado de peso', () => { cerrarTeclado(); tecladoPeso(); }, '#kpSheet', '#kpSheet .quick button', 4],
+      ['Buscador', () => { cerrarTeclado(); abrirBuscador({ q: 'taco' }); }, '#sheet', '#sheet input#busNut', 1],
+      ['Receta (licuado)', () => { BUS = null; cerrarModal(); REC_ED = null; abrirReceta('licuado'); }, '#sheet', '#sheet .rec .ri', 3],
+      ['Tupper', () => { cerrarModal(); abrirTupper(); }, '#sheet', '#sheet .tchips button', 5],
+      ['Cenas', () => { cerrarModal(); abrirCenas(); }, '#sheet', '#sheet .cenas .cf', 6],
+      ['Metas', () => { cerrarModal(); abrirMetas(); }, '#sheet', '#sheet .metas .mt', 5],
+      ['Foto o código', () => { cerrarModal(); abrirCamara(); }, '#sheet', '#sheet .camopts button', 4],
+      ['Etiqueta a mano', () => { cerrarModal(); etiquetaAMano(); }, '#sheet', '#sheet .pcs input', 7],
+      ['Revisar etiqueta', X => { cerrarModal(); abrirEtiqueta({ es_etiqueta: true, nombre: 'Leche' + X, marca: 'Marca' + X, u: 'ml', declarada: 'porcion', porcion: { texto: 'vaso' + X, cant: 250, p: 8, c: 12, f: 8, k: 150 }, avisos: ['aviso' + X] }); }, '#sheet', '#sheet .etqmodos button', 2],
+      ['Producto nuevo', X => { cerrarModal(); confirmarProducto({ id: 'off:1', n: 'Yogurt' + X, marca: 'M' + X, u: 'g', p: 10, c: 5, f: 2, k: 80, fib: 0, por: [['1 vaso', 150]] }, ['ojo' + X]); }, '#sheet', '#sheet .pcs input', 5],
+      ['Cuánto comiste', () => { cerrarModal(); pedirCantidadDirecta(NUT.BASE[0], 100); }, '#sheet', '#sheet .cantfila input', 1],
+      ['Corregir lo de hoy', () => { cerrarModal(); verTab('Comida'); abrirItemDia(0); }, '#sheet', '#sheet .pcs input', 4]
+    ];
+    const malosH = [];
+    for (const [n, f, donde, sel, min] of hojas) {
+      try { await p.evaluate(f, X2); await p.waitForTimeout(120); } catch (e) { malosH.push(n + ': ' + e.message.split('\n')[0]); continue; }
+      const cuantos = await p.locator(sel).count(), et = await etiquetasSueltas(donde), iny = await inyectados();
+      if (cuantos < min || et.length || iny) malosH.push(n + ' (' + cuantos + ' de ' + min + (et.length ? '; texto: ' + et.join(' ') : '') + (iny ? '; HTML de afuera' : '') + ')');
+    }
+    ok('Series, teclados y hojas de Comida (' + hojas.length + '): elementos en su lugar, nada de afuera se vuelve HTML y no salen etiquetas como texto', !malosH.length, malosH);
+    await p.evaluate(() => { cerrarModal(); cerrarTeclado(); verTab('Entrenar'); });
   } catch (e) { ok('Recorrido completo', false, e.message.split('\n')[0]); }
   ok('Sin errores de página', !errs.length, errs);
   await b.close();
