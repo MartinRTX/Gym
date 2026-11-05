@@ -7,25 +7,27 @@ function abrirBienvenida() {
   if (BV_POSPUESTA || sesionActiva() || $('modal').classList.contains('show')) return;
   if (!BV) BV = { peso: '', dias: (DATA.dias || [1, 2, 3, 4, 5]).slice(), km: 0, fecha: '' };
   const meta = BV.peso ? Math.round(Number(BV.peso) * 1.6 / 5) * 5 : null;
-  $('sheet').innerHTML = '<div class="bv"><div class="t2">¡Bienvenido, ' + esc(DATA.nombre || '') + '!</div>' +
-    '<div class="muted" style="margin-top:4px">3 datos y listo: con esto ajusto tu meta de proteína y tus avisos.</div>' +
-    '<label>1. Tu peso (kg)</label><input type="number" inputmode="decimal" step="0.1" id="bvPeso" placeholder="Ej. 72" value="' + esc(BV.peso) + '" ' + ev('input', 'bvPeso', VALOR) + '>' +
-    '<div class="muted" id="bvMeta" style="margin-top:6px">' + (meta ? 'Tu meta de proteína: <b style="color:var(--text)">' + meta + ' g al día</b>' : 'Con tu peso calculo tu meta de proteína.') + '</div>' +
-    '<label>2. ¿Qué días entrenas?</label><div class="muted">Esos días te llega el aviso a las 5:00 am.</div><div class="dias">' +
-    [1, 2, 3, 4, 5, 6, 0].map(d => '<button class="' + (BV.dias.includes(d) ? 'on' : '') + '" ' + on('bvDia', d) + '>' + DIAS_CORTOS[d] + '</button>').join('') + '</div>' +
-    '<label>3. ¿Tienes alguna carrera?</label><div class="pills" style="display:grid;grid-template-columns:repeat(4,1fr);margin:0">' +
-    [[0, 'No'], [5, '5 km'], [10, '10 km'], [21, '21 km']].map(x => '<button class="' + (BV.km === x[0] ? 'on' : '') + '" ' + on('bvKm', x[0]) + '>' + x[1] + '</button>').join('') + '</div>' +
-    (BV.km ? '<input type="date" id="bvFecha" min="' + hoy() + '" value="' + esc(BV.fecha) + '" ' + ev('change', 'bvFecha', VALOR) + '>' : '') +
-    '<label>4. ¿Ya sabes usar las máquinas del gym?</label><div class="pills" style="display:grid;grid-template-columns:1fr 1fr;margin:0">' +
-    [[false, 'Sí, ya sé'], [true, 'Soy nuevo']].map(x => '<button class="' + (!!BV.sencillo === x[0] ? 'on' : '') + '" ' + on('bvSencillo', x[0]) + '>' + x[1] + '</button>').join('') + '</div>' +
-    (BV.sencillo ? '<div class="muted" style="margin-top:6px">Te pongo el modo sencillo: te digo qué hacer paso a paso. Lo quitas en Ajustes.</div>' : '') +
-    '<div class="acts"><button class="btn ghost" ' + on('posponerBienvenida') + '>Ahora no</button><button class="btn" ' + on('guardarBienvenida') + '>Listo</button></div></div>';
+  $('sheet').innerHTML = html`<div class="bv"><div class="t2">¡Bienvenido, ${DATA.nombre || ''}!</div>` +
+    html`<div class="muted" style="margin-top:4px">3 datos y listo: con esto ajusto tu meta de proteína y tus avisos.</div>` +
+    html`<label>1. Tu peso (kg)</label><input type="number" inputmode="decimal" step="0.1" id="bvPeso" placeholder="Ej. 72" value="${BV.peso}" ${ev('input', 'bvPeso', VALOR)}>` +
+    html`<div class="muted" id="bvMeta" style="margin-top:6px">${textoMetaBV(meta)}</div>` +
+    html`<label>2. ¿Qué días entrenas?</label><div class="muted">Esos días te llega el aviso a las 5:00 am.</div><div class="dias">${
+      [1, 2, 3, 4, 5, 6, 0].map(d => html`<button class="${BV.dias.includes(d) ? 'on' : ''}" ${on('bvDia', d)}>${DIAS_CORTOS[d]}</button>`)}</div>` +
+    html`<label>3. ¿Tienes alguna carrera?</label><div class="pills" style="display:grid;grid-template-columns:repeat(4,1fr);margin:0">${
+      [[0, 'No'], [5, '5 km'], [10, '10 km'], [21, '21 km']].map(x => html`<button class="${BV.km === x[0] ? 'on' : ''}" ${on('bvKm', x[0])}>${x[1]}</button>`)}</div>` +
+    (BV.km ? html`<input type="date" id="bvFecha" min="${hoy()}" value="${BV.fecha}" ${ev('change', 'bvFecha', VALOR)}>` : '') +
+    html`<label>4. ¿Ya sabes usar las máquinas del gym?</label><div class="pills" style="display:grid;grid-template-columns:1fr 1fr;margin:0">${
+      [[false, 'Sí, ya sé'], [true, 'Soy nuevo']].map(x => html`<button class="${!!BV.sencillo === x[0] ? 'on' : ''}" ${on('bvSencillo', x[0])}>${x[1]}</button>`)}</div>` +
+    (BV.sencillo ? html`<div class="muted" style="margin-top:6px">Te pongo el modo sencillo: te digo qué hacer paso a paso. Lo quitas en Ajustes.</div>` : '') +
+    html`<div class="acts"><button class="btn ghost" ${on('posponerBienvenida')}>Ahora no</button><button class="btn" ${on('guardarBienvenida')}>Listo</button></div></div>`;
   abrirModal();
 }
 function bvToggle(lista, d) { return lista.includes(d) ? lista.filter(x => x !== d) : lista.concat([d]).sort(); }
+// La meta de proteína que sale de tu peso (o la invitación a ponerlo)
+const textoMetaBV = m => m ? html`Tu meta de proteína: <b style="color:var(--text)">${m} g al día</b>` : 'Con tu peso calculo tu meta de proteína.';
 function bvMeta() {
   const m = Number(BV.peso) >= 30 ? Math.round(Number(BV.peso) * 1.6 / 5) * 5 : null;
-  $('bvMeta').innerHTML = m ? 'Tu meta de proteína: <b style="color:var(--text)">' + m + ' g al día</b>' : 'Con tu peso calculo tu meta de proteína.';
+  $('bvMeta').innerHTML = html`${textoMetaBV(m)}`;
 }
 function guardarBienvenida() {
   const p = Number(BV.peso);
@@ -45,7 +47,8 @@ function guardarBienvenida() {
 }
 
 /* ===================== AJUSTES ===================== */
-const svgA = d => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+// Ícono de Ajustes: HTML de la app (crudo), así entra tal cual en la plantilla
+const svgA = d => crudo('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>');
 const AIC = {
   cel: svgA('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18h2"/>'),
   campana: svgA('<path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9z"/><path d="M10 20a2 2 0 0 0 4 0M3 5l2-2M21 5l-2-2"/>'),
@@ -64,68 +67,65 @@ const AIC = {
 function abrirAjustes() {
   if (!DATA) return;
   // Cada interruptor va en su tarjeta con un ícono de color
-  const tog = (k, d, txt, sub, ic, color) => '<div class="opt tarj"><span class="aic" style="--c:var(--' + color + ')">' + ic + '</span><div class="txt"><div class="t1" style="font-size:15px">' + txt + '</div><div class="muted">' + sub + '</div></div>' +
-    '<button class="tog' + (ajuste(k, d) ? ' on' : '') + '" ' + on('toggleAjuste', String(k), d) + ' aria-label="' + esc(txt) + '"></button></div>';
+  const tog = (k, d, txt, sub, ic, color) => html`<div class="opt tarj"><span class="aic" style="--c:var(--${color})">${ic}</span><div class="txt"><div class="t1" style="font-size:15px">${txt}</div><div class="muted">${sub}</div></div>` +
+    html`<button class="tog${ajuste(k, d) ? ' on' : ''}" ${on('toggleAjuste', String(k), d)} aria-label="${txt}"></button></div>`;
   const def = ajuste('descanso', 90), c = DATA.carrera;
-  const sec = (ic, color, txt) => '<div class="t1 asec"><span style="color:var(--' + color + ')">' + ic + '</span>' + txt + '</div>';
+  const sec = (ic, color, txt) => html`<div class="t1 asec"><span style="color:var(--${color})">${ic}</span>${txt}</div>`;
+  // Tarjeta con ícono, título y explicación (avisos y opciones sin interruptor); "fin" va a la derecha (un botón)
+  const tarjeta = (clase, ic, color, txt, sub, fin) => html`<div class="${clase}"><span class="aic" style="--c:var(--${color})">${ic}</span><div class="txt"><div class="t1" style="font-size:15px">${txt}</div><div class="muted">${sub}</div></div>${fin || ''}</div>`;
   const fallas = LS.get('gym_jserr', []).length + LS.get('gym_errores', []).length;
-  $('sheet').innerHTML = '<div class="row between ajhead"><div class="t2">Ajustes</div><button class="cerrar" ' + on('cerrarModal') + ' aria-label="Cerrar">✕</button></div>' +
+  $('sheet').innerHTML = html`<div class="row between ajhead"><div class="t2">Ajustes</div><button class="cerrar" ${on('cerrarModal')} aria-label="Cerrar">✕</button></div>` +
     tog('animaciones', true, 'Animación de cada ejercicio', 'Una figura hace el movimiento con su equipo y su tempo; el músculo que trabaja en naranja', AIC.flechas, 'pri') +
     tog('sencillo', false, 'Modo sencillo', 'Para quien empieza: «Hoy te toca» en 3 pasos, una instrucción por serie y menos pestañas (sin Músculos ni Coach)', AIC.chispa, 'ok') +
-    '<div class="opt tarj"><span class="aic" style="--c:var(--pri)">' + AIC.flechas + '</span><div class="txt"><div class="t1" style="font-size:15px">Tour de la app</div><div class="muted">4 pasos: dónde pesarte, elegir el día, anotar series y la comida</div></div>' +
-    '<button class="btn ghost sm" ' + on('iniciarTour') + '>Ver</button></div>' +
+    tarjeta('opt tarj', AIC.flechas, 'pri', 'Tour de la app', '4 pasos: dónde pesarte, elegir el día, anotar series y la comida', html`<button class="btn ghost sm" ${on('iniciarTour')}>Ver</button>`) +
     tog('pantalla', true, 'Pantalla encendida en la sesión', 'Para que el descanso suene y no tengas que desbloquear', AIC.cel, 'cyan') +
     tog('reloj', NATIVO, 'Avisar al terminar el descanso', NATIVO ? 'Notificación con vibración aunque la pantalla esté bloqueada; llega a tu reloj' : 'Notificación al terminar (solo si la app está abierta; en el APK llega aunque bloquees)', AIC.campana, 'acc') +
     tog('autoDescanso', false, 'Iniciar el descanso solo', 'Si está apagado, solo te sugiere tiempos al marcar una serie', AIC.reloj, 'ok') +
     tog('iaPlan', true, 'Plan del día con IA', 'Al abrir Entrenar: un foco para la sesión y una meta por ejercicio', AIC.chispa, 'pri') +
     tog('ia', true, 'La IA afina el consejo entre series', 'El motor te dice al instante qué hacer en la siguiente serie (sin señal); con señal, Gemini elige entre sus opciones y te explica por qué', AIC.cerebro, 'pri') +
-    (!scriptAlDia() ? '<div class="opt tarj aviso-script"><span class="aic" style="--c:var(--acc)">' + AIC.tabla + '</span><div class="txt"><div class="t1" style="font-size:15px">Actualiza tu script a la ' + SCRIPT_ESPERADO + '</div>' +
-      '<div class="muted">Tu hoja tiene la ' + esc(DATA.scriptVersion || 'anterior a la 7.4') + '. La app funciona, pero sin las mejoras nuevas del script (te lo manda tu coach).</div></div></div>'
-      : !motorAlDia() ? '<div class="opt tarj aviso-script"><span class="aic" style="--c:var(--acc)">' + AIC.tabla + '</span><div class="txt"><div class="t1" style="font-size:15px">Actualiza Progresion.gs en tu script</div>' +
-      '<div class="muted">' + (DATA.motorFirma ? 'El motor de progresión de tu hoja es de otra versión' : 'A tu proyecto de Apps Script le falta el archivo Progresion.gs') +
-      '. Mientras, la app calcula la sugerencia de cada ejercicio con su propio motor.</div></div></div>' : '') +
-    (NATIVO && APK_OK === false ? '<div class="opt tarj aviso-script"><span class="aic" style="--c:var(--acc)">' + AIC.cel + '</span><div class="txt"><div class="t1" style="font-size:15px">Instala el APK nuevo</div>' +
-      '<div class="muted">Tu APK es anterior a la 7.5: descarga Gym.apk de nuevo (Releases del repo) e instálalo encima, sin desinstalar. Trae el aviso de pasos, el diagnóstico y los trotes con distancia.</div></div></div>' : '') +
+    (!scriptAlDia() ? tarjeta('opt tarj aviso-script', AIC.tabla, 'acc', 'Actualiza tu script a la ' + SCRIPT_ESPERADO,
+        'Tu hoja tiene la ' + (DATA.scriptVersion || 'anterior a la 7.4') + '. La app funciona, pero sin las mejoras nuevas del script (te lo manda tu coach).')
+      : !motorAlDia() ? tarjeta('opt tarj aviso-script', AIC.tabla, 'acc', 'Actualiza Progresion.gs en tu script',
+        (DATA.motorFirma ? 'El motor de progresión de tu hoja es de otra versión' : 'A tu proyecto de Apps Script le falta el archivo Progresion.gs') +
+        '. Mientras, la app calcula la sugerencia de cada ejercicio con su propio motor.') : '') +
+    (NATIVO && APK_OK === false ? tarjeta('opt tarj aviso-script', AIC.cel, 'acc', 'Instala el APK nuevo',
+      'Tu APK es anterior a la 7.5: descarga Gym.apk de nuevo (Releases del repo) e instálalo encima, sin desinstalar. Trae el aviso de pasos, el diagnóstico y los trotes con distancia.') : '') +
     (NATIVO ? tog('salud', false, 'Health Connect (solo lectura)', 'Lee tus pasos, sueño y carreras de los últimos 7 días y los pasa a tu hoja. Nunca escribe nada', AIC.corre, 'ok') +
       (ajuste('salud', false) ? tog('avisoPasos', true, 'Aviso de pasos a las 5 pm', 'De lunes a viernes, si vas atrasado: "Son las 5 pm y llevas 3,200 pasos: camina 15 minutos"', AIC.corre, 'cyan') +
-        (ajuste('avisoPasos', true) ? '<div class="opt"><span class="aic" style="--c:var(--cyan)">' + AIC.corre + '</span><div class="txt"><div class="t1" style="font-size:15px">Meta de pasos</div><div class="muted">Al día; el aviso compara con lo que llevarías a esa hora</div></div>' +
-          '<div class="unit paso c-cyan"><button ' + on('cambiarMetaPasos', -500) + '>−</button><button class="on num" style="pointer-events:none">' + META_PASOS().toLocaleString('es-MX') + '</button><button ' + on('cambiarMetaPasos', 500) + '>+</button></div></div>' : '') : '') +
-      '<div class="opt tarj"><span class="aic" style="--c:var(--cyan)">' + AIC.cel + '</span><div class="txt"><div class="t1" style="font-size:15px">Widgets y accesos directos</div>' +
-      '<div class="muted">Widgets: mantén presionada la pantalla de inicio → Widgets → Gym. Accesos: mantén presionado el ícono de la app</div></div></div>' +
-      '<div class="opt tarj"><span class="aic" style="--c:var(--pri)">' + AIC.cerebro + '</span><div class="txt"><div class="t1" style="font-size:15px">Diagnóstico</div>' +
-      '<div class="muted">¿Health Connect o un widget no responden? Revisa permisos, de qué apps llegan tus datos y qué widgets tienes</div></div>' +
-      '<button class="btn ghost sm" ' + on('abrirDiagnostico') + '>Revisar</button></div>' : '') +
+        (ajuste('avisoPasos', true) ? tarjeta('opt', AIC.corre, 'cyan', 'Meta de pasos', 'Al día; el aviso compara con lo que llevarías a esa hora',
+          html`<div class="unit paso c-cyan"><button ${on('cambiarMetaPasos', -500)}>−</button><button class="on num" style="pointer-events:none">${META_PASOS().toLocaleString('es-MX')}</button><button ${on('cambiarMetaPasos', 500)}>+</button></div>`) : '') : '') +
+      tarjeta('opt tarj', AIC.cel, 'cyan', 'Widgets y accesos directos', 'Widgets: mantén presionada la pantalla de inicio → Widgets → Gym. Accesos: mantén presionado el ícono de la app') +
+      tarjeta('opt tarj', AIC.cerebro, 'pri', 'Diagnóstico', '¿Health Connect o un widget no responden? Revisa permisos, de qué apps llegan tus datos y qué widgets tienes',
+        html`<button class="btn ghost sm" ${on('abrirDiagnostico')}>Revisar</button>`) : '') +
     tog('ruta', true, 'Ruta de hoy', 'Te dice qué zona te falta en la semana y cuáles 2–4 ejercicios la cierran', AIC.flechas, 'ok') +
     (NATIVO ? tog('avisoPeso', true, 'Aviso para pesarte a las 7 am', 'Solo si ese día aún no te pesas; al tocarlo abre el teclado con tu último peso', AIC.campana, 'cyan') : '') +
     tog('avisoProt', true, 'Aviso de proteína a las 6 pm', 'Cuánto llevas y qué de lo que comes la completa (sábado y domingo aunque no abras la app)', AIC.cubiertos, 'acc') +
     tog('avisoKcal', true, 'Aviso de calorías a las 9 pm', 'Solo si te faltan o te pasaste más de 350 kcal de tu meta', AIC.cubiertos, 'acc') +
     tog('calentamiento', true, 'Calentamiento automático', 'En los básicos, al abrirlos: barra sola × 10, 50 % × 8 y 75 % × 3, marcadas C (no cuentan para tu volumen)', AIC.flama, 'red') +
-    '<div class="opt" style="display:block">' + sec(AIC.reloj, 'cyan', 'Descanso predeterminado') + '<div class="pills c-cyan" style="margin:0;display:grid;grid-template-columns:repeat(4,1fr)">' +
-    DESCANSOS.map(s => '<button class="' + (s === def ? 'on' : '') + '" ' + on('elegirDescanso', s) + '>' + mmss(s) + '</button>').join('') + '</div></div>' +
-    '<div class="opt" style="display:block">' + sec(AIC.flechas, 'pri', 'Objetivo de músculo') + '<div class="muted">' + esc(FOCOS[focoMus()][1]) + '. Cambia las metas del mapa de músculos.</div>' +
-    '<div class="pills c-pri" style="margin:8px 0 0;display:grid;grid-template-columns:repeat(3,1fr)">' + Object.keys(FOCOS).map(f => '<button class="' + (f === focoMus() ? 'on' : '') + '" ' + on('setFoco', String(f)) + '>' + FOCOS[f][0] + '</button>').join('') + '</div></div>' +
-    '<div class="opt"><span class="aic" style="--c:var(--ok)">' + AIC.cubiertos + '</span><div class="txt"><div class="t1" style="font-size:15px">Meta de proteína</div><div class="muted">Unos 1.6–2 g por kilo de tu peso</div></div>' +
-    '<div class="unit paso c-ok"><button ' + on('cambiarMeta', -5) + '>−5</button><button class="on num" style="pointer-events:none">' + metaProt() + ' g</button><button ' + on('cambiarMeta', 5) + '>+5</button></div></div>' +
-    '<div class="opt" style="display:block">' + sec(AIC.cal, 'acc', 'Días de aviso') + '<div class="muted">Esos días te llega a las 5:00 am lo que te toca</div><div class="dias">' +
-    [1, 2, 3, 4, 5, 6, 0].map(d => '<button class="' + ((DATA.dias || []).includes(d) ? 'on' : '') + '" ' + on('cambiarDias', d) + '>' + DIAS_CORTOS[d] + '</button>').join('') + '</div></div>' +
-    '<div class="opt"><span class="aic" style="--c:var(--cyan)">' + AIC.regla + '</span><div class="txt"><div class="t1" style="font-size:15px">Meta de cintura</div><div class="muted">' +
-    (DATA.cuerpo && DATA.cuerpo.actual ? 'Hoy: ' + DATA.cuerpo.actual + ' cm' : 'A la altura del ombligo') + '</div></div>' +
-    (DATA.cuerpo && DATA.cuerpo.meta
-      ? '<div class="unit paso c-cyan"><button ' + on('cambiarMetaCintura', -0.5) + '>−</button><button class="on num" style="pointer-events:none">' + DATA.cuerpo.meta + ' cm</button><button ' + on('cambiarMetaCintura', 0.5) + '>+</button></div>'
-      : '<button class="btn ghost sm" ' + on('cambiarMetaCintura', 0) + '>Poner meta</button>') + '</div>' +
-    '<div class="opt" style="display:block">' + sec(AIC.corre, 'red', 'Carrera') + '<div class="muted">Con una carrera de 5 km activa tu plan de 6 semanas en la pestaña Trote</div>' +
-    '<input type="date" id="carFecha" min="' + hoy() + '" value="' + (c ? c.fecha : '') + '">' +
-    '<div class="pills c-red" style="display:grid;grid-template-columns:repeat(4,1fr);margin:0">' + [5, 10, 21].map(k => '<button class="' + (c && c.km === k ? 'on' : '') + '" ' + on('guardarCarrera', k) + '>' + k + ' km</button>').join('') +
-    '<button ' + on('guardarCarrera', 0) + '>Ninguna</button></div></div>' +
-    '<div class="opt tarj"><span class="aic" style="--c:var(--ok)">' + AIC.nube + '</span><div class="txt"><div class="t1" style="font-size:15px">Respaldo</div><div class="muted">Descarga lo que tiene la app en este celular</div></div>' +
-    '<button class="btn sm verde" ' + on('descargarRespaldo') + '>⬇ Descargar</button></div>' +
-    '<div class="opt tarj"><span class="aic" style="--c:var(--acc)">' + AIC.cerebro + '</span><div class="txt"><div class="t1" style="font-size:15px">Lo que falló</div><div class="muted">' +
-    (fallas ? fallas + ' aviso' + (fallas === 1 ? '' : 's') + ' guardado' + (fallas === 1 ? '' : 's') + ' en este celular' : 'Nada falló últimamente') + '</div></div>' +
-    (fallas ? '<button class="btn ghost sm" ' + on('abrirFallas') + '>Ver</button>' : '') + '</div>' +
-    '<a class="btn ghost block hoja" href="' + esc(urlSegura(DATA.resumen.sheetUrl)) + '" target="_blank" rel="noopener">' + AIC.tabla + ' Abrir mi hoja de Google</a>' +
-    (NATIVO ? '' : '<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Pasar a la app nativa (APK)</div><div class="muted">Copia tu link y pégalo en la app la primera vez</div></div>' +
-      '<button class="btn ghost sm" ' + on('copiarLinkConfig') + '>Copiar</button></div>') +
-    '<div class="muted" style="text-align:center;margin-top:14px;font-size:12px">Gym ' + VERSION_APP + (NATIVO ? ' (app)' : '') + ' · ' + esc(DATA.nombre || '') + '</div>';
+    html`<div class="opt" style="display:block">${sec(AIC.reloj, 'cyan', 'Descanso predeterminado')}<div class="pills c-cyan" style="margin:0;display:grid;grid-template-columns:repeat(4,1fr)">${
+      DESCANSOS.map(s => html`<button class="${s === def ? 'on' : ''}" ${on('elegirDescanso', s)}>${mmss(s)}</button>`)}</div></div>` +
+    html`<div class="opt" style="display:block">${sec(AIC.flechas, 'pri', 'Objetivo de músculo')}<div class="muted">${FOCOS[focoMus()][1]}. Cambia las metas del mapa de músculos.</div>` +
+    html`<div class="pills c-pri" style="margin:8px 0 0;display:grid;grid-template-columns:repeat(3,1fr)">${Object.keys(FOCOS).map(f => html`<button class="${f === focoMus() ? 'on' : ''}" ${on('setFoco', String(f))}>${FOCOS[f][0]}</button>`)}</div></div>` +
+    tarjeta('opt', AIC.cubiertos, 'ok', 'Meta de proteína', 'Unos 1.6–2 g por kilo de tu peso',
+      html`<div class="unit paso c-ok"><button ${on('cambiarMeta', -5)}>−5</button><button class="on num" style="pointer-events:none">${metaProt()} g</button><button ${on('cambiarMeta', 5)}>+5</button></div>`) +
+    html`<div class="opt" style="display:block">${sec(AIC.cal, 'acc', 'Días de aviso')}<div class="muted">Esos días te llega a las 5:00 am lo que te toca</div><div class="dias">${
+      [1, 2, 3, 4, 5, 6, 0].map(d => html`<button class="${(DATA.dias || []).includes(d) ? 'on' : ''}" ${on('cambiarDias', d)}>${DIAS_CORTOS[d]}</button>`)}</div></div>` +
+    tarjeta('opt', AIC.regla, 'cyan', 'Meta de cintura', DATA.cuerpo && DATA.cuerpo.actual ? 'Hoy: ' + DATA.cuerpo.actual + ' cm' : 'A la altura del ombligo',
+      DATA.cuerpo && DATA.cuerpo.meta
+        ? html`<div class="unit paso c-cyan"><button ${on('cambiarMetaCintura', -0.5)}>−</button><button class="on num" style="pointer-events:none">${DATA.cuerpo.meta} cm</button><button ${on('cambiarMetaCintura', 0.5)}>+</button></div>`
+        : html`<button class="btn ghost sm" ${on('cambiarMetaCintura', 0)}>Poner meta</button>`) +
+    html`<div class="opt" style="display:block">${sec(AIC.corre, 'red', 'Carrera')}<div class="muted">Con una carrera de 5 km activa tu plan de 6 semanas en la pestaña Trote</div>` +
+    html`<input type="date" id="carFecha" min="${hoy()}" value="${c ? c.fecha : ''}">` +
+    html`<div class="pills c-red" style="display:grid;grid-template-columns:repeat(4,1fr);margin:0">${[5, 10, 21].map(k => html`<button class="${c && c.km === k ? 'on' : ''}" ${on('guardarCarrera', k)}>${k} km</button>`)}` +
+    html`<button ${on('guardarCarrera', 0)}>Ninguna</button></div></div>` +
+    tarjeta('opt tarj', AIC.nube, 'ok', 'Respaldo', 'Descarga lo que tiene la app en este celular', html`<button class="btn sm verde" ${on('descargarRespaldo')}>⬇ Descargar</button>`) +
+    tarjeta('opt tarj', AIC.cerebro, 'acc', 'Lo que falló',
+      fallas ? fallas + ' aviso' + (fallas === 1 ? '' : 's') + ' guardado' + (fallas === 1 ? '' : 's') + ' en este celular' : 'Nada falló últimamente',
+      fallas ? html`<button class="btn ghost sm" ${on('abrirFallas')}>Ver</button>` : '') +
+    html`<a class="btn ghost block hoja" href="${urlSegura(DATA.resumen.sheetUrl)}" target="_blank" rel="noopener">${AIC.tabla} Abrir mi hoja de Google</a>` +
+    (NATIVO ? '' : html`<div class="opt"><div class="txt"><div class="t1" style="font-size:15px">Pasar a la app nativa (APK)</div><div class="muted">Copia tu link y pégalo en la app la primera vez</div></div>` +
+      html`<button class="btn ghost sm" ${on('copiarLinkConfig')}>Copiar</button></div>`) +
+    html`<div class="muted" style="text-align:center;margin-top:14px;font-size:12px">Gym ${VERSION_APP}${NATIVO ? ' (app)' : ''} · ${DATA.nombre || ''}</div>`;
   abrirModal('completa');
 }
 // Lo que falló: errores de la app y datos que la hoja no aceptó (los de la app también se mandan solos a tu hoja, pestaña Errores)
@@ -174,9 +174,9 @@ const nombreApp = p => APPS_SALUD[p] || String(p).split('.').pop();
 const cuandoTexto = d => diaCorto(claveDia(d)) + ', ' + horaTexto(d);
 const haceCuanto = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'hace un momento' : m < 60 ? 'hace ' + m + ' min' : m < 1440 ? 'hace ' + Math.round(m / 60) + ' h' : 'hace ' + Math.round(m / 1440) + ' días'; };
 let DIAG = null;
+const encabezadoDiag = () => html`<div class="row between ajhead"><div class="t2">Diagnóstico</div><button class="cerrar" ${on('abrirAjustes')} aria-label="Volver">✕</button></div>`;
 async function abrirDiagnostico() {
-  $('sheet').innerHTML = '<div class="row between ajhead"><div class="t2">Diagnóstico</div><button class="cerrar" ' + on('abrirAjustes') + ' aria-label="Volver">✕</button></div>' +
-    '<div class="muted" style="margin:14px 0">Revisando el APK, Health Connect y los widgets…</div>';
+  $('sheet').innerHTML = html`${encabezadoDiag()}<div class="muted" style="margin:14px 0">Revisando el APK, Health Connect y los widgets…</div>`;
   if (!$('modal').classList.contains('show')) abrirModal('completa');
   const [e, info] = await Promise.all([nativo('GymNativo', 'estado'), nativo('App', 'getInfo')]);
   DIAG = { e: e || null, apk: (e && e.apk) || (info && info.version) || '' };
@@ -229,16 +229,15 @@ function textoDiagnostico() {
 }
 function pintarDiagnostico() {
   const ic = { true: ['✓', 'ok'], false: ['✗', 'red'], null: ['•', 'muted'] };
-  $('sheet').innerHTML = '<div class="row between ajhead"><div class="t2">Diagnóstico</div><button class="cerrar" ' + on('abrirAjustes') + ' aria-label="Volver">✕</button></div>' +
-    '<div class="diag">' + lineasDiagnostico().map(l => l[0] === 'h' ? '<div class="t1 dh">' + esc(l[1]) + '</div>'
-      : '<div class="dl"><b style="color:var(--' + ic[l[0]][1] + ')">' + ic[l[0]][0] + '</b><span>' + esc(l[1]) + '</span></div>').join('') + '</div>' +
-    '<div class="diag-bt"><button class="btn sm" ' + on('leerSaludDiag') + '>Leer ahora</button>' +
-    '<button class="btn ghost sm" ' + on('permisosDiagnostico') + '>Dar permisos</button>' +
-    '<button class="btn ghost sm" ' + on('abrirHealthConnect') + '>Abrir Health Connect</button>' +
-    '<button class="btn ghost sm" ' + on('widgetsYa') + '>Actualizar widgets</button>' +
-    '<button class="btn ghost sm" ' + on('copiarDiagnostico') + '>Copiar</button></div>' +
-    '<div class="protocolo"><b>¿Sin pasos o sin carreras?</b> Health Connect solo guarda lo que otra app le manda. Abre la app que cuenta tus pasos o registra tus trotes ' +
-    '(Fitbit, Samsung Health, Google Fit, Strava…) y activa compartir con Health Connect. En el Pixel: Ajustes → Seguridad y privacidad → Privacidad → Health Connect → Permisos de apps.</div>';
+  $('sheet').innerHTML = html`${encabezadoDiag()}<div class="diag">${lineasDiagnostico().map(l => l[0] === 'h' ? html`<div class="t1 dh">${l[1]}</div>`
+      : html`<div class="dl"><b style="color:var(--${ic[l[0]][1]})">${ic[l[0]][0]}</b><span>${l[1]}</span></div>`)}</div>` +
+    html`<div class="diag-bt"><button class="btn sm" ${on('leerSaludDiag')}>Leer ahora</button>` +
+    html`<button class="btn ghost sm" ${on('permisosDiagnostico')}>Dar permisos</button>` +
+    html`<button class="btn ghost sm" ${on('abrirHealthConnect')}>Abrir Health Connect</button>` +
+    html`<button class="btn ghost sm" ${on('widgetsYa')}>Actualizar widgets</button>` +
+    html`<button class="btn ghost sm" ${on('copiarDiagnostico')}>Copiar</button></div>` +
+    html`<div class="protocolo"><b>¿Sin pasos o sin carreras?</b> Health Connect solo guarda lo que otra app le manda. Abre la app que cuenta tus pasos o registra tus trotes ` +
+    html`(Fitbit, Samsung Health, Google Fit, Strava…) y activa compartir con Health Connect. En el Pixel: Ajustes → Seguridad y privacidad → Privacidad → Health Connect → Permisos de apps.</div>`;
 }
 async function permisosDiagnostico() {
   if (await conectarSalud()) { if (!ajuste('salud', false)) setAjuste('salud', true); configurarPasos(); await leerSalud(true); }

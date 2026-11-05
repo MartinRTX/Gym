@@ -1,4 +1,4 @@
-// v9.9: Coach, Trote y Sesión ya se pintan con la plantilla html`…`. Dos riesgos al pasarlas: que algo de afuera se vuelva HTML
+// Pantallas que ya se pintan con la plantilla html`…` (v9.9: Coach, Trote y Sesión; v10.0: Ajustes, bienvenida y Diagnóstico). Dos riesgos al pasarlas: que algo de afuera se vuelva HTML
 // (se escapa de menos) o que un pedazo de la app salga como texto "<div…" (se escapa de más: html`a` + html`b` ya es texto).
 const BASE = process.env.E2E_URL || 'http://localhost:8770/';
 const { chromium } = require('playwright');
@@ -49,6 +49,17 @@ const X = '<b data-inyectado="1">X</b>';
     await p.evaluate(() => iniciarRest(90)); await p.waitForTimeout(300);
     ok('Descanso corriendo: reloj, +30 s y Omitir', /\d:\d\d/.test(await p.locator('#rest .big').innerText()) && await p.locator('#rest .rbtn').count() === 2);
     await p.evaluate(() => detenerRest());
+    // Ajustes (con nombre y versión del script de afuera), bienvenida y diagnóstico
+    await p.evaluate(() => { DATA.nombre = 'Martin<b data-inyectado="1">X</b>'; DATA.scriptVersion = '7.0<b data-inyectado="1">X</b>'; abrirAjustes(); }); await p.waitForTimeout(200);
+    ok('Ajustes: interruptores con su ícono, aviso del script y pastillas como elementos', await p.locator('#sheet .tog').count() >= 8 && await p.locator('#sheet .aic svg').count() >= 12 &&
+      await p.locator('#sheet .aviso-script').count() === 1 && await p.locator('#sheet .dias button').count() === 7);
+    ok('Ajustes: nada de afuera se vuelve HTML y no salen etiquetas como texto', !(await inyectados()) && !(await etiquetasSueltas('#sheet')).length, await etiquetasSueltas('#sheet'));
+    await p.evaluate(() => { cerrarModal(); const s = sesion(); s.ended = true; guardarSesion(s); BV = null; BV_POSPUESTA = false; abrirBienvenida(); BV.peso = '80'; bvMeta(); }); await p.waitForTimeout(150);
+    ok('Bienvenida: días, carrera y meta de proteína como elementos', await p.locator('#sheet .bv .dias button').count() === 7 && await p.locator('#bvMeta b').count() === 1);
+    ok('Bienvenida: nada de afuera se vuelve HTML y no salen etiquetas como texto', !(await inyectados()) && !(await etiquetasSueltas('#sheet')).length, await etiquetasSueltas('#sheet'));
+    await p.evaluate(() => { cerrarModal(); BV = null; DIAG = { e: null, apk: '' }; abrirModal('completa'); pintarDiagnostico(); }); await p.waitForTimeout(150);
+    ok('Diagnóstico: renglones y botones como elementos', await p.locator('#sheet .diag .dl').count() >= 3 && await p.locator('#sheet .diag-bt button').count() === 5 && !(await etiquetasSueltas('#sheet')).length);
+    await p.evaluate(() => cerrarModal());
   } catch (e) { ok('Recorrido completo', false, e.message.split('\n')[0]); }
   ok('Sin errores de página', !errs.length, errs);
   await b.close();
