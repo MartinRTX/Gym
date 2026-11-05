@@ -69,6 +69,36 @@ propiedad, el workflow regresa la implementación a la versión anterior.
   («Cannot read properties of null»): la repintada pendiente ya revisa que siga abierto.
 - `plantilla.prueba.js`: 18 hojas y teclados más (28 casos).
 
+## Auditoría (05/11, v10.3) — pendiente decidir qué se arregla
+
+Prioridad alta:
+1. Consejo entre series sin respuesta el 20 % de las veces (ver "Pestaña IA"): ligero primero en Gym-script (falta el sí).
+2. 2FA en GitHub: el APK carga la página de Pages y tiene acceso a Health Connect y avisos; quien entre a la cuenta de GitHub
+   controla lo que corre en el celular. Pasa de "opcional" a recomendado.
+Prioridad media:
+3. La subida de la cola (`enviar` → `apiPost`) no tiene tiempo máximo: si Google no contesta, se queda en "Subiendo…" y no sube
+   nada más hasta que el navegador se rinde (minutos) o se reabre la app. Poner tope (~60 s) con AbortController.
+4. Valores de Martin fijos para todos: FC fácil ≤ 150 y ritmo fácil 6:50/km (`trote.js`), clima de Hermosillo. Para la pareja
+   u otra persona no aplican. Mover a Ajustes o calcularlos de sus datos (decisión de Martin).
+5. Datos personales en el repo público: el comentario de `trote.js` (5K del 16/10, FC 182, FC máx 197, ciudad) y detalles de
+   comidas de días reales en PENDIENTES. Quitarlos (el historial de git los conserva).
+6. El celular puede borrar fotos de máquinas (IndexedDB) y cachés si se queda sin espacio: no se pide almacenamiento
+   persistente (`navigator.storage.persist()`). Además las miniaturas/GIF se guardan como respuestas "opacas", que Chrome
+   cuenta como ~7 MB cada una (150 → ~1 GB de cuota), lo que acerca ese borrado.
+Prioridad baja:
+7. Accesibilidad: enlaces de 20 px de alto (Saltar, Ocultar, Repetir una comida, Editar mi día típico, "¿Se te olvidó
+   registrar…?", buscar en Open Food Facts) y el ▶ de técnica (24×23); la lista de la gráfica de fuerza y la fecha de la
+   carrera sin etiqueta; ejes de las gráficas a 10 px.
+8. Código sin uso: `ajustarItem` (comida-dia.js) y 5 variables `jsq(…)` que no se usan (entrenar.js, series.js).
+9. `regGuardar` dice que borra registros "que ya no están en ninguna lista" pero borra solo por antigüedad (120 días).
+10. APK: sin `package-lock.json` (las dependencias de las dependencias pueden cambiar entre compilaciones) y las acciones de
+    GitHub van por etiqueta (@v4), no por commit.
+11. Revisar en Gym-script que un lote repetido (si se pierde la respuesta y se reenvía) no duplique renglones (ignorar ids ya vistos).
+Lo que está bien: todo el HTML escapado por la plantilla (vigilado), CSP en Chrome, lista blanca de acciones, links filtrados,
+clave en el cuerpo (no en la URL), sin secretos en el repo, firma del APK verificada, service worker todo o nada, una sola capa de
+guardado con limpieza al llenarse, cola con reintentos. Carga ~0.2 s, cada pantalla se pinta en ~1 ms, ~1,200 nodos, 34 KB de
+localStorage; todos los botones con nombre y sin desborde horizontal.
+
 ## Pestaña IA: primera revisión (05/11, datos del 02 al 04/11)
 
 - **Comida, fotos y etiquetas con el ligero primero (v9.7) van bien de tiempo**: desde el 03/11, 7 consultas, 6 contestaron en
