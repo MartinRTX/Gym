@@ -63,6 +63,19 @@ propiedad, el workflow regresa la implementación a la versión anterior.
   («Cannot read properties of null»): la repintada pendiente ya revisa que siga abierto.
 - `plantilla.prueba.js`: 18 hojas y teclados más (28 casos).
 
+## Pestaña IA: primera revisión (05/11, datos del 02 al 04/11)
+
+- **Comida, fotos y etiquetas con el ligero primero (v9.7) van bien de tiempo**: desde el 03/11, 7 consultas, 6 contestaron en
+  1–17 s (casi todas en 1–3 s); 1 falló porque los 3 modelos estaban ocupados y al reintentar contestó en 1 s. Antes (02/11) las
+  etiquetas con el completo tardaban 88–280 s. Calidad: los hot dogs del 02/11 (proteína inflada) fueron del ligero por foto.
+- **El modelo completo casi nunca contesta**: 429 (se acabó la cuota del día) o 503 (mucha demanda). Cuando da 503 tarda en fallar
+  y ya no queda tiempo para el ligero.
+- **El consejo entre series ("serie") sufre**: sigue probando primero el completo. 49 consultas el 03 y 04/11: 10 sin respuesta
+  (20 %) tras esperar 25–155 s, y varias que sí contestaron tardaron 20–60 s (el consejo llega cuando ya hiciste la serie).
+  Lo mismo con plan (10–30 s), chat (18–22 s) y el resumen de la sesión (1 falló).
+- Propuesta (falta el sí de Martin; es en Gym-script): ligero primero también en serie, plan, chat y resumen, y el completo
+  solo de respaldo; o en "serie" solo el ligero con tope corto. Volver a revisar la pestaña después.
+
 ## v10.1 (publicada 05/11): plantilla en Comida, Entrenar y Progreso
 
 - `app.js` (aviso de abajo y errores de la hoja), `comida-dia.js`, `entrenar.js` y `progreso.js` (Músculos y gráficas incluidos)
@@ -216,7 +229,7 @@ Mejoras propuestas (en orden):
   de 2 en 2 y salía "las calorías no cuadran"). Platillos con ingredientes editables (cambiar gramos, quitar, agregar del
   catálogo); se guardan con sus ingredientes (un renglón por ingrediente en la hoja). `NUT.escalarItem/sumarIngredientes`.
 - Script: IA_COMIDA e IA_FOTO devuelven `piezas`, `g_pieza` e `ingredientes`; comida, fotos y etiquetas usan primero el modelo
-  ligero (la pestaña IA mostró al completo con 429/503 y respuestas de 90–280 s). Revisar la pestaña IA en unos días.
+  ligero (la pestaña IA mostró al completo con 429/503 y respuestas de 90–280 s). Revisar la pestaña IA en unos días (✅ primera revisión 05/11, arriba).
 
 ## Pendientes de la app (refactor y auditoría)
 
