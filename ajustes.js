@@ -15,7 +15,7 @@ function abrirBienvenida() {
       [1, 2, 3, 4, 5, 6, 0].map(d => html`<button class="${BV.dias.includes(d) ? 'on' : ''}" ${on('bvDia', d)}>${DIAS_CORTOS[d]}</button>`)}</div>` +
     html`<label>3. ¿Tienes alguna carrera?</label><div class="pills" style="display:grid;grid-template-columns:repeat(4,1fr);margin:0">${
       [[0, 'No'], [5, '5 km'], [10, '10 km'], [21, '21 km']].map(x => html`<button class="${BV.km === x[0] ? 'on' : ''}" ${on('bvKm', x[0])}>${x[1]}</button>`)}</div>` +
-    (BV.km ? html`<input type="date" id="bvFecha" min="${hoy()}" value="${BV.fecha}" ${ev('change', 'bvFecha', VALOR)}>` : '') +
+    (BV.km ? html`<input type="date" id="bvFecha" aria-label="Fecha de la carrera" min="${hoy()}" value="${BV.fecha}" ${ev('change', 'bvFecha', VALOR)}>` : '') +
     html`<label>4. ¿Ya sabes usar las máquinas del gym?</label><div class="pills" style="display:grid;grid-template-columns:1fr 1fr;margin:0">${
       [[false, 'Sí, ya sé'], [true, 'Soy nuevo']].map(x => html`<button class="${!!BV.sencillo === x[0] ? 'on' : ''}" ${on('bvSencillo', x[0])}>${x[1]}</button>`)}</div>` +
     (BV.sencillo ? html`<div class="muted" style="margin-top:6px">Te pongo el modo sencillo: te digo qué hacer paso a paso. Lo quitas en Ajustes.</div>` : '') +
@@ -115,7 +115,7 @@ function abrirAjustes() {
         ? html`<div class="unit paso c-cyan"><button ${on('cambiarMetaCintura', -0.5)}>−</button><button class="on num" style="pointer-events:none">${DATA.cuerpo.meta} cm</button><button ${on('cambiarMetaCintura', 0.5)}>+</button></div>`
         : html`<button class="btn ghost sm" ${on('cambiarMetaCintura', 0)}>Poner meta</button>`) +
     html`<div class="opt" style="display:block">${sec(AIC.corre, 'red', 'Carrera')}<div class="muted">Con una carrera de 5 km activa tu plan de 6 semanas en la pestaña Trote</div>` +
-    html`<input type="date" id="carFecha" min="${hoy()}" value="${c ? c.fecha : ''}">` +
+    html`<input type="date" id="carFecha" aria-label="Fecha de la carrera" min="${hoy()}" value="${c ? c.fecha : ''}">` +
     html`<div class="pills c-red" style="display:grid;grid-template-columns:repeat(4,1fr);margin:0">${[5, 10, 21].map(k => html`<button class="${c && c.km === k ? 'on' : ''}" ${on('guardarCarrera', k)}>${k} km</button>`)}` +
     html`<button ${on('guardarCarrera', 0)}>Ninguna</button></div></div>` +
     tarjeta('opt tarj', AIC.nube, 'ok', 'Respaldo', 'Descarga lo que tiene la app en este celular', html`<button class="btn sm verde" ${on('descargarRespaldo')}>⬇ Descargar</button>`) +

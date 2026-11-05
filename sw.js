@@ -1,6 +1,6 @@
 // Guarda la app en el celular para que abra rápido y funcione sin señal.
 // Cuando subas una versión nueva de la app, cambia el número de VERSION.
-const VERSION = 'gym-v10.3';
+const VERSION = 'gym-v10.4';
 // Miniaturas de YouTube, GIF e imágenes de técnica: caché aparte que NO se borra al cambiar de versión
 const MEDIA = 'gym-media';
 const MEDIA_MAX = 150;
@@ -39,9 +39,15 @@ function guardarMedia(cache, clave, resp) {
     return sobran > 0 ? Promise.all(keys.slice(0, sobran).map(k => cache.delete(k))) : null;
   }).catch(() => null);
 }
+// Se pide con CORS cuando el sitio lo permite: una respuesta "opaca" (sin CORS) Chrome la cuenta como ~7 MB de espacio
+// aunque pese 30 KB, y con muchas el celular borra antes lo guardado de la app. Si el sitio no da CORS, va opaca como antes.
+function bajarMedia(url) {
+  return fetch(url, { mode: 'cors', credentials: 'omit' }).then(r => r.ok ? r : Promise.reject(r))
+    .catch(() => fetch(url, { mode: 'no-cors', credentials: 'omit' }));
+}
 // Primero lo guardado (funciona sin señal); si no está, lo baja y lo guarda
 function deMedia(req) {
-  return caches.open(MEDIA).then(cache => cache.match(req.url).then(hit => hit || fetch(req).then(resp => {
+  return caches.open(MEDIA).then(cache => cache.match(req.url).then(hit => hit || bajarMedia(req.url).then(resp => {
     if (resp && (resp.ok || resp.type === 'opaque')) guardarMedia(cache, req.url, resp.clone());
     return resp;
   })));
@@ -74,7 +80,7 @@ self.addEventListener('message', e => {
   const d = e.data || {};
   if (d.tipo !== 'precache' || !Array.isArray(d.urls)) return;
   e.waitUntil(caches.open(MEDIA).then(cache => Promise.all(d.urls.slice(0, MEDIA_MAX).map(u =>
-    cache.match(u).then(hit => hit || fetch(u, { mode: 'no-cors' }).then(resp => guardarMedia(cache, u, resp)).catch(() => null))
+    cache.match(u).then(hit => hit || bajarMedia(u).then(resp => guardarMedia(cache, u, resp)).catch(() => null))
   ))));
 });
 

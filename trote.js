@@ -11,10 +11,9 @@ function proximoGrupo() {
 }
 let TROTE = { km: '', min: '', fc: '', cad: '', tipo: null, ia: null, leyendo: false };
 const BORR = {};   // texto a medio escribir (notas del trote, chat, cintura, ajuste): sobrevive si la pantalla se vuelve a dibujar
-/* Calibración con tu prueba de 5K del 16/10 (Samsung Health): 29:44 a 5:55/km, FC prom. 182, cadencia 173.
-   Tus zonas (FC máx. ~197): Z1 98–118 · Z2 119–137 · Z3 138–157 · Z4 158–177 · Z5 178–197.
-   "Fácil" = FC promedio ≤ 150 (≈76 % de tu máxima, mitad baja de Z3). Sin pulso: ritmo de 6:50/km o más lento
-   (tu ritmo de 5K + 55 s). Calidad y Carrera cuentan como intensas aunque el promedio salga lento (incluyen caminatas). */
+/* Calibración del dueño de la app (una prueba de 5K con pulso y ritmo): "Fácil" = FC promedio ≤ 150 (≈76 % de su máxima,
+   mitad baja de Z3). Sin pulso: ritmo de 6:50/km o más lento (su ritmo de 5K + ~55 s). Para otra persona no aplica: ver la
+   auditoría en PENDIENTES. Calidad y Carrera cuentan como intensas aunque el promedio salga lento (incluyen caminatas). */
 const FC_FACIL = 150, RITMO_FACIL_S = 410;
 function intensidad(t) {
   if (t.fc) return t.fc <= FC_FACIL ? 'facil' : 'intenso';

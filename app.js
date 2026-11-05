@@ -426,14 +426,23 @@ const NOMBRE_OP = { saveExercise: 'Ejercicio', savePeso: 'Peso', saveProteina: '
 /* ===================== API ===================== */
 // Lecturas también por POST: la clave nunca viaja en el link (los links quedan en historial y registros)
 async function apiGet(action, clave) { return apiPost(action, [], clave); }
-async function apiPost(action, args, clave) {
+// Tope de cualquier llamada a tu hoja: si Google no contesta, se corta (antes la subida se quedaba en "Subiendo…" minutos
+// y no subía nada más hasta reabrir la app). La subida de la cola usa uno más corto (LIMITE_SUBIDA) y se reintenta sola.
+let LIMITE_API = 120000, LIMITE_SUBIDA = 60000;
+async function apiPost(action, args, clave, ms) {
   // Pareja (script 7.6+): la hoja ya no manda la clave del compañero; vas con la tuya y "para" con su nombre
   const c = clave || KEY, cuerpo = /^para:/.test(c) ? { k: KEY, para: c.slice(5) } : { k: c };
-  // text/plain evita la verificación previa de CORS que Apps Script no contesta
-  const r = await fetch(API, { method: 'POST', redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(Object.assign(cuerpo, { action: action, args: args })) });
-  const j = await r.json();
+  const corte = typeof AbortController === 'function' ? new AbortController() : null;
+  const reloj = corte ? setTimeout(() => corte.abort(), ms || LIMITE_API) : null;
+  let j;
+  try {
+    // text/plain evita la verificación previa de CORS que Apps Script no contesta
+    const r = await fetch(API, { method: 'POST', redirect: 'follow', signal: corte ? corte.signal : undefined,
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign(cuerpo, { action: action, args: args })) });
+    j = await r.json();
+  } catch (e) { throw e && e.name === 'AbortError' ? new Error('tiempo') : e; }
+  finally { clearTimeout(reloj); }
   if (!j.ok) throw new Error(j.error || 'Error de la API');
   return j.result;
 }
@@ -477,7 +486,7 @@ async function enviar() {
       guardarCola(cola().map(op => ids.has(op.id) ? Object.assign(op, { enviado: true }) : op));
       ENVIOS++;
       let res;
-      try { res = await apiPost('batch', [deClave.map(op => ({ id: op.id, action: op.action, args: op.args }))], c); }
+      try { res = await apiPost('batch', [deClave.map(op => ({ id: op.id, action: op.action, args: op.args }))], c, LIMITE_SUBIDA); }
       catch (e) { fallo = true; if (/Clave/.test(e.message)) toast('La clave no coincide; revisa la configuración'); continue; }
       const listos = new Set(), intentos = {};
       (res || []).forEach(r => {
@@ -517,8 +526,13 @@ function avisoErrores() {
 }
 
 /* ===================== Arranque ===================== */
+// Sin esto el celular puede borrar las fotos de tus máquinas (IndexedDB) y lo guardado sin señal cuando se queda sin espacio.
+// Chrome lo concede solo (sin preguntar) a la app instalada o que usas seguido; si no, se queda como estaba
+function pedirGuardadoPersistente() {
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(ya => ya || navigator.storage.persist()).catch(() => {}); } catch (e) {}
+}
 function arrancar() {
-  aplicarSencillo(); cargarFotosMaq();
+  aplicarSencillo(); cargarFotosMaq(); pedirGuardadoPersistente();
   // Link de configuración: ?api=…&k=… o #api=…&k=… (también acepta key=)
   const p = new URLSearchParams(location.search), ph = new URLSearchParams(location.hash.slice(1));
   const linkApi = (p.get('api') || ph.get('api') || '').trim(), linkKey = (p.get('k') || p.get('key') || ph.get('k') || ph.get('key') || '').trim();
@@ -584,7 +598,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v10.3';
+const VERSION_APP = 'v10.4';
 // Versión del script de Apps Script que espera esta app (SCRIPT_VERSION en AppGym.js); si la hoja trae una anterior, Ajustes avisa
 const SCRIPT_ESPERADO = '8.5';
 const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);

@@ -10,7 +10,7 @@
 let REG_M = null;
 function regMapa() { return REG_M || (REG_M = LS.get('gym_reg', {})); }
 function regGuardar() {
-  // Se limpian los registros de hace más de 120 días que ya no están en ninguna lista
+  // Se limpian los registros de hace más de 120 días (lo de hace tanto ya está en tu hoja; las listas del día se borran antes, a los 21 días si falta espacio)
   const m = regMapa(), viejo = Date.now() - 120 * 864e5;
   Object.keys(m).forEach(id => { if (m[id].ts < viejo) delete m[id]; });
   LS.set('gym_reg', m);

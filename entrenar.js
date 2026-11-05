@@ -444,7 +444,7 @@ function elegirFecha() {
     html`<div class="muted" style="margin:4px 0 10px">Lo que guardes quedará con esa fecha: cuenta para la rotación, tus días y tus récords.</div>` +
     html`<div class="acts" style="margin-top:0"><button class="btn ghost" ${on('cambiarFecha', String(ayer))}>Ayer · ${diaCorto(ayer)}</button>` +
     html`<button class="btn ghost" ${on('cambiarFecha', String(antier))}>${diaCorto(antier)}</button></div>` +
-    html`<input type="date" id="fechaOtra" max="${ayer}" min="${sumarDias(hoy(), -60)}" value="${sumarDias(hoy(), -3)}">` +
+    html`<input type="date" id="fechaOtra" aria-label="Otra fecha" max="${ayer}" min="${sumarDias(hoy(), -60)}" value="${sumarDias(hoy(), -3)}">` +
     html`<div class="acts"><button class="btn ghost" ${on('cerrarModal')}>Cancelar</button><button class="btn" ${on('usarFechaOtra')}>Usar esta fecha</button></div>`;
   abrirModal();
 }
@@ -654,7 +654,7 @@ function fotoParaEjercicio(name) {
   inp.click();
 }
 function verFotoMaq(name, borrar) {
-  const n = jsq(name), ex = exDe(name);
+  const ex = exDe(name);
   $('sheet').innerHTML = html`<div class="row between"><div class="t2">${ex ? ex.ejercicio : 'Tu máquina'}</div><button class="btn ghost sm" ${on('cerrarModal')}>✕</button></div>` +
     html`<img class="maqfoto" style="max-height:60vh;object-fit:contain" src="${fotoMaqDe(name)}" alt="">` +
     (borrar ? html`<div class="muted" style="margin:4px 0 8px">¿Quitar esta foto? Solo se borra de este celular.</div><div class="acts"><button class="btn ghost" ${on('verFotoMaq', name)}>No</button>` +
@@ -746,7 +746,7 @@ function precargarMedia() {
   navigator.serviceWorker.controller.postMessage({ tipo: 'precache', urls: urls });
 }
 function verTecnica(name) {
-  const ex = exDe(name), n = jsq(name);
+  const ex = exDe(name);
   const puntos = (ex.tecnica || '').split(/\s*·\s*/).filter(Boolean);
   const buscar = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(ex.ejercicio + ' técnica correcta');
   $('sheet').innerHTML = html`<div class="row between"><div class="t2" style="padding-right:8px">${ex.ejercicio}</div><button class="btn ghost sm" ${on('cerrarModal')}>✕</button></div>` +

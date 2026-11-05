@@ -839,3 +839,9 @@ body[data-rut], body:not([data-rut]) { --rut: var(--act); --rut-g: var(--act); -
   /* Sobre morado o rojo claro, texto oscuro */
   .dias button.on, .pills button.on, .pills.c-pri button.on, .pills.c-red button.on { color: #0E0C14; }
 }
+
+/* v10.4 (auditoría): los enlaces y el ▶ de técnica medían ~20 px de alto, difíciles de atinar con el dedo.
+   Una zona de toque invisible más grande (~44 px) alrededor de cada uno, sin mover nada de lugar */
+.link, .vidbtn { position: relative; }
+.link::after, .vidbtn::after { content: ''; position: absolute; inset: -12px -4px; }
+.vidbtn::after { inset: -11px -9px -11px -5px; }

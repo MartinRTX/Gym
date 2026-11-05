@@ -78,12 +78,11 @@ function tarjetaFoco() {
 
 /* ----- Menú ⋮ del ejercicio: lo secundario, fuera de la vista mientras entrenas ----- */
 function menuEjercicio(k) {
-  const ex = exDe(k), st = state[k], n = jsq(k), base = baseVista(k), par = esPar(k) ? null : companero(k);
+  const ex = exDe(k), st = state[k], base = baseVista(k), par = esPar(k) ? null : companero(k);
   const item = (ico, txt, sub, accion) => html`<button ${accion}><span class="i">${ico}</span><span><b>${txt}</b>${sub ? html`<small>${sub}</small>` : ''}</span></button>`;
   let h = html`<div class="row between"><div class="t2">${ex.ejercicio}${esPar(k) ? ' · ' + PAR.nombre : ''}</div><button class="btn ghost sm" ${on('cerrarModal')}>✕</button></div><div class="menu">`;
   h += item('▶', 'Técnica y video', ex.tecnica ? 'Cómo se hace, punto por punto' : 'Agrega un video o GIF', on('verTecnica', k));
   if (!st.sets.some(s => s.t === 'C') && calientaConSeries(ex)) h += item('🔥', 'Agregar calentamiento', 'Series ligeras antes del peso de trabajo', on('cerrarY', 'agregarCalentamiento', k));
-  const bf = jsq(baseDe(k));
   h += fotoMaqDe(baseDe(k)) ? item('📷', 'Foto de tu máquina', 'Verla, cambiarla o quitarla', on('verFotoMaq', baseDe(k)))
     : item('📷', 'Tómale foto a la máquina', 'Te aparece en el ejercicio para reconocerla en el gym', on('cerrarY', 'fotoParaEjercicio', baseDe(k)));
   h += item('⚙️', ex.ajuste ? 'Editar ajuste de máquina' : 'Ajuste de máquina', ex.ajuste || 'Asiento, banco o agarre: te aparece siempre', on('cerrarY', 'editarAjuste', k));
@@ -108,7 +107,7 @@ function menuPaso(k) {
 }
 function notaDeHoy(k) {
   $('sheet').innerHTML = html`<div class="t2">Nota de hoy</div><div class="muted" style="margin:4px 0 8px">${exDe(k).ejercicio} · solo de esta sesión; la próxima vez te aparece como «La última vez anotaste»</div>` +
-    html`<textarea id="notaTxt" rows="3" maxlength="200" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--card2);color:var(--text);font:inherit">${state[k].notas || ''}</textarea>` +
+    html`<textarea id="notaTxt" aria-label="Nota de hoy" rows="3" maxlength="200" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--card2);color:var(--text);font:inherit">${state[k].notas || ''}</textarea>` +
     html`<div class="acts"><button class="btn ghost" ${on('cerrarModal')}>Cancelar</button><button class="btn" ${on('guardarNotaDeHoy', k)}>Guardar</button></div>`;
   abrirModal();
   setTimeout(() => { const t = $('notaTxt'); if (t) t.focus(); }, 60);

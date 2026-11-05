@@ -195,7 +195,7 @@ function tarjetaFuerza() {
   if (!EJ_GRAF || !conHist.some(e => e.name === EJ_GRAF)) EJ_GRAF = conHist.slice().sort((a, b) => b.hist.length - a.hist.length)[0].name;
   const ex = exDe(EJ_GRAF);
   const pts = ex.hist, mejor = Math.max.apply(null, pts.map(p => p.e1)), cambio = (pts[pts.length - 1].e1 / pts[0].e1 - 1) * 100;
-  h += html`<select ${ev('change', 'elegirGrafica', VALOR)}>${conHist.map(e => html`<option value="${e.name}"${e.name === EJ_GRAF ? ' selected' : ''}>${e.ejercicio}</option>`)}</select>` +
+  h += html`<select aria-label="Ejercicio de la gráfica" ${ev('change', 'elegirGrafica', VALOR)}>${conHist.map(e => html`<option value="${e.name}"${e.name === EJ_GRAF ? ' selected' : ''}>${e.ejercicio}</option>`)}</select>` +
     html`<div class="row between" style="margin:6px 0"><div class="muted">Fuerza estimada (1RM, lb de carga real)</div><b class="num ${cambio >= 0 ? 'up' : 'down'}">${cambio > 0 ? '+' : ''}${cambio.toFixed(1)}%</b></div>` +
     html`${linea(pts.map(p => ({ d: p.d, v: p.e1 })), false, 'var(--cyan)', 'var(--pri)')}` +
     html`<div class="muted" style="margin-top:4px">Mejor: <b class="num" style="color:var(--text)">${mejor.toFixed(1)} lb</b> · ${pts.length} sesiones</div></div>`;

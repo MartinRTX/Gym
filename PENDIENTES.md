@@ -6,7 +6,7 @@ Actualizado: 05/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.3 publicada** (05/11); `main` = rama de trabajo |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.4 publicada** (05/11); `main` = rama de trabajo |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
 | Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **8.6 publicado** (03/11); `main` = rama de trabajo |
@@ -28,8 +28,8 @@ Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` 
 
 ```bash
 node herramientas/revisar.js            # versiones, sin onclick en texto, todo el HTML con la plantilla, etc.
-node --test tests/*.test.js              # 79 pruebas de lógica
-NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 310 pruebas de pantalla (Playwright)
+node --test tests/*.test.js              # 82 pruebas de lógica
+NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 316 pruebas de pantalla (Playwright)
 NODE_PATH=/opt/node-tools/node_modules node herramientas/comparar-pantallas.js [ref] [filtro]   # antes y después: ¿se pinta igual?
 ```
 
@@ -51,6 +51,15 @@ en el Apps Script de "Comidas 2026", ⚙️ Configuración del proyecto › Prop
 "ID de secuencia de comandos" para ponerlo en `COMIDAS_SCRIPT_ID` (`Gym-script/.github/workflows/comidas.yml`). Si falta la
 propiedad, el workflow regresa la implementación a la versión anterior.
 
+## v10.4 (publicada 05/11): arreglos de la auditoría (3, 5, 6, 7, 8, 9)
+
+- Tope de tiempo en todas las llamadas a la hoja (120 s) y en la subida de la cola (60 s); se reintenta sola.
+- Guardado persistente al abrir; miniaturas con CORS primero (`bajarMedia` en `sw.js`).
+- Zona de toque de ~44 px en enlaces y el ▶ de técnica; etiquetas en la lista de la gráfica, las fechas y la nota de hoy.
+- Fuera datos personales del repo (comentario de `trote.js` y detalles de comidas en este archivo) y código sin uso.
+- Pruebas: `tests/sw.test.js` (3) y `auditoria-v104` (6; fallaba en la v10.3). `comparar-pantallas` contra la v10.3: lo único
+  distinto son las etiquetas nuevas (`aria-label`).
+
 ## v10.3 (publicada 05/11): la plantilla queda vigilada
 
 - `revisar.js` (corre en cada push) falla si alguien vuelve a armar HTML a mano (`innerHTML = '…<…'`), usa `esc()` fuera de
@@ -69,28 +78,27 @@ propiedad, el workflow regresa la implementación a la versión anterior.
   («Cannot read properties of null»): la repintada pendiente ya revisa que siga abierto.
 - `plantilla.prueba.js`: 18 hojas y teclados más (28 casos).
 
-## Auditoría (05/11, v10.3) — pendiente decidir qué se arregla
+## Auditoría (05/11, v10.3) — ✅ 3, 5, 6, 7, 8 y 9 arreglados en la v10.4; faltan 1, 2, 4, 10 y 11
 
 Prioridad alta:
 1. Consejo entre series sin respuesta el 20 % de las veces (ver "Pestaña IA"): ligero primero en Gym-script (falta el sí).
 2. 2FA en GitHub: el APK carga la página de Pages y tiene acceso a Health Connect y avisos; quien entre a la cuenta de GitHub
    controla lo que corre en el celular. Pasa de "opcional" a recomendado.
 Prioridad media:
-3. La subida de la cola (`enviar` → `apiPost`) no tiene tiempo máximo: si Google no contesta, se queda en "Subiendo…" y no sube
-   nada más hasta que el navegador se rinde (minutos) o se reabre la app. Poner tope (~60 s) con AbortController.
+3. ✅ v10.4: la subida de la cola no tenía tiempo máximo (se quedaba en "Subiendo…"). Ahora `apiPost` corta a los 120 s
+   (`LIMITE_API`) y la subida a los 60 s (`LIMITE_SUBIDA`) con AbortController; se reintenta sola a los 20 s.
 4. Valores de Martin fijos para todos: FC fácil ≤ 150 y ritmo fácil 6:50/km (`trote.js`), clima de Hermosillo. Para la pareja
    u otra persona no aplican. Mover a Ajustes o calcularlos de sus datos (decisión de Martin).
-5. Datos personales en el repo público: el comentario de `trote.js` (5K del 16/10, FC 182, FC máx 197, ciudad) y detalles de
-   comidas de días reales en PENDIENTES. Quitarlos (el historial de git los conserva).
-6. El celular puede borrar fotos de máquinas (IndexedDB) y cachés si se queda sin espacio: no se pide almacenamiento
-   persistente (`navigator.storage.persist()`). Además las miniaturas/GIF se guardan como respuestas "opacas", que Chrome
-   cuenta como ~7 MB cada una (150 → ~1 GB de cuota), lo que acerca ese borrado.
+5. ✅ v10.4: datos personales en el repo público (el comentario de calibración de `trote.js` y detalles de comidas de días
+   reales en este archivo) quitados. El historial de git los conserva.
+6. ✅ v10.4: la app pide guardado persistente al abrir (`pedirGuardadoPersistente`) y el service worker baja las miniaturas
+   con CORS primero (`bajarMedia`; solo si el sitio no lo permite van "opacas", que Chrome cuenta como ~7 MB cada una).
 Prioridad baja:
-7. Accesibilidad: enlaces de 20 px de alto (Saltar, Ocultar, Repetir una comida, Editar mi día típico, "¿Se te olvidó
-   registrar…?", buscar en Open Food Facts) y el ▶ de técnica (24×23); la lista de la gráfica de fuerza y la fecha de la
-   carrera sin etiqueta; ejes de las gráficas a 10 px.
-8. Código sin uso: `ajustarItem` (comida-dia.js) y 5 variables `jsq(…)` que no se usan (entrenar.js, series.js).
-9. `regGuardar` dice que borra registros "que ya no están en ninguna lista" pero borra solo por antigüedad (120 días).
+7. ✅ v10.4: zona de toque invisible de ~44 px en todos los enlaces y el ▶ de técnica (`::after` en `app.css`, no mueve nada);
+   etiquetas en la lista de la gráfica de fuerza, las fechas (carrera, bienvenida, otro día) y la nota de hoy. Los ejes de las
+   gráficas siguen a 10 px (más grandes se encimarían).
+8. ✅ v10.4: quitados `ajustarItem` y las variables `jsq(…)` sin uso (la de `cuerpoEjercicio` sí se usa y se queda).
+9. ✅ v10.4: el comentario de `regGuardar` ya dice lo que hace (borra por antigüedad, 120 días).
 10. APK: sin `package-lock.json` (las dependencias de las dependencias pueden cambiar entre compilaciones) y las acciones de
     GitHub van por etiqueta (@v4), no por commit.
 11. Revisar en Gym-script que un lote repetido (si se pierde la respuesta y se reenvía) no duplique renglones (ignorar ids ya vistos).
@@ -103,7 +111,7 @@ localStorage; todos los botones con nombre y sin desborde horizontal.
 
 - **Comida, fotos y etiquetas con el ligero primero (v9.7) van bien de tiempo**: desde el 03/11, 7 consultas, 6 contestaron en
   1–17 s (casi todas en 1–3 s); 1 falló porque los 3 modelos estaban ocupados y al reintentar contestó en 1 s. Antes (02/11) las
-  etiquetas con el completo tardaban 88–280 s. Calidad: los hot dogs del 02/11 (proteína inflada) fueron del ligero por foto.
+  etiquetas con el completo tardaban 88–280 s. Calidad: una estimación por foto del ligero salió con la proteína inflada.
 - **El modelo completo casi nunca contesta**: 429 (se acabó la cuota del día) o 503 (mucha demanda). Cuando da 503 tarda en fallar
   y ya no queda tiempo para el ligero.
 - **El consejo entre series ("serie") sufre**: sigue probando primero el completo. 49 consultas el 03 y 04/11: 10 sin respuesta
@@ -143,12 +151,9 @@ localStorage; todos los botones con nombre y sin desborde horizontal.
   (antes el total, sin gramos: un licuado de más de 60 g de proteína salía "¿es algo seco o en polvo?"); tus recetas y el tupper no se
   marcan por pasar de 900 kcal (lo de la IA sí). `NUT.revisarMacros(m, gramos, nombre)`: si el nombre dice polvo/seco/whey/scoop,
   mucha proteína por gramo es lo normal (las otras revisiones siguen). Prueba `comida-v99`.
-- Mi licuado (Martin, 04/11): la soya texturizada SÍ va todos los días; la linaza es 1 cucharada copeteada (~10–12 g), no 22 g:
-  Martin la corrige en Comida › Mi licuado. Sigue pendiente pesar avena, plátano y fresas.
-- ✅ Comidas de la IA que no cuadraban: corregidas en la hoja el 04/11 con el sí de Martin (pestañas Comidas y Peso diario):
-  dogo 26/10, tres leches 28/10, Cheerios 29/10 (45 g), pizza de carnes frías 30/10 y 2 hot dogs 02/11. Los 3 chiles del 25/10 y
-  la pizza del 01/11 (6 rebanadas = 660 g) estaban bien. En el celular esos días siguen con lo viejo; si se editan ahí, el
-  celular vuelve a mandar sus números a la hoja.
+- Mi licuado: Martin ajusta las cantidades en Comida › Mi licuado (pendiente: pesar los ingredientes).
+- ✅ Comidas de la IA que no cuadraban: corregidas en la hoja el 04/11 con el sí de Martin (pestañas Comidas y Peso diario).
+  En el celular esos días siguen con lo viejo; si se editan ahí, el celular vuelve a mandar sus números a la hoja.
 - Al corregir la hoja a mano: leer el renglón JUSTO antes de escribir (el 04/11 se escribió un renglón abajo y hubo que regresarlo).
 
 ## v9.8 / script 8.6 / Panel 1.6 (publicado 03/11/2026)
@@ -202,11 +207,11 @@ App y script van juntos: al publicar, adelantar `main` de Gym **y** pasar la ram
 ## Comida: lo que falló con datos reales (revisado 02/11) — puntos 1–6 hechos y publicados (v9.3 / script 8.3)
 
 Encontrado en la hoja (Comidas y Errores):
-- **Proteína inflada el 01/11**: "frijoles con soya" en el buscador eligió *Soja (Soya) Frijol, Proteína* (proteína de soya
-  SECA, 47.6 g/100 g): 150 g = **71 g de proteína** que no comió. Y la IA puso *Mantequilla 10 g* con **20 g de proteína** (imposible).
+- **Proteína inflada**: un guisado con soya en el buscador eligió *Soja (Soya) Frijol, Proteína* (proteína de soya SECA,
+  47.6 g/100 g) y casi quintuplicó la proteína. Y la IA puso a una grasa 2 veces su peso en proteína (imposible).
 - **Catálogo mexicano con fichas engañosas**: *Leche De Vaca, Entera* trae 29 g de proteína y 504 kcal por 100 g (es leche en polvo).
   No hay mantequilla en los básicos; "pan birote" no encuentra el bolillo.
-- **La IA sigue tardando** con el modelo completo: 2 veces el 01/11 ("Cereal kellogs all bran", "molletes…"). No hay ningún
+- **La IA sigue tardando** con el modelo completo (2 veces en un día). No hay ningún
   "Aviso: tardó" (o contesta rápido o no contesta), así que falta saber dónde se va el tiempo.
 - **Etiquetas difíciles**: el galón de leche trae la información escrita en renglones (no en tabla) y en superficie curva.
 
@@ -223,8 +228,8 @@ Mejoras propuestas (en orden):
 5. **Etiquetas difíciles**: hasta 3 fotos de la misma etiqueta (galón: frente, costado, atrás); el texto en renglones
    ("Contenido energético 61 kcal, proteínas 3.1 g…") ya se acepta; "galón" = 3,785 ml como envase; y un formulario corto para
    escribir los números de la etiqueta a mano cuando la foto no sirve.
-6. ✅ **Corregido el 01/11 en la hoja** (Martin lo pidió): frijoles con soya 150 g (14.6 g prot) y mantequilla 10 g (0.1 g prot);
-   Peso diario del 01/11 = 95 g. En el celular ese día sigue con lo viejo hasta que se borre o se edite (la hoja ya está bien).
+6. ✅ **Corregido en la hoja** (Martin lo pidió) lo de ese día. En el celular ese día sigue con lo viejo hasta que se borre o se
+   edite (la hoja ya está bien).
 
 ## v9.4 / script 8.4 / Panel 1.5 (publicado 02/11/2026): los 7 de Comida
 
@@ -300,4 +305,4 @@ Mejoras propuestas (en orden):
 
 - (Martin lo dejó así: trabaja solo.) 2FA en GitHub y proteger `main`: opcional, ver la explicación del 03/11.
 - La clave larga se queda como está (decisión de Martin).
-- Pesar las comidas (Martin lo va a hacer): avena, plátano y fresas del licuado y corregir en Comida › Mi licuado.
+- Pesar los ingredientes del licuado (Martin lo va a hacer) y corregir en Comida › Mi licuado.

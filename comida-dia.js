@@ -509,7 +509,6 @@ async function agregarIngIA(i) {
   x.ingredientes.push({ nombre: al.n.slice(0, 30), gramos: g, g: NUT.r1(m.p), c: m.c, f: m.f, k: m.k, fib: m.fib });
   NUT.sumarIngredientes(x); pintarComida();
 }
-function ajustarItem(i, d) { const x = COMIDA_IA.items[i]; x.g = Math.max(0, x.g + d); pintarComida(); }
 function agregarComidaIA() {
   // También lo que casi no trae proteína (refresco, fruta, pan): suma calorías y carbohidratos
   const items = COMIDA_IA.items.filter(x => x.on && (x.g > 0 || x.k > 0));
