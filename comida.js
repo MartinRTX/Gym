@@ -599,7 +599,9 @@ let CANT = null;
 // texto: lo que escribiste ("4 rebanadas de pizza"): si dice cuánto, la cantidad ya sale calculada
 function pedirCantidad(al, texto) {
   const elegir = BUS && BUS.elegir, dijo = texto ? NUT.cantidadDeTexto(texto, al) : null;
-  CANT = { al: al, q: dijo ? dijo.q : al.por && al.por[0] ? al.por[0][1] : 100, elegir: elegir, bus: BUS, dijo: dijo };
+  CANT = { al: al, q: dijo ? dijo.q : al.por && al.por[0] ? al.por[0][1] : 100, elegir: elegir, bus: BUS, dijo: dijo,
+           // "1 mantecada" en un producto que no dice cuánto pesa una pieza: se queda en 100 g y hay que avisarlo
+           sinPeso: !dijo && !(al.por && al.por.length) && NUT.diceCuantas(texto) ? String(texto).trim().slice(0, 40) : '' };
   pintarCantidad();
 }
 function pintarCantidad() {
@@ -609,6 +611,7 @@ function pintarCantidad() {
     (al.seco ? html`<div class="tip acc" style="margin:0 0 10px">⚠️ Esta ficha es de alimento seco o en polvo (${NUT.r1(al.p)} g de proteína por 100 g). Si lo comiste preparado (frijoles de la olla, leche líquida…), busca el preparado.</div>` : '') +
     html`<div id="cantAvisos">${avisosHtml(NUT.revisarMacros(m, c.q, al.n))}</div>` +
     (c.dijo && c.q === c.dijo.q ? html`<div class="tip" style="margin:0 0 10px">Escribiste ${c.dijo.texto} = <b class="num">${NUT.r1(c.q)} ${al.u || 'g'}</b>. Si fue otra cantidad, cámbiala.</div>` : '') +
+    (c.sinPeso && c.q === 100 ? html`<div class="tip acc" style="margin:0 0 10px"><span>⚠️ Escribiste «${c.sinPeso}», pero este producto no dice cuánto pesa una pieza: aquí van <b>100 ${al.u || 'g'}</b>. Pon los gramos de la etiqueta (la porción entre las piezas que trae).</span></div>` : '') +
     (al.por && al.por.length ? html`<div class="tchips">${al.por.concat(al.por.filter(p => p[0] === 'Todo el envase').map(p => ['La mitad del envase', NUT.r1(p[1] / 2)])).map(p => html`<button class="tch${c.q === p[1] ? ' on' : ''}" ${on('cantFija', p[1])}>${p[0]} · ${p[1]} ${al.u || 'g'}</button>`)}</div>` : '') +
     html`<div class="cantfila"><button class="mini" ${on('cantPaso', -1)} aria-label="Menos">−</button>` +
     html`<input class="cant num" inputmode="decimal" value="${c.q}" ${ev('change', 'cantEscrita', VALOR)} aria-label="Cantidad"><span class="u">${al.u || 'g'}</span>` +
@@ -900,7 +903,7 @@ function confirmarProducto(al, avisos, crudo) {
   if (!$('modal').classList.contains('show')) abrirModal();
 }
 function pintarProducto() {
-  const a = PROD.al, u = a.u || 'g', por = a.por && a.por[0];
+  const a = PROD.al, u = a.u || 'g', por = a.por && a.por[0], pieza = a.por && a.por[1] && /^1 /.test(a.por[1][0]) ? a.por[1] : null;
   const campo = (k, nom) => html`<label class="pc"><span>${nom}</span><input class="num" inputmode="decimal" value="${a[k] === null || a[k] === undefined ? '' : a[k]}" ${ev('change', 'prodNumero', k, VALOR)}></label>`;
   const pm = por ? NUT.macros(a, por[1]) : null;
   $('sheet').innerHTML = html`<div class="row between"><div class="t2">Revisa el producto</div><button class="cerrar" ${on('cerrarModal')} aria-label="Cerrar">✕</button></div>` +
@@ -911,10 +914,11 @@ function pintarProducto() {
     html`<div class="pcs">${campo('p', 'Proteína')}${campo('c', 'Carbos')}${campo('f', 'Grasa')}${campo('k', 'kcal')}${campo('fib', 'Fibra')}</div>` +
     html`<div class="row" style="gap:8px;align-items:center;margin:10px 0"><span class="muted">1 porción =</span><input class="cant num" style="width:80px" inputmode="decimal" value="${por ? por[1] : ''}" placeholder="—" ` +
       html`${ev('change', 'prodPorcion', VALOR)}><span class="muted">${u}${pm ? html` → <b style="color:var(--text)">${NUT.r1(pm.p)} g prot</b> · ${Math.round(pm.k)} kcal` : ''}</span></div>` +
+    (pieza ? html`<div class="tip" style="margin:0 0 10px"><span>La porción de la etiqueta es <b>${por[0]}</b>: <b>${pieza[0]} = ${pieza[1]} ${u}</b> → ${Math.round(NUT.macros(a, pieza[1]).k)} kcal.</span></div>` : '') +
     html`<div class="tpaso">¿Es de tu licuado?</div><div class="tchips">` +
       html`${[['leche', '🥛 Mi leche de siempre'], ['proteina', '💪 Mi proteína de siempre'], ['', 'No']].map(r => html`<button class="tch${a.rol === r[0] ? ' on' : ''}" ${on('prodRol', r[0])}>${r[1]}</button>`)}</div>` +
     (a.rol === 'proteina' && !por ? html`<div class="muted" style="font-size:12.5px">Pon cuánto pesa 1 scoop para que tu licuado use uno.</div>` : '') +
-    html`<div class="acts"><button class="btn ghost" ${on('guardarProducto', false)}>Guardar</button><button class="btn" ${on('guardarProducto', true)}>Guardar y agregar${por ? ' 1 porción' : ''}</button></div>`;
+    html`<div class="acts"><button class="btn ghost" ${on('guardarProducto', false)}>Guardar</button><button class="btn" ${on('guardarProducto', true)}>Guardar y agregar${pieza ? ' ' + pieza[0] : por ? ' 1 porción' : ''}</button></div>`;
 }
 function guardarProducto(agregar) {
   const a = PROD.al, c = nutCfg();
@@ -931,7 +935,8 @@ function guardarProducto(agregar) {
   }
   guardarNut(c);
   PROD = null; cerrarModal(); hap('ok');
-  if (agregar) { const q = prod.por[0] ? prod.por[0][1] : 100; BUS = null; pedirCantidadDirecta(prod, q); }
+  // Si la porción es de varias piezas, se agrega UNA (en la siguiente pantalla se cambia si comiste más)
+  if (agregar) { const q = prod.por[1] && /^1 /.test(prod.por[1][0]) ? prod.por[1][1] : prod.por[0] ? prod.por[0][1] : 100; BUS = null; pedirCantidadDirecta(prod, q); }
   toast(msg); pintarComida(); actualizarWidgets();
 }
 function pedirCantidadDirecta(al, q) { CANT = { al: al, q: q, elegir: null, bus: null }; pintarCantidad(); abrirModal(); }
@@ -994,5 +999,9 @@ function cantEscrita(v) { CANT.q = Math.max(0, numeroEscrito(v) || 0); pintarCan
 function fotoDeGaleria(v) { FOTO_GALERIA = !!v; }
 function prodNumero(k, v) { if (['p', 'c', 'f', 'k', 'fib'].includes(k)) { PROD.al[k] = numeroEscrito(v) || 0; pintarProducto(); } }
 function prodTexto(k, v) { if (k === 'n') PROD.al.n = String(v).slice(0, 60); else if (k === 'marca') PROD.al.marca = String(v).slice(0, 40); }
-function prodPorcion(v) { const n = numeroEscrito(v); PROD.al.por = n > 0 ? [[PROD.porcionTxt || '1 porción', n]] : []; pintarProducto(); }
+function prodPorcion(v) {
+  const n = numeroEscrito(v), txt = PROD.porcionTxt || (PROD.al.por && PROD.al.por[0] ? PROD.al.por[0][0] : '') || '1 porción', pz = NUT.piezasDePorcion(txt);
+  PROD.al.por = n > 0 ? [[txt, n]].concat(pz ? [['1 ' + pz.nombre, NUT.r1(n / pz.n)]] : []) : [];
+  pintarProducto();
+}
 function prodRol(r) { PROD.al.rol = r; pintarProducto(); }

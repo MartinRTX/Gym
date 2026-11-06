@@ -202,7 +202,22 @@ const NUT = (() => {
     if (al.k > 20 && calc > 0 && Math.abs(calc - al.k) / al.k > 0.25) avisos.push('Las calorías (' + al.k + ') no cuadran con los macros (~' + Math.round(calc) + '): revisa los números');
     if ((al.p || 0) + (al.c || 0) + (al.f || 0) > 101) avisos.push('Proteína + carbohidratos + grasa pasan de 100 por 100 ' + u + ': seguro alguno es por porción');
     al.por = por ? [[String(por.texto || '1 porción').slice(0, 30), Number(por.cant)]] : [];
+    // Porción de varias piezas ("2 piezas (62 g)", "3 galletas"): también UNA pieza (como hace leerEtiqueta).
+    // Sin esto "1 mantecada" contaba la porción entera (2 mantecadas: el doble de calorías)
+    const pz = por ? piezasDePorcion(por.texto) : null;
+    if (pz) al.por.push(['1 ' + pz.nombre, r1(Number(por.cant) / pz.n)]);
     return { al: al, avisos: avisos };
+  }
+  // "2 piezas (62 g)" → { n: 2, nombre: 'pieza' }; "30 g (4 galletas)" → { n: 4, nombre: 'galleta' }. Gramos, ml o 1 sola: null
+  const NO_PIEZA = /^(g|gr|grs|gramos?|mg|kg|ml|mililitros?|l|lt|litros?|oz|onzas?|kcal|cal|porci[oó]n|porciones|x)$/;
+  function piezasDePorcion(texto) {
+    for (const m of String(texto || '').toLowerCase().matchAll(/(\d+(?:[.,]\d+)?)\s*([a-záéíóúñü]+)/g)) {
+      const n = Number(m[1].replace(',', '.')), w = m[2];
+      if (NO_PIEZA.test(w)) continue;
+      if (!(Number.isInteger(n) && n >= 2 && n <= 50)) return null;
+      return { n: n, nombre: /^(pz|pza|pzas|pzs|piezas?)$/.test(w) ? 'pieza' : raiz(w) };
+    }
+    return null;
   }
 
   /* ----- Etiqueta completa (script 8.2): la IA solo copia la tabla y lo que dijiste; aquí se hacen TODAS las cuentas.
@@ -398,9 +413,13 @@ const NUT = (() => {
     if (n === null) for (const w of pal) if (NUMEROS[w] !== undefined) { n = NUMEROS[w]; break; }
     const por = (al && al.por) || [];
     // La porción que nombraste ("rebanada", "taza", "scoop", "taco"…): se compara por raíz para que "rebanadas" sea "rebanada"
-    const nombrada = por.find(x => sinAcentos(x[0].replace(/\(.*\)/, '')).split(/\s+/).some(pw => pw.length > 2 && !NUMEROS[pw] && !/^\d/.test(pw) && pal.some(w => w.length > 2 && raiz(w) === raiz(pw))));
+    // Si coinciden la porción ("2 piezas") y la pieza ("1 pieza"), se cuenta desde UNA pieza ("2 piezas" = 2 × 1 pieza)
+    const coincide = x => sinAcentos(x[0].replace(/\(.*\)/, '')).split(/\s+/).some(pw => pw.length > 2 && !NUMEROS[pw] && !/^\d/.test(pw) && pal.some(w => w.length > 2 && raiz(w) === raiz(pw)));
+    const nombrada = por.find(x => /^1 /.test(x[0]) && coincide(x)) || por.find(coincide);
     // Sin porción nombrada ("6 doritos"): la de una pieza; si no hay, la primera, pero nunca un envase (6 bolsas no)
-    const pieza = por.find(x => /\b(pieza|papita|unidad|totopo|galleta)\b/i.test(x[0])), envase = x => /\b(bolsa|paquete|lata|botella|caja|frasco|sobre|envase)\b/i.test(sinAcentos(x[0]));
+    const envase = x => /\b(bolsa|paquete|lata|botella|caja|frasco|sobre|envase)\b/i.test(sinAcentos(x[0]));
+    // Una pieza: la que se llama así o cualquier "1 algo" que no sea la porción ni el envase ("1 mantecada" de "2 mantecadas (62 g)")
+    const pieza = por.find(x => /\b(pieza|papita|unidad|totopo|galleta)\b/i.test(x[0])) || por.find(x => /^1 (?!porci)/i.test(sinAcentos(x[0])) && !envase(x));
     const base = nombrada || (n !== null ? pieza || (por[0] && !envase(por[0]) ? por[0] : null) : null);
     if (!base || !(base[1] > 0)) return null;
     // "media taza" con una porción de "1/2 taza" es esa porción una vez, no la mitad
@@ -408,6 +427,12 @@ const NUT = (() => {
     if (veces === 0.5 && /^1\/2\b/.test(base[0])) veces = 1;
     if (!(veces > 0 && veces <= 50)) return null;
     return { q: Math.round(veces * base[1] * 10) / 10, texto: (veces === 0.5 ? '½' : veces) + ' × ' + base[0].replace(/^1\s+/, '') };
+  }
+  // ¿Dijiste cuántas piezas ("1 mantecada", "dos galletas") sin decir gramos? (para avisar si el producto no dice cuánto pesa una)
+  function diceCuantas(texto) {
+    const crudo = String(texto || '').toLowerCase();
+    if (/\d\s*(g|gr|grs|gramos|ml)\b/.test(crudo)) return false;
+    return /\d/.test(crudo) || sinAcentos(crudo).split(/\s+/).some(w => NUMEROS[w] !== undefined);
   }
   // Catálogo grande (datos/alimentos.json): filas compactas → alimentos
   function desempacar(json) {
@@ -478,6 +503,6 @@ const NUT = (() => {
   };
 
   return { MAC, BASE, BASE_POR_ID, RECETAS, TUPPER, LEGADO, ES_EN, r1, macros, sumar, receta, diferencia, cambiarRol, tupper, nombreTupper, claveTupper,
-           normalizarEtiqueta, leerEtiqueta, revisarMacros, marcarSeco, mantenimientoReal, esGrande, escalarItem, sumarIngredientes, cantidadIngrediente, gramosDeConsumo, gramosDe, mismoProducto, metas, buscar, cantidadDeTexto, desempacar, sinAcentos };
+           normalizarEtiqueta, leerEtiqueta, revisarMacros, marcarSeco, mantenimientoReal, esGrande, escalarItem, sumarIngredientes, cantidadIngrediente, gramosDeConsumo, gramosDe, mismoProducto, metas, buscar, cantidadDeTexto, diceCuantas, piezasDePorcion, desempacar, sinAcentos };
 })();
 if (typeof module !== 'undefined') module.exports = NUT;

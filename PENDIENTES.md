@@ -39,17 +39,26 @@ actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
 
 ## Cómo publicar (cuando Martin diga "publica")
 
-Hoy no hay nada pendiente de publicar: en Gym, Gym-script y Panel, `main` está igual que la rama de trabajo.
-Cuando haya cambios, este orden:
+Pendiente de publicar: **Gym v10.5** (rama `claude/affectionate-cannon-ymlofy`). Gym-script y Panel: `main` al día.
+Orden cuando haya cambios:
 
 1. Gym-script: rama → `main`. Primero el script (si la app pide un `SCRIPT_ESPERADO` nuevo).
 2. Gym: rama de trabajo → `main`. Al abrirla, el celular baja la versión nueva completa y recarga una vez.
 3. Panel: rama → `main`.
 
-Script de Comidas con clasp: **lo está terminando otro chat; no tocarlo desde aquí.** Lo que falta (de parte de Martin):
-en el Apps Script de "Comidas 2026", ⚙️ Configuración del proyecto › Propiedades del script: `CLAVE` = su clave; y pasar el
-"ID de secuencia de comandos" para ponerlo en `COMIDAS_SCRIPT_ID` (`Gym-script/.github/workflows/comidas.yml`). Si falta la
-propiedad, el workflow regresa la implementación a la versión anterior.
+✅ Script de Comidas con clasp (03/11): propiedad `CLAVE` puesta y `COMIDAS_SCRIPT_ID` en `Gym-script/.github/workflows/comidas.yml`.
+Se publica solo desde Panel/main (cada 3 horas o a mano, "Publicar Comidas (Panel)"): nunca pegarlo a mano.
+✅ Panel 1.7 (04/11): hábitos, objetivos de la semana, revisión del domingo y avisos (Panel.apk nuevo); script de Comidas 2
+(pestañas Hábitos y Objetivos); Gym-script manda `resumen.diasSemanas` para la revisión.
+
+## v10.5 (en la rama, 06/11): productos con porción de varias piezas
+
+- Open Food Facts (y etiquetas) con porción de varias piezas ("2 piezas (62 g)", "3 galletas"): ahora también traen **1 pieza**.
+  Antes "1 mantecada" y "Guardar y agregar 1 porción" contaban la porción entera (2 piezas: el doble de calorías).
+  `NUT.piezasDePorcion`; `cantidadDeTexto` prefiere la pieza; "Revisa el producto" dice cuánto es 1 pieza y agrega una.
+- Producto sin porción y escribiste cuántas ("1 mantecada"): se queda en 100 g pero avisa que pongas los gramos (`NUT.diceCuantas`).
+- Lo que ya se guardó como producto con la porción vieja no cambia solo: se corrige volviéndolo a buscar o editando la cantidad.
+- Pruebas: 3 en `nutricion.test.js` y `tests/e2e/mantecada-v105.prueba.js` (7).
 
 ## v10.4 (publicada 05/11): arreglos de la auditoría (3, 5, 6, 7, 8, 9)
 
@@ -298,8 +307,7 @@ Mejoras propuestas (en orden):
    localStorage (Panel puede leer `gym_key`; por eso existe "Usar la conexión de tu app") y el mismo espacio de ~5 MB.
    ✅ Panel 1.6 ya no usa `onclick` en texto y en Chrome tiene CSP estricta.
 8. La URL `/exec` de Gym ya es pública (está en `Panel/config.js`): la única protección es la clave. Usar una clave larga.
-9. Script de Comidas con clasp: listo el workflow (`Gym-script/.github/workflows/comidas.yml`); falta la propiedad `CLAVE`
-   y el ID del script (ver "Para publicar" arriba).
+9. ✅ Script de Comidas con clasp: se publica solo desde GitHub (ver arriba).
 
 ## Lo que le toca a Martin (recomendado, no urgente)
 

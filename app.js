@@ -598,7 +598,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v10.4';
+const VERSION_APP = 'v10.5';
 // Versión del script de Apps Script que espera esta app (SCRIPT_VERSION en AppGym.js); si la hoja trae una anterior, Ajustes avisa
 const SCRIPT_ESPERADO = '8.5';
 const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);

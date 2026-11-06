@@ -64,6 +64,41 @@ test('Etiqueta solo por porción (scoop de 33 g): se pasa a 100 g', () => {
   assert.deepStrictEqual(r.avisos, []);
 });
 
+test('Porción de varias piezas (2 mantecadas = 62 g): "1 mantecada" es media porción, no la porción entera', () => {
+  // Así vienen muchos productos de marca en Open Food Facts: la porción del empaque es de 2 piezas
+  const r = NUT.normalizarEtiqueta({ nombre: 'Mantecadas con nuez', marca: 'Bimbo', u: 'g', src: 'off', por100: { p: 6, c: 43.1, f: 29.3, k: 460 },
+    porcion: { texto: '2 piezas (62 g)', cant: 62, p: 3.7, c: 26.7, f: 18.2, k: 285 } });
+  assert.deepStrictEqual(r.al.por, [['2 piezas (62 g)', 62], ['1 pieza', 31]], 'la porción del empaque y una pieza');
+  const q = t => (NUT.cantidadDeTexto(t, r.al) || {}).q;
+  assert.strictEqual(q('1 mantecada'), 31);
+  assert.strictEqual(q('una mantecada bimbo con nuez'), 31);
+  assert.strictEqual(q('3 mantecadas'), 93);
+  assert.strictEqual(q('2 piezas'), 62);
+  cerca(NUT.macros(r.al, q('1 mantecada')).k, 143, 1);
+  // La pieza toma el nombre del empaque y las abreviaturas se entienden
+  const nombre = t => NUT.normalizarEtiqueta({ nombre: 'X', por100: { p: 6, c: 60, f: 20, k: 450 }, porcion: { texto: t, cant: 30, k: 135 } }).al.por[1][0];
+  assert.strictEqual(nombre('3 galletas (30 g)'), '1 galleta');
+  assert.strictEqual(nombre('2 pzas'), '1 pieza');
+  assert.strictEqual(nombre('30 g (4 piezas)'), '1 pieza');
+  // Si el empaque las llama "mantecadas", "1 mantecada" también es una pieza
+  const m = NUT.normalizarEtiqueta({ nombre: 'Mantecadas', por100: { p: 6, c: 43.1, f: 29.3, k: 460 }, porcion: { texto: '2 mantecadas', cant: 62, k: 285 } }).al;
+  assert.deepStrictEqual(m.por, [['2 mantecadas', 62], ['1 mantecada', 31]]);
+  assert.strictEqual(NUT.cantidadDeTexto('1 mantecada', m).q, 31);
+  assert.strictEqual(NUT.cantidadDeTexto('1 pan', m).q, 31, 'con un número y sin nombre conocido: una pieza, no la porción');
+  // Una porción de 1 o medida en gramos/ml no se parte
+  const por = t => NUT.normalizarEtiqueta({ nombre: 'X', por100: { p: 6, c: 60, f: 20, k: 450 }, porcion: { texto: t, cant: 30, k: 135 } }).al.por;
+  assert.deepStrictEqual(por('1 pieza (30 g)'), [['1 pieza (30 g)', 30]]);
+  assert.deepStrictEqual(por('30 g'), [['30 g', 30]]);
+  assert.deepStrictEqual(por('1 porción'), [['1 porción', 30]]);
+});
+
+test('diceCuantas: "1 mantecada" sí (hay que saber cuánto pesa una); "62 g" o solo el nombre, no', () => {
+  assert.ok(NUT.diceCuantas('1 mantecada'));
+  assert.ok(NUT.diceCuantas('una mantecada bimbo con nuez'));
+  assert.ok(!NUT.diceCuantas('mantecada 62 g'));
+  assert.ok(!NUT.diceCuantas('mantecada bimbo'));
+});
+
 test('Etiqueta con las dos columnas que no cuadran: avisa', () => {
   const r = NUT.normalizarEtiqueta({ nombre: 'Leche', u: 'ml', por100: { p: 8, c: 12, f: 5, k: 125 }, porcion: { texto: '1 vaso', cant: 250, p: 8, c: 12, f: 5, k: 125 } });
   assert.ok(r.avisos.some(a => /no cuadran/.test(a)), JSON.stringify(r.avisos));
