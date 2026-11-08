@@ -39,7 +39,7 @@ actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
 
 ## Cómo publicar (cuando Martin diga "publica")
 
-Pendiente de publicar: **Gym v10.5** (rama `claude/affectionate-cannon-ymlofy`). Gym-script y Panel: `main` al día.
+Hoy no hay nada pendiente de publicar (Gym v10.5 publicada el 08/11).
 Orden cuando haya cambios:
 
 1. Gym-script: rama → `main`. Primero el script (si la app pide un `SCRIPT_ESPERADO` nuevo).
@@ -51,7 +51,7 @@ Se publica solo desde Panel/main (cada 3 horas o a mano, "Publicar Comidas (Pane
 ✅ Panel 1.7 (04/11): hábitos, objetivos de la semana, revisión del domingo y avisos (Panel.apk nuevo); script de Comidas 2
 (pestañas Hábitos y Objetivos); Gym-script manda `resumen.diasSemanas` para la revisión.
 
-## v10.5 (en la rama, 06–08/11): productos con porción de varias piezas y tu licuado con tus productos
+## v10.5 (publicada 08/11): porciones de varias piezas, tu licuado con tus productos y buscador fluido
 
 - Open Food Facts (y etiquetas) con porción de varias piezas ("2 piezas (62 g)", "3 galletas"): ahora también traen **1 pieza**.
   Antes "1 mantecada" y "Guardar y agregar 1 porción" contaban la porción entera (2 piezas: el doble de calorías).
@@ -66,6 +66,9 @@ Se publica solo desde Panel/main (cada 3 horas o a mano, "Publicar Comidas (Pane
 - Beta-alanina en el catálogo (`b:beta-alanina`, 0 kcal, 5 g / 1 scoop 3.2 g; se encuentra como beta alanina, betaalanina).
   El licuado de cada quien no cambia solo: se agrega con ＋ en la receta.
 - Pruebas: `tests/e2e/licuado-v105.prueba.js` (9).
+- Buscador fluido: la hoja se pinta una vez y al escribir solo cambia `#busRes` (`refrescarResultados`, 70 ms); la lista de
+  alimentos se arma una vez por búsqueda. Antes cada tecla repintaba la caja de texto (Android cortaba lo que el teclado
+  escribía y borrar se sentía raro) y un repintado pendiente podía tapar la pantalla de cantidad. `buscador-v105` (6).
 
 ## v10.4 (publicada 05/11): arreglos de la auditoría (3, 5, 6, 7, 8, 9)
 

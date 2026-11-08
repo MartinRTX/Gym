@@ -518,20 +518,40 @@ function abrirBuscador(o) {
   pintarBuscador();
   if (!$('modal').classList.contains('show')) abrirModal();
   setTimeout(() => { const i = $('busNut'); if (i) i.focus(); }, 60);
-  cargarCatalogo().then(() => { if (BUS && BUS.q) buscarNut(BUS.q); }).catch(() => {});
+  cargarCatalogo().then(() => refrescarResultados()).catch(() => {});
 }
+// La hoja del buscador se pinta UNA vez; al escribir solo cambia la lista (#busRes). Antes cada tecla volvía a pintar
+// toda la hoja, la caja de texto incluida: en Android se cortaba lo que el teclado estaba escribiendo y borrar se sentía raro.
 function pintarBuscador() {
-  const b = BUS, res = b.q ? NUT.buscar(listaBusqueda(), b.q, 40) : nutCfg().productos.concat(Object.values(LS.get('gym_alim_usados', {}))).slice(-12).reverse();
+  const b = BUS;
+  $('sheet').innerHTML = html`<div class="row between"><div class="t2">${b.elegir ? 'Elige el ingrediente' : 'Buscar alimento'}</div><button class="cerrar" ${on('cerrarBuscador')} aria-label="Cerrar">✕</button></div>` +
+    html`<input id="busNut" class="buscar" type="search" autocomplete="off" placeholder="Ej. tortilla de maíz, queso panela, avena…" value="${b.q}" ${ev('input', 'buscarNut', VALOR)}>` +
+    html`<div class="bfuentes" id="busFuentes">${textoFuentes()}</div>` +
+    html`<div class="blista" id="busRes">${resultadosBuscador()}</div>` +
+    (b.elegir ? html`<button class="btn ghost" style="width:100%;margin-top:10px" ${on('camaraParaReceta')}>📷 Foto de la etiqueta o código de tu producto</button>` : '');
+}
+function textoFuentes() { return CATALOGO ? (CATALOGO.length + NUT.BASE.length).toLocaleString('es-MX') + ' alimentos: tabla mexicana (INCMNSZ), USDA y los tuyos' : 'Cargando el catálogo…'; }
+// La lista de alimentos se arma una vez por búsqueda abierta (no en cada tecla); se rehace al llegar el catálogo
+function listaDelBuscador() {
+  if (!BUS.lista || BUS.listaCat !== CATALOGO) { BUS.lista = listaBusqueda(); BUS.listaCat = CATALOGO; }
+  return BUS.lista;
+}
+function resultadosBuscador() {
+  const b = BUS, res = b.q.trim() ? NUT.buscar(listaDelBuscador(), b.q, 40) : nutCfg().productos.concat(Object.values(LS.get('gym_alim_usados', {}))).slice(-12).reverse();
   const fila = a => html`<button class="bres" ${on('elegirNut', a.id)}><span class="nm">${a.n}${a.marca ? ' · ' + a.marca : ''}` +
     html`<small>${fuenteTxt(a)} · por 100 ${a.u || 'g'}: <b>${NUT.r1(a.p)} g prot</b> · ${Math.round(a.k)} kcal${a.crudo ? ' · crudo' : ''}${a.seco ? html` · <span class="seco">⚠️ seco o en polvo</span>` : ''}</small></span></button>`;
   const offRes = b.off ? (b.off.length ? b.off.map(a => crudo(html`<button class="bres" ${on('elegirOFF', a.code)}><span class="nm">${a.n}${a.marca ? ' · ' + a.marca : ''}` +
     html`<small>Open Food Facts · por 100 ${a.u}: <b>${NUT.r1(a.p)} g prot</b> · ${Math.round(a.k || 0)} kcal</small></span></button>`)) : html`<div class="muted" style="margin:8px 2px">No encontré productos con ese nombre.</div>`) : '';
-  $('sheet').innerHTML = html`<div class="row between"><div class="t2">${b.elegir ? 'Elige el ingrediente' : 'Buscar alimento'}</div><button class="cerrar" ${on('cerrarBuscador')} aria-label="Cerrar">✕</button></div>` +
-    html`<input id="busNut" class="buscar" type="search" placeholder="Ej. tortilla de maíz, queso panela, avena…" value="${b.q}" ${ev('input', 'buscarNut', VALOR)}>` +
-    html`<div class="bfuentes">${CATALOGO ? (CATALOGO.length + NUT.BASE.length).toLocaleString('es-MX') + ' alimentos: tabla mexicana (INCMNSZ), USDA y los tuyos' : 'Cargando el catálogo…'}</div>` +
-    html`<div class="blista" id="busRes">${res.length ? res.map(a => crudo(fila(a))) : b.q ? html`<div class="muted" style="margin:8px 2px">Nada en el catálogo con «${b.q}».</div>` : html`<div class="muted" style="margin:8px 2px">Escribe qué comiste. Lo que uses queda aquí para la próxima.</div>`}${
-      b.q ? html`<button class="link" style="margin:8px 2px" ${on('buscarOFF')}>${b.cargando ? 'Buscando en Open Food Facts…' : '🛒 Buscar productos de marca (Open Food Facts)'}</button>${offRes}` : ''}</div>` +
-    (b.elegir ? html`<button class="btn ghost" style="width:100%;margin-top:10px" ${on('camaraParaReceta')}>📷 Foto de la etiqueta o código de tu producto</button>` : '');
+  return html`${res.length ? res.map(a => crudo(fila(a))) : b.q.trim() ? html`<div class="muted" style="margin:8px 2px">Nada en el catálogo con «${b.q}».</div>` : html`<div class="muted" style="margin:8px 2px">Escribe qué comiste. Lo que uses queda aquí para la próxima.</div>`}${
+    b.q.trim() ? html`<button class="link" style="margin:8px 2px" ${on('buscarOFF')}>${b.cargando ? 'Buscando en Open Food Facts…' : '🛒 Buscar productos de marca (Open Food Facts)'}</button>${offRes}` : ''}`;
+}
+// Solo la lista (y el texto del catálogo): la caja de texto no se toca. Si la hoja ya es otra (la cantidad, un producto), nada
+function refrescarResultados() {
+  if (!BUS) return;
+  const r = $('busRes'), f = $('busFuentes');
+  if (!r || !$('busNut')) return;
+  r.innerHTML = String(resultadosBuscador());
+  if (f) f.textContent = textoFuentes();
 }
 /* ----- Un producto nuevo (foto, código u Open Food Facts) que va directo a la receta que estabas editando ----- */
 let PARA_RECETA = null;     // { elegir, volver, ts }
@@ -550,14 +570,10 @@ function usarEnReceta(prod) {
 function fuenteTxt(a) { const s = a.src || String(a.id).split(':')[0]; return { b: 'Básico', usda: 'USDA', mx: 'Tabla mexicana', us: 'USDA', p: 'Tuyo', etiqueta: 'Tu etiqueta', off: 'Open Food Facts', calc: 'Calculado' }[s] || 'Catálogo'; }
 let BUS_T = null;
 function buscarNut(q) {
-  BUS.q = q; BUS.off = null;
+  if (!BUS) return;
+  BUS.q = String(q || ''); BUS.off = null;
   clearTimeout(BUS_T);
-  BUS_T = setTimeout(() => {
-    if (!BUS) return;   // cerraste el buscador antes de que se repintara
-    const i = $('busNut'), pos = i ? i.selectionStart : null;
-    pintarBuscador();
-    const j = $('busNut'); if (j) { j.focus(); if (pos !== null) j.setSelectionRange(pos, pos); }
-  }, 120);
+  BUS_T = setTimeout(refrescarResultados, 70);   // cerraste el buscador antes: refrescarResultados no hace nada
 }
 function cerrarBuscador() { const o = BUS; BUS = null; if (o && o.volver) o.volver(); else cerrarModal(); }
 function elegirNut(id) {
@@ -587,7 +603,7 @@ function deOFF(p) {
 let OFF_CACHE = {};
 async function buscarOFF() {
   if (!navigator.onLine) return toast('Necesitas señal para buscar productos de marca');
-  BUS.cargando = true; pintarBuscador();
+  BUS.cargando = true; refrescarResultados();
   const campos = 'code,product_name,product_name_es,brands,nutriments,serving_size,serving_quantity,quantity,product_quantity_unit';
   const url = q => OFF + '/cgi/search.pl?search_simple=1&json=1&page_size=20&fields=' + campos + '&search_terms=' + encodeURIComponent(q);
   try {
@@ -596,7 +612,7 @@ async function buscarOFF() {
     BUS.off = (j.products || []).map(deOFF).filter(Boolean);
     BUS.off.forEach(a => { OFF_CACHE[a.code] = a; });
   } catch (e) { BUS.off = []; toast('Open Food Facts no respondió: ' + (e.message === 'tiempo' ? 'tardó demasiado' : 'sin conexión')); }
-  if (BUS) { BUS.cargando = false; pintarBuscador(); }
+  if (BUS) { BUS.cargando = false; refrescarResultados(); }
 }
 async function productoPorCodigo(code) {
   code = String(code || '').replace(/\D/g, '');
