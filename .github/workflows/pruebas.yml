@@ -27,7 +27,8 @@ jobs:
         run: node --test tests/*.test.js
 
   pantalla:
-    runs-on: ubuntu-latest
+    # Fijo en 24.04: ubuntu-latest ya es 26.04 y Playwright 1.56.1 no sabe instalar Chromium ahí (falla antes de probar nada)
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
