@@ -51,7 +51,7 @@ Se publica solo desde Panel/main (cada 3 horas o a mano, "Publicar Comidas (Pane
 ✅ Panel 1.7 (04/11): hábitos, objetivos de la semana, revisión del domingo y avisos (Panel.apk nuevo); script de Comidas 2
 (pestañas Hábitos y Objetivos); Gym-script manda `resumen.diasSemanas` para la revisión.
 
-## v10.5 (en la rama, 06/11): productos con porción de varias piezas
+## v10.5 (en la rama, 06–08/11): productos con porción de varias piezas y tu licuado con tus productos
 
 - Open Food Facts (y etiquetas) con porción de varias piezas ("2 piezas (62 g)", "3 galletas"): ahora también traen **1 pieza**.
   Antes "1 mantecada" y "Guardar y agregar 1 porción" contaban la porción entera (2 piezas: el doble de calorías).
@@ -59,6 +59,13 @@ Se publica solo desde Panel/main (cada 3 horas o a mano, "Publicar Comidas (Pane
 - Producto sin porción y escribiste cuántas ("1 mantecada"): se queda en 100 g pero avisa que pongas los gramos (`NUT.diceCuantas`).
 - Lo que ya se guardó como producto con la porción vieja no cambia solo: se corrige volviéndolo a buscar o editando la cantidad.
 - Pruebas: 3 en `nutricion.test.js` y `tests/e2e/mantecada-v105.prueba.js` (7).
+- Receta (licuado y cenas): cada ingrediente dice de dónde salen sus macros (USDA/Básico «genérico», Tuyo, Tu etiqueta,
+  Open Food Facts) y su marca. Desde ⇄/＋ hay «📷 Foto de la etiqueta o código de tu producto», y un producto de Open Food
+  Facts o de foto elegido desde la receta queda EN la receta («Guardar y usar en la receta»; antes se guardaba y ya). `PARA_RECETA`
+  caduca a los 15 min y una búsqueda normal lo borra. El botón general «Foto o código» ahora es `abrirCamaraSola`.
+- Beta-alanina en el catálogo (`b:beta-alanina`, 0 kcal, 5 g / 1 scoop 3.2 g; se encuentra como beta alanina, betaalanina).
+  El licuado de cada quien no cambia solo: se agrega con ＋ en la receta.
+- Pruebas: `tests/e2e/licuado-v105.prueba.js` (9).
 
 ## v10.4 (publicada 05/11): arreglos de la auditoría (3, 5, 6, 7, 8, 9)
 

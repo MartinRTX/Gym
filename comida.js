@@ -366,7 +366,7 @@ function filaSiempre() {
     b('🌮', 'Cena', h && m ? 'Harina o maíz: ' + Math.round(h.p) + ' / ' + Math.round(m.p) + ' g' : '', on('abrirCenas')) +
     html`</div><div class="herr">` +
     html`<button ${on('abrirBuscador')}><span>🔍</span>Buscar alimento</button>` +
-    html`<button ${on('abrirCamara')}><span>📷</span>Foto o código</button></div>`;
+    html`<button ${on('abrirCamaraSola')}><span>📷</span>Foto o código</button></div>`;
 }
 
 /* ----- Editor de receta (cantidades editables; tu licuado viene con cantidades estándar hasta que las midas) ----- */
@@ -382,10 +382,13 @@ function pintarReceta() {
   const e = REC_ED, t = NUT.receta({ items: e.items }, resolver);
   const rolTxt = { leche: 'tu leche', proteina: 'tu proteína' };
   $('sheet').innerHTML = html`<div class="row between"><div class="t2">${e.n}</div><button class="cerrar" ${on('cerrarReceta')} aria-label="Cerrar">✕</button></div>` +
-    html`<div class="muted" style="margin:2px 0 10px">Toca una cantidad para cambiarla. ${e.id === 'licuado' ? 'Vienen cantidades estándar: cuando midas las tuyas, ponlas aquí.' : ''}</div>` +
+    html`<div class="muted" style="margin:2px 0 10px">Toca una cantidad para cambiarla. ${e.id === 'licuado' ? 'Vienen cantidades estándar: cuando midas las tuyas, ponlas aquí.' : ''} Lo «genérico» es de tablas; con ⇄ eliges tu producto (o le tomas foto a la etiqueta).</div>` +
     html`<div class="rec">${t.items.map((it, i) => {
       const al = it.al, m = it.m || {}, u = al ? al.u : 'g';
-      return crudo(html`<div class="ri"><div class="nm"><b>${al ? al.n : 'Alimento que ya no está'}${it.rol ? html` <span class="rol">${rolTxt[it.rol]}</span>` : ''}</b></div>` +
+      // De dónde salen sus macros: "Básico"/"USDA" es genérico; "Tuyo"/"Tu etiqueta"/"Open Food Facts" es tu producto (⇄ lo cambia)
+      const generico = al && !/^p:/.test(String(al.id || it.ref)) && al.k > 0;
+      return crudo(html`<div class="ri"><div class="nm"><b>${al ? al.n : 'Alimento que ya no está'}${al && al.marca ? ' · ' + al.marca : ''}${it.rol ? html` <span class="rol">${rolTxt[it.rol]}</span>` : ''}</b>` +
+        (al ? html`<small>${fuenteTxt(al)} · por 100 ${u}: ${NUT.r1(al.p)} g prot · ${Math.round(al.k || 0)} kcal${generico ? ' · genérico' : ''}</small>` : '') + html`</div>` +
         html`<div class="mac2">${al ? html`<b>${NUT.r1(m.p)} g</b> prot · ${Math.round(m.k || 0)} kcal` : ''}</div><div class="ctl">` +
         html`<button class="mini" ${on('recCant', i, -1)} aria-label="Menos">−</button>` +
         html`<input class="cant num" inputmode="decimal" value="${it.q}" ${ev('change', 'recSet', i, VALOR)} aria-label="Cantidad"><span class="u">${u}</span>` +
@@ -511,6 +514,7 @@ function listaBusqueda() {
 }
 function abrirBuscador(o) {
   BUS = Object.assign({ q: '', res: null, off: null, cargando: false }, o || {});
+  if (!BUS.elegir) PARA_RECETA = null;     // una búsqueda normal: nada va a la receta
   pintarBuscador();
   if (!$('modal').classList.contains('show')) abrirModal();
   setTimeout(() => { const i = $('busNut'); if (i) i.focus(); }, 60);
@@ -526,7 +530,22 @@ function pintarBuscador() {
     html`<input id="busNut" class="buscar" type="search" placeholder="Ej. tortilla de maíz, queso panela, avena…" value="${b.q}" ${ev('input', 'buscarNut', VALOR)}>` +
     html`<div class="bfuentes">${CATALOGO ? (CATALOGO.length + NUT.BASE.length).toLocaleString('es-MX') + ' alimentos: tabla mexicana (INCMNSZ), USDA y los tuyos' : 'Cargando el catálogo…'}</div>` +
     html`<div class="blista" id="busRes">${res.length ? res.map(a => crudo(fila(a))) : b.q ? html`<div class="muted" style="margin:8px 2px">Nada en el catálogo con «${b.q}».</div>` : html`<div class="muted" style="margin:8px 2px">Escribe qué comiste. Lo que uses queda aquí para la próxima.</div>`}${
-      b.q ? html`<button class="link" style="margin:8px 2px" ${on('buscarOFF')}>${b.cargando ? 'Buscando en Open Food Facts…' : '🛒 Buscar productos de marca (Open Food Facts)'}</button>${offRes}` : ''}</div>`;
+      b.q ? html`<button class="link" style="margin:8px 2px" ${on('buscarOFF')}>${b.cargando ? 'Buscando en Open Food Facts…' : '🛒 Buscar productos de marca (Open Food Facts)'}</button>${offRes}` : ''}</div>` +
+    (b.elegir ? html`<button class="btn ghost" style="width:100%;margin-top:10px" ${on('camaraParaReceta')}>📷 Foto de la etiqueta o código de tu producto</button>` : '');
+}
+/* ----- Un producto nuevo (foto, código u Open Food Facts) que va directo a la receta que estabas editando ----- */
+let PARA_RECETA = null;     // { elegir, volver, ts }
+function paraReceta() { return PARA_RECETA && Date.now() - PARA_RECETA.ts < 15 * 60e3 ? PARA_RECETA : null; }
+function camaraParaReceta() { const b = BUS; BUS = null; abrirCamara(); PARA_RECETA = { elegir: b.elegir, volver: b.volver, ts: Date.now() }; }
+function abrirCamaraSola() { PARA_RECETA = null; abrirCamara(); }
+// Se guardó el producto: a la receta (con su porción como cantidad si es ingrediente nuevo)
+function usarEnReceta(prod) {
+  const p = paraReceta();
+  PARA_RECETA = null;
+  if (!p) return false;
+  recordarAlimento(prod); p.elegir(prod, prod.por && prod.por[0] ? prod.por[0][1] : null);
+  toast('Listo: ' + prod.n + ' ya está en la receta ✓');
+  return true;
 }
 function fuenteTxt(a) { const s = a.src || String(a.id).split(':')[0]; return { b: 'Básico', usda: 'USDA', mx: 'Tabla mexicana', us: 'USDA', p: 'Tuyo', etiqueta: 'Tu etiqueta', off: 'Open Food Facts', calc: 'Calculado' }[s] || 'Catálogo'; }
 let BUS_T = null;
@@ -592,7 +611,12 @@ async function productoPorCodigo(code) {
     return (OFF_CACHE[code] = a);
   } catch (e) { toast('Open Food Facts no respondió'); return null; }
 }
-function elegirOFF(code) { const a = OFF_CACHE[code]; if (a) confirmarProducto(a, a.avisos || []); }
+function elegirOFF(code) {
+  const a = OFF_CACHE[code];
+  if (!a) return;
+  PARA_RECETA = BUS && BUS.elegir ? { elegir: BUS.elegir, volver: BUS.volver, ts: Date.now() } : null;   // desde la receta: regresa a ella
+  confirmarProducto(a, a.avisos || []);
+}
 
 /* ----- ¿Cuánto comiste? (porciones del alimento o gramos) ----- */
 let CANT = null;
@@ -804,7 +828,8 @@ function pintarEtiqueta() {
       html`${campo('p', 'Proteína')}${campo('c', 'Carbos')}${campo('f', 'Grasa')}${campo('k', 'kcal')}${campo('fib', 'Fibra')}</div></details>` +
     html`<div class="tpaso">¿Es de tu licuado?</div><div class="tchips">` +
       html`${[['leche', '🥛 Mi leche de siempre'], ['proteina', '💪 Mi proteína de siempre'], ['', 'No']].map(r => html`<button class="tch${a.rol === r[0] ? ' on' : ''}" ${on('etqRol', r[0])}>${r[1]}</button>`)}</div>` +
-    html`<div class="acts"><button class="btn ghost" ${on('etqGuardar', false)}>Solo guardar</button><button class="btn" id="etqAgregar"${g > 0 ? '' : ' disabled'} ${on('etqGuardar', true)}>Agregar</button></div>`;
+    (paraReceta() ? html`<div class="acts"><button class="btn" ${on('etqGuardar', false)}>Guardar y usar en la receta</button></div>`
+      : html`<div class="acts"><button class="btn ghost" ${on('etqGuardar', false)}>Solo guardar</button><button class="btn" id="etqAgregar"${g > 0 ? '' : ' disabled'} ${on('etqGuardar', true)}>Agregar</button></div>`);
 }
 // Escribir la cantidad recalcula al instante sin repintar (no se cierra el teclado)
 function etqValor(v) {
@@ -844,6 +869,7 @@ function etqGuardar(agregar) {
   if (a.rol === 'leche' || a.rol === 'proteina') NUT.cambiarRol(c.recetas, a.rol, id, a.rol === 'proteina' && prod.por[0] ? prod.por[0][1] : null);
   guardarNut(c);
   ETQ = null;
+  if (usarEnReceta(prod)) { hap('ok'); pintarComida(); actualizarWidgets(); return; }
   if (agregar) {
     const m = NUT.macros(prod, g), n = prod.n + ' · ' + NUT.r1(g) + ' ' + prod.u;
     agregarAProt([nuevoRegistro(Object.assign({ n: n.slice(0, 60), q: g, u: prod.u, src: 'etiqueta', ref: id }, m))], [comidaActual()]);
@@ -918,7 +944,8 @@ function pintarProducto() {
     html`<div class="tpaso">¿Es de tu licuado?</div><div class="tchips">` +
       html`${[['leche', '🥛 Mi leche de siempre'], ['proteina', '💪 Mi proteína de siempre'], ['', 'No']].map(r => html`<button class="tch${a.rol === r[0] ? ' on' : ''}" ${on('prodRol', r[0])}>${r[1]}</button>`)}</div>` +
     (a.rol === 'proteina' && !por ? html`<div class="muted" style="font-size:12.5px">Pon cuánto pesa 1 scoop para que tu licuado use uno.</div>` : '') +
-    html`<div class="acts"><button class="btn ghost" ${on('guardarProducto', false)}>Guardar</button><button class="btn" ${on('guardarProducto', true)}>Guardar y agregar${pieza ? ' ' + pieza[0] : por ? ' 1 porción' : ''}</button></div>`;
+    (paraReceta() ? html`<div class="acts"><button class="btn" ${on('guardarProducto', false)}>Guardar y usar en la receta</button></div>`
+      : html`<div class="acts"><button class="btn ghost" ${on('guardarProducto', false)}>Guardar</button><button class="btn" ${on('guardarProducto', true)}>Guardar y agregar${pieza ? ' ' + pieza[0] : por ? ' 1 porción' : ''}</button></div>`);
 }
 function guardarProducto(agregar) {
   const a = PROD.al, c = nutCfg();
@@ -934,7 +961,9 @@ function guardarProducto(agregar) {
     if (n) msg = (a.rol === 'leche' ? 'Tu licuado ya usa esta leche' : 'Tu licuado ya usa esta proteína') + ' ✓';
   }
   guardarNut(c);
-  PROD = null; cerrarModal(); hap('ok');
+  PROD = null; hap('ok');
+  if (usarEnReceta(prod)) { pintarComida(); actualizarWidgets(); return; }
+  cerrarModal();
   // Si la porción es de varias piezas, se agrega UNA (en la siguiente pantalla se cambia si comiste más)
   if (agregar) { const q = prod.por[1] && /^1 /.test(prod.por[1][0]) ? prod.por[1][1] : prod.por[0] ? prod.por[0][1] : 100; BUS = null; pedirCantidadDirecta(prod, q); }
   toast(msg); pintarComida(); actualizarWidgets();

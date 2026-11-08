@@ -19,6 +19,8 @@ const NUT = (() => {
     B('fresa-cong', 'Fresas congeladas', 0.4, 9.1, 0.1, 35, 2.1, [['1 taza', 150], ['1/2 taza', 75]]),
     B('whey', 'Proteína en polvo (whey, genérica)', 78.1, 6.3, 1.6, 352, 0, [['1 scoop', 30]], { rol: 'proteina' }),
     B('creatina', 'Creatina', 0, 0, 0, 0, 0, [['1 cucharadita', 5]]),
+    // Beta-alanina: como la creatina, sin calorías que cuenten (las etiquetas dicen 0 kcal por porción)
+    B('beta-alanina', 'Beta-alanina', 0, 0, 0, 0, 0, [['1 cucharadita', 5], ['1 scoop', 3.2]], { src: 'b' }),
     B('linaza', 'Linaza molida', 18.3, 28.9, 42.2, 534, 27.3, [['1 cucharada', 7], ['2 cucharadas', 14]]),
     // Cena y tortillas
     B('tort-maiz', 'Tortilla de maíz', 5.8, 49.5, 1.1, 224, 0.9, [['1 tortilla', 30]], { rol: 'tortilla', src: 'mx' }),
@@ -322,7 +324,7 @@ const NUT = (() => {
     chicos: 1, chicas: 1, mediano: 1, mediana: 1, g: 1, gr: 1, grs: 1, gramos: 1, ml: 1, kg: 1, lata: 1, latas: 1, bolsa: 1, bolsita: 1, puno: 1, punado: 1,
     uno: 1, dos: 1, tres: 1, cuatro: 1, cinco: 1, seis: 1, siete: 1, ocho: 1, nueve: 1, diez: 1, docena: 1, comi: 1, tome: 1, desayune: 1, cene: 1, algo: 1, poco: 1 };
   // Cómo lo dices tú → cómo viene en el catálogo (sin acentos)
-  const SINONIMOS = { scoop: ['proteina'], whey: ['proteina'], coca: ['cola', 'refresco'], cocacola: ['cola', 'refresco'], soda: ['refresco'], pepsi: ['cola', 'refresco'],
+  const SINONIMOS = { betaalanina: ['beta', 'alanina'], 'beta-alanina': ['beta', 'alanina'], alanina: ['beta', 'alanina'], scoop: ['proteina'], whey: ['proteina'], coca: ['cola', 'refresco'], cocacola: ['cola', 'refresco'], soda: ['refresco'], pepsi: ['cola', 'refresco'],
     dogo: ['dogo', 'salchicha'], hotdog: ['dogo', 'salchicha'], papitas: ['papa'], sabritas: ['papa'], bistec: ['res', 'bistec'], bisteck: ['res', 'bistec'],
     puerco: ['cerdo', 'porcinos'], cerdo: ['porcinos'], res: ['bovinos'], tomate: ['jitomate'], yogur: ['yogurt'], yoghurt: ['yogurt'], licuado: ['licuado', 'leche'],
     bimbo: ['pan'], birote: ['bolillo', 'birote'], telera: ['bolillo', 'telera'], mazatun: ['atun'], dolores: ['atun'], tuny: ['atun'], hotcakes: ['hotcake', 'pancakes'], cheerios: ['cheerios', 'cereal'], corn: ['cereal'], flakes: ['cereal'], zucaritas: ['cereal'],
