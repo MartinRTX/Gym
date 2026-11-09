@@ -9,7 +9,7 @@ Actualizado: 09/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 | App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.5 publicada** (08/11); `main` = rama de trabajo |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
-| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | 8.6 publicado (03/11); **8.7 en la rama `claude/modelo-ligero`** (falta publicar: ligero primero) |
+| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **8.7 publicado** (09/11; el ligero primero); `main` = rama `claude/modelo-ligero` |
 | Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | **1.6 publicada** (03/11); `main` = rama de trabajo |
 
 Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` (`herramientas/revisar.js` falla si no).
@@ -97,18 +97,18 @@ Se publica solo desde Panel/main (cada 3 horas o a mano, "Publicar Comidas (Pane
   («Cannot read properties of null»): la repintada pendiente ya revisa que siga abierto.
 - `plantilla.prueba.js`: 18 hojas y teclados más (28 casos).
 
-## Auditoría (05/11, v10.3) — ✅ 3, 5, 6, 7, 8 y 9 arreglados en la v10.4; faltan 1, 2, 4, 10 y 11
+## Auditoría (05/11, v10.3) — ✅ todo resuelto salvo 2 (2FA, Martin) y 10 (detalles de la compilación del APK)
 
 Prioridad alta:
-1. Consejo entre series sin respuesta el 20 % de las veces (ver "Pestaña IA"): ✅ hecho en el script 8.7 (rama `claude/modelo-ligero`,
-   falta pasarla a `main` para publicarla).
+1. ✅ Consejo entre series sin respuesta el 20 % de las veces: script 8.7 publicado el 09/11 (ligero primero). Revisar la
+   pestaña IA en unos días.
 2. 2FA en GitHub: el APK carga la página de Pages y tiene acceso a Health Connect y avisos; quien entre a la cuenta de GitHub
    controla lo que corre en el celular. Pasa de "opcional" a recomendado.
 Prioridad media:
 3. ✅ v10.4: la subida de la cola no tenía tiempo máximo (se quedaba en "Subiendo…"). Ahora `apiPost` corta a los 120 s
    (`LIMITE_API`) y la subida a los 60 s (`LIMITE_SUBIDA`) con AbortController; se reintenta sola a los 20 s.
-4. Valores de Martin fijos para todos: FC fácil ≤ 150 y ritmo fácil 6:50/km (`trote.js`), clima de Hermosillo. Para la pareja
-   u otra persona no aplican. Mover a Ajustes o calcularlos de sus datos (decisión de Martin).
+4. ✅ Cerrado (09/11): FC fácil ≤ 150, ritmo fácil 6:50/km y el clima de Hermosillo son de Martin, y **solo Martin usa el
+   trote** (decisión suya): se quedan así. Si otra persona empieza a usar el trote, pasarlos a Ajustes.
 5. ✅ v10.4: datos personales en el repo público (el comentario de calibración de `trote.js` y detalles de comidas de días
    reales en este archivo) quitados. El historial de git los conserva.
 6. ✅ v10.4: la app pide guardado persistente al abrir (`pedirGuardadoPersistente`) y el service worker baja las miniaturas
@@ -128,14 +128,14 @@ clave en el cuerpo (no en la URL), sin secretos en el repo, firma del APK verifi
 guardado con limpieza al llenarse, cola con reintentos. Carga ~0.2 s, cada pantalla se pinta en ~1 ms, ~1,200 nodos, 34 KB de
 localStorage; todos los botones con nombre y sin desborde horizontal.
 
-## Script 8.7 (rama `claude/modelo-ligero`, falta publicar): el ligero primero en todo
+## Script 8.7 (publicado 09/11): el ligero primero en todo
 
 - Segunda revisión de la pestaña IA (05–08/11): el 05/11, **11 de 23** consejos entre series sin respuesta (4 tardaron de 1.5 a
   4 min en fallar); el plan falló 3 de 3 ese día y luego tardó 15 s–2 min; el resumen volvió a fallar. Comida bien (1–3 s).
 - `IA.modelos` ahora es ligero → completo → flash-latest (antes el completo primero). Consejo entre series (`IA.serie`): solo el
   ligero con un reintento a los 0.7 s y sin empezar otro intento pasados 7 s (la app lo espera 12 s). Plan: tope de 30 s.
 - Probado con una simulación del script (modelos falsos con los tiempos de la pestaña IA): el consejo contesta en 1.5–3.4 s o
-  se rinde a los ≤ 8 s, ya no a los minutos. Publicar = pasar la rama a `main` de Gym-script (clasp lo sube solo).
+  se rinde a los ≤ 8 s, ya no a los minutos. Publicado el 09/11 ("Publicar script" en verde: clasp, versión y prueba de respuesta).
 - Después de publicarlo: revisar la pestaña IA en unos días.
 
 ## Pestaña IA: primera revisión (05/11, datos del 02 al 04/11)
