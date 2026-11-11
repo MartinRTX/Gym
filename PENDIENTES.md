@@ -1,6 +1,6 @@
 # Pendientes y contexto (para seguir en un chat nuevo)
 
-Actualizado: 09/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
+Actualizado: 11/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 ## Dónde está todo
 
@@ -9,7 +9,7 @@ Actualizado: 09/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 | App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.5 publicada** (08/11); `main` = rama de trabajo |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
-| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **8.7 publicado** (09/11; el ligero primero); `main` = rama `claude/modelo-ligero` |
+| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **8.8 publicado** (11/11; ligero primero y con reintento); `main` = rama `claude/modelo-ligero` |
 | Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | **1.6 publicada** (03/11); `main` = rama de trabajo |
 
 Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` (`herramientas/revisar.js` falla si no).
@@ -127,6 +127,16 @@ Lo que está bien: todo el HTML escapado por la plantilla (vigilado), CSP en Chr
 clave en el cuerpo (no en la URL), sin secretos en el repo, firma del APK verificada, service worker todo o nada, una sola capa de
 guardado con limpieza al llenarse, cola con reintentos. Carga ~0.2 s, cada pantalla se pinta en ~1 ms, ~1,200 nodos, 34 KB de
 localStorage; todos los botones con nombre y sin desborde horizontal.
+
+## Script 8.8 (publicado 11/11): reintentar el ligero antes del completo
+
+- Pestaña IA del 10/11 con la 8.7: el consejo entre series contestó **18 de 18** (antes 11 de 23 sin respuesta), casi todos en
+  < 2 s; 2 se salvaron con el reintento. Falló el plan cuando el ligero dio 503 y se fue al completo (125 s; la app espera 45 s);
+  lo mismo comida el 07/11 (193 s).
+- 8.8: `IA.modelos` y `IA.rapidos` = ligero, ligero (reintento a los 0.7 s), completo, flash-latest. `IA.plan` = solo el ligero
+  con su reintento: si falla, la app sigue con sus reglas. Simulado: el plan del 10/11 contesta en ~9 s; con todo saturado se
+  rinde a los ~4 s; comida del 07/11 en ~3 s.
+- Revisar la pestaña IA en unos días.
 
 ## Script 8.7 (publicado 09/11): el ligero primero en todo
 
