@@ -163,14 +163,14 @@ function guardarRecetaIA() {
 function confirmarRecetaIA() {
   const c = COMIDA_IA, cfg = nutCfg(), nombre = (($('recNom') || {}).value || '').trim().slice(0, 50);
   if (!nombre) return toast('Ponle nombre');
-  if (cfg.recetas.length >= 12) return toast('Ya tienes 12 recetas: borra una para guardar otra');
+  if (cfg.recetas.length >= NUT.MAX_RECETAS) return toast('Ya tienes ' + NUT.MAX_RECETAS + ' recetas: borra una para guardar otra');
   const items = c.items.filter(x => x.on && x.gramos > 0).map(x => {
     const f = 100 / x.gramos, id = 'p:' + uid();
     cfg.productos.push({ id: id, n: String(x.nombre).slice(0, 60), marca: '', u: 'g', p: NUT.r1(x.g * f), c: NUT.r1((x.c || 0) * f), f: NUT.r1((x.f || 0) * f), k: Math.round((x.k || 0) * f), fib: NUT.r1((x.fib || 0) * f), por: [], src: 'ia', code: '', ts: Date.now() });
     return { ref: id, q: NUT.r1(x.gramos) };
   });
-  cfg.productos = cfg.productos.slice(-40);
   cfg.recetas.push({ id: 'r-' + uid(), n: nombre, ico: '🍽️', m: comidaActual(), items: items });
+  cfg.productos = NUT.recortarProductos(cfg);
   guardarNut(cfg); cerrarModal(); hap('ok'); toast('Receta guardada: la encuentras en Mis comidas ✓'); pintarComida();
 }
 
@@ -881,7 +881,7 @@ function etqGuardar(agregar) {
   const id = E.actualizar && E.prev ? E.prev : 'p:' + uid();
   const prod = { id: id, n: a.n, marca: a.marca || '', u: a.u || 'g', p: NUT.r1(a.p), c: NUT.r1(a.c), f: NUT.r1(a.f), k: Math.round(a.k), fib: NUT.r1(a.fib || 0),
                  por: a.por || [], src: 'etiqueta', code: a.code || '', ts: Date.now() };
-  c.productos = c.productos.filter(x => x.id !== id).concat([prod]).slice(-40);
+  c.productos = c.productos.filter(x => x.id !== id).concat([prod]); c.productos = NUT.recortarProductos(c);
   if (a.rol === 'leche' || a.rol === 'proteina') NUT.cambiarRol(c.recetas, a.rol, id, a.rol === 'proteina' && prod.por[0] ? prod.por[0][1] : null);
   guardarNut(c);
   ETQ = null;
@@ -970,7 +970,7 @@ function guardarProducto(agregar) {
   const id = prev ? prev.id : 'p:' + uid();
   const prod = { id: id, n: a.n, marca: a.marca || '', u: a.u || 'g', p: NUT.r1(a.p), c: NUT.r1(a.c), f: NUT.r1(a.f), k: Math.round(a.k), fib: NUT.r1(a.fib || 0),
                  por: a.por || [], src: a.src || 'etiqueta', code: a.code || '', ts: Date.now() };
-  c.productos = c.productos.filter(p => p.id !== id).concat([prod]).slice(-40);
+  c.productos = c.productos.filter(p => p.id !== id).concat([prod]); c.productos = NUT.recortarProductos(c);
   let msg = 'Guardado en tus productos';
   if (a.rol === 'leche' || a.rol === 'proteina') {
     const n = NUT.cambiarRol(c.recetas, a.rol, id, a.rol === 'proteina' && prod.por[0] ? prod.por[0][1] : null);

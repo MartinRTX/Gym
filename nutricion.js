@@ -430,6 +430,19 @@ const NUT = (() => {
     if (!(veces > 0 && veces <= 50)) return null;
     return { q: Math.round(veces * base[1] * 10) / 10, texto: (veces === 0.5 ? '½' : veces) + ' × ' + base[0].replace(/^1\s+/, '') };
   }
+  // Tus productos (script 9.0: viven en tu hoja, ya sin el tope de 9 KB): hasta 300. Si algún día sobran, se van los más viejos
+  // que NO son ingrediente de ninguna receta (antes el tope era 40 parejo y a las recetas les desaparecían ingredientes).
+  const MAX_PRODUCTOS = 300, MAX_RECETAS = 40;
+  function recortarProductos(cfg, max) {
+    max = max || MAX_PRODUCTOS;
+    const lista = (cfg.productos || []).slice();
+    if (lista.length <= max) return lista;
+    const enReceta = {};
+    (cfg.recetas || []).forEach(r => (r.items || []).forEach(i => { enReceta[i.ref] = true; }));
+    let sobran = lista.length - max;
+    const out = lista.filter(p => { if (sobran > 0 && !enReceta[p.id]) { sobran--; return false; } return true; });
+    return sobran > 0 ? out.slice(sobran) : out;
+  }
   // ¿Dijiste cuántas piezas ("1 mantecada", "dos galletas") sin decir gramos? (para avisar si el producto no dice cuánto pesa una)
   function diceCuantas(texto) {
     const crudo = String(texto || '').toLowerCase();
@@ -505,6 +518,6 @@ const NUT = (() => {
   };
 
   return { MAC, BASE, BASE_POR_ID, RECETAS, TUPPER, LEGADO, ES_EN, r1, macros, sumar, receta, diferencia, cambiarRol, tupper, nombreTupper, claveTupper,
-           normalizarEtiqueta, leerEtiqueta, revisarMacros, marcarSeco, mantenimientoReal, esGrande, escalarItem, sumarIngredientes, cantidadIngrediente, gramosDeConsumo, gramosDe, mismoProducto, metas, buscar, cantidadDeTexto, diceCuantas, piezasDePorcion, desempacar, sinAcentos };
+           normalizarEtiqueta, leerEtiqueta, revisarMacros, marcarSeco, mantenimientoReal, esGrande, escalarItem, sumarIngredientes, cantidadIngrediente, gramosDeConsumo, gramosDe, mismoProducto, metas, buscar, cantidadDeTexto, diceCuantas, piezasDePorcion, recortarProductos, MAX_PRODUCTOS, MAX_RECETAS, desempacar, sinAcentos };
 })();
 if (typeof module !== 'undefined') module.exports = NUT;

@@ -6,11 +6,11 @@ Actualizado: 11/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.5 publicada** (08/11); `main` = rama de trabajo |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.6** (11/11): identificador del celular y productos sin tope de 40 |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
-| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **8.8 publicado** (11/11); **8.9 en la rama `claude/pruebas-servidor`** (pruebas del servidor + acción `panel`) |
-| Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | **1.7 publicada** (04/11); **1.8 en la rama `claude/panel-ligero`** (necesita el script 8.9; sin él lee como antes) |
+| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **9.0** (11/11): pruebas del servidor, acción `panel`, límite de intentos y `_nutricion` |
+| Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | **1.8 publicada** (11/11): Gym en una llamada (`panel`) e identificador del celular |
 
 Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` (`herramientas/revisar.js` falla si no).
 `SCRIPT_ESPERADO` (en `app.js`, junto a `VERSION_APP`) ≤ `SCRIPT_VERSION` en `AppGym.js`. El `versionName` del APK sale de `VERSION_APP`.
@@ -45,8 +45,7 @@ ese commit y entonces se adelanta `main` (el 08/11 se publicó con pruebas rojas
 Martin cambie **Settings › Pages › Source a "GitHub Actions"** en cada repo (mientras, GitHub publica `main` por su cuenta y
 el trabajo solo avisa). En Gym-script, "Publicar script" corre las pruebas del servidor antes de `clasp push`.
 
-Pendiente de publicar (cuando Martin diga): **1.º Gym-script `claude/pruebas-servidor` → `main` (8.9)**, **2.º Panel
-`claude/panel-ligero` → `main` (1.8)**. Gym: nada.
+Publicado el 11/11 (Martin lo pidió): script 8.9 y 9.0, Panel 1.8 y Gym v10.6. Nada pendiente.
 Orden cuando haya cambios:
 
 1. Gym-script: rama → `main`. Primero el script (si la app pide un `SCRIPT_ESPERADO` nuevo).
@@ -61,11 +60,15 @@ Se publica solo desde Panel/main (cada 3 horas o a mano, "Publicar Comidas (Pane
 ## Revisión de arquitectura (11/11): qué se hizo y qué sigue
 
 1. ✅ Publicar solo con pruebas en verde (ver "Cómo publicar"). Falta el clic de Martin en Pages (Gym y Panel).
-2. ⏳ Clave: el servidor no limita los intentos de clave equivocada. Propuesto: bloquear 15 min tras 10 fallos seguidos
-   (con `CacheService`) y avisar por correo. **Esperando el sí de Martin.** No afecta a Claude: trabaja por GitHub, no usa la clave.
-3. ⏳ Recetas y productos viven en una Propiedad del script (tope de Google: 9 KB por valor, no se puede subir). Al llenarse
-   se borran los productos más viejos (tope 40). Propuesto: pasarlos a una pestaña oculta de la hoja (como `_resumen`),
-   sin tope práctico. **Esperando el sí de Martin.** Hay prueba que documenta el comportamiento actual.
+2. ✅ Límite de intentos de clave (script 9.0 + Gym v10.6 + Panel 1.8): tras 10 claves equivocadas en 15 min se bloquea la
+   entrada 15 min. Como Apps Script no dice de qué celular viene cada llamada, las apps mandan un identificador al azar de su
+   celular (`d`; `gym_disp` / `pan_disp`): los que ya entraron con la clave buena quedan recordados (huella en
+   `CFG_<clave>.disp`, hasta 12) y siguen entrando durante el bloqueo; así nadie puede dejar a Martin fuera de su app
+   mandando claves malas. Un correo de aviso al día. Falta lo mismo en el script de Comidas (Panel) y en Finanzas.
+3. ✅ Recetas y productos (script 9.0 + Gym v10.6): de la Propiedad `NUT_<clave>` (9 KB: se borraban productos y a las recetas
+   les desaparecían ingredientes; la app además cortaba a 40) a la pestaña oculta `_nutricion` de la hoja de cada quien.
+   Hasta 300 productos y 40 recetas; si sobran, nunca se quita un ingrediente de receta (`NUT.recortarProductos`). La
+   Propiedad se sigue leyendo hasta el primer guardado con la 9.0 y se queda como respaldo.
 4. ✅ Pruebas del servidor: `Gym-script/tests` (26: `servidor.test.js` y `panel.test.js`) sobre un Google de mentira.
    Encontraron un defecto leve (acciones `constructor`/`toString` contestaban ok con clave válida), ya corregido en la 8.9.
 5. ✅ Panel lee Gym en una llamada (`panel`, script 8.9) con lo de hoy ya decidido por Gym, y hay contrato entre los dos
