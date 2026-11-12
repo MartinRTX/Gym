@@ -1,16 +1,16 @@
 # Pendientes y contexto (para seguir en un chat nuevo)
 
-Actualizado: 05/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
+Actualizado: 11/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 ## Dónde está todo
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.4 publicada** (05/11); `main` = rama de trabajo |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.5 publicada** (08/11); `main` = rama de trabajo |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
-| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **8.6 publicado** (03/11); `main` = rama de trabajo |
-| Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | **1.6 publicada** (03/11); `main` = rama de trabajo |
+| Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **8.8 publicado** (11/11); **8.9 en la rama `claude/pruebas-servidor`** (pruebas del servidor + acción `panel`) |
+| Panel | repo público `MartinRTX/Panel` (Pages /Panel/, APK propia) | **1.7 publicada** (04/11); **1.8 en la rama `claude/panel-ligero`** (necesita el script 8.9; sin él lee como antes) |
 
 Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` (`herramientas/revisar.js` falla si no).
 `SCRIPT_ESPERADO` (en `app.js`, junto a `VERSION_APP`) ≤ `SCRIPT_VERSION` en `AppGym.js`. El `versionName` del APK sale de `VERSION_APP`.
@@ -39,7 +39,14 @@ actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
 
 ## Cómo publicar (cuando Martin diga "publica")
 
-Hoy no hay nada pendiente de publicar (Gym v10.5 publicada el 08/11).
+**Regla nueva (11/11): `main` solo avanza a un commit con "Pruebas" en verde.** Se sube la rama, se espera el verde en GitHub en
+ese commit y entonces se adelanta `main` (el 08/11 se publicó con pruebas rojas por empujar rama y `main` a la vez).
+`pruebas.yml` (Gym y Panel) ya trae el trabajo `publicar`, que publica la página solo si las pruebas pasan; manda cuando
+Martin cambie **Settings › Pages › Source a "GitHub Actions"** en cada repo (mientras, GitHub publica `main` por su cuenta y
+el trabajo solo avisa). En Gym-script, "Publicar script" corre las pruebas del servidor antes de `clasp push`.
+
+Pendiente de publicar (cuando Martin diga): **1.º Gym-script `claude/pruebas-servidor` → `main` (8.9)**, **2.º Panel
+`claude/panel-ligero` → `main` (1.8)**. Gym: nada.
 Orden cuando haya cambios:
 
 1. Gym-script: rama → `main`. Primero el script (si la app pide un `SCRIPT_ESPERADO` nuevo).
@@ -50,6 +57,27 @@ Orden cuando haya cambios:
 Se publica solo desde Panel/main (cada 3 horas o a mano, "Publicar Comidas (Panel)"): nunca pegarlo a mano.
 ✅ Panel 1.7 (04/11): hábitos, objetivos de la semana, revisión del domingo y avisos (Panel.apk nuevo); script de Comidas 2
 (pestañas Hábitos y Objetivos); Gym-script manda `resumen.diasSemanas` para la revisión.
+
+## Revisión de arquitectura (11/11): qué se hizo y qué sigue
+
+1. ✅ Publicar solo con pruebas en verde (ver "Cómo publicar"). Falta el clic de Martin en Pages (Gym y Panel).
+2. ⏳ Clave: el servidor no limita los intentos de clave equivocada. Propuesto: bloquear 15 min tras 10 fallos seguidos
+   (con `CacheService`) y avisar por correo. **Esperando el sí de Martin.** No afecta a Claude: trabaja por GitHub, no usa la clave.
+3. ⏳ Recetas y productos viven en una Propiedad del script (tope de Google: 9 KB por valor, no se puede subir). Al llenarse
+   se borran los productos más viejos (tope 40). Propuesto: pasarlos a una pestaña oculta de la hoja (como `_resumen`),
+   sin tope práctico. **Esperando el sí de Martin.** Hay prueba que documenta el comportamiento actual.
+4. ✅ Pruebas del servidor: `Gym-script/tests` (26: `servidor.test.js` y `panel.test.js`) sobre un Google de mentira.
+   Encontraron un defecto leve (acciones `constructor`/`toString` contestaban ok con clave válida), ya corregido en la 8.9.
+5. ✅ Panel lee Gym en una llamada (`panel`, script 8.9) con lo de hoy ya decidido por Gym, y hay contrato entre los dos
+   repos (`Gym-script/tests/contrato-panel.json` → copia en `Panel/tests/contrato-gym.json`). Falta lo mismo para Finanzas
+   (su repo no estaba en la sesión).
+6. 🔜 **Siguiente paso (Martin lo pidió): ordenar el código de la app Gym.** 16 archivos que comparten todo (~600 funciones,
+   ~75 variables globales, 50 claves de `localStorage`). Plan por partes, con las pruebas de pantalla como red:
+   (a) `// @ts-check` + JSDoc en `nutricion.js` y `motor.js` (ya son módulos puros) y revisar tipos en CI;
+   (b) un solo lugar para el estado (`DATA`, cola, ajustes) y para las claves de `localStorage`;
+   (c) pasar archivo por archivo a módulos ES (`type="module"`), empezando por los que no pintan pantalla;
+   (d) partir `comida.js` (1,050 líneas) y `progreso.js`. Sin cambiar de framework ni lo que se ve
+   (`herramientas/comparar-pantallas.js` lo confirma en cada paso).
 
 ## v10.5 (publicada 08/11): porciones de varias piezas, tu licuado con tus productos y buscador fluido
 
