@@ -1,5 +1,5 @@
 // Bienvenida, Ajustes y diagnóstico del APK
-// (Parte de la app: se carga después de progreso.js; ver el orden en index.html)
+// (Parte de la app: se carga después de ruta.js; ver el orden en index.html)
 
 /* ===================== BIENVENIDA (una sola vez, para quien no es el dueño) ===================== */
 let BV = null;

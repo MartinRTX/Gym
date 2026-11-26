@@ -1,12 +1,12 @@
 # Pendientes y contexto (para seguir en un chat nuevo)
 
-Actualizado: 11/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
+Actualizado: 26/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 ## Dónde está todo
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.6** (11/11): identificador del celular y productos sin tope de 40 |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.6** publicada (11/11); **v10.7 en la rama** (orden del código, nada visible) |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
 | Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **9.0** (11/11): pruebas del servidor, acción `panel`, límite de intentos y `_nutricion` |
@@ -27,9 +27,11 @@ Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` 
 ## Cómo probar
 
 ```bash
-node herramientas/revisar.js            # versiones, sin onclick en texto, todo el HTML con la plantilla, etc.
-node --test tests/*.test.js              # 82 pruebas de lógica
-NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 316 pruebas de pantalla (Playwright)
+node herramientas/revisar.js            # versiones, sin onclick en texto, todo el HTML con la plantilla, claves en ALMACEN, etc.
+npx -y -p typescript@6.0.2 tsc -p tsconfig.json   # revisión de tipos de toda la app (0 avisos)
+node --test tests/*.test.js              # 85 pruebas de lógica
+NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 347 pruebas de pantalla (Playwright)
+NODE_PATH=/opt/node-tools/node_modules node herramientas/mapa.js   # quién usa a quién (y "cortes" para partir un archivo)
 NODE_PATH=/opt/node-tools/node_modules node herramientas/comparar-pantallas.js [ref] [filtro]   # antes y después: ¿se pinta igual?
 ```
 
@@ -45,7 +47,7 @@ ese commit y entonces se adelanta `main` (el 08/11 se publicó con pruebas rojas
 Martin cambie **Settings › Pages › Source a "GitHub Actions"** en cada repo (mientras, GitHub publica `main` por su cuenta y
 el trabajo solo avisa). En Gym-script, "Publicar script" corre las pruebas del servidor antes de `clasp push`.
 
-Publicado el 11/11 (Martin lo pidió): script 8.9 y 9.0, Panel 1.8 y Gym v10.6. Nada pendiente.
+Publicado el 11/11 (Martin lo pidió): script 8.9 y 9.0, Panel 1.8 y Gym v10.6. **Pendiente: Gym v10.7** (rama `claude/affectionate-cannon-ymlofy`).
 Orden cuando haya cambios:
 
 1. Gym-script: rama → `main`. Primero el script (si la app pide un `SCRIPT_ESPERADO` nuevo).
@@ -74,13 +76,15 @@ Se publica solo desde Panel/main (cada 3 horas o a mano, "Publicar Comidas (Pane
 5. ✅ Panel lee Gym en una llamada (`panel`, script 8.9) con lo de hoy ya decidido por Gym, y hay contrato entre los dos
    repos (`Gym-script/tests/contrato-panel.json` → copia en `Panel/tests/contrato-gym.json`). Falta lo mismo para Finanzas
    (su repo no estaba en la sesión).
-6. 🔜 **Siguiente paso (Martin lo pidió): ordenar el código de la app Gym.** 16 archivos que comparten todo (~600 funciones,
-   ~75 variables globales, 50 claves de `localStorage`). Plan por partes, con las pruebas de pantalla como red:
-   (a) `// @ts-check` + JSDoc en `nutricion.js` y `motor.js` (ya son módulos puros) y revisar tipos en CI;
-   (b) un solo lugar para el estado (`DATA`, cola, ajustes) y para las claves de `localStorage`;
-   (c) pasar archivo por archivo a módulos ES (`type="module"`), empezando por los que no pintan pantalla;
-   (d) partir `comida.js` (1,050 líneas) y `progreso.js`. Sin cambiar de framework ni lo que se ve
-   (`herramientas/comparar-pantallas.js` lo confirma en cada paso).
+6. ✅ (26/11, v10.7 en la rama) Ordenar el código de la app Gym, sin cambiar lo que se ve (ver **ARQUITECTURA.md**):
+   (a) **revisión de tipos de toda la app** (`tsconfig.json`, TypeScript solo revisa) en GitHub: de 560 avisos a 0 sin
+       cambiar lo que hace la app; atrapa nombres mal escritos entre archivos y argumentos de más. No había errores reales;
+   (b) **`ALMACEN`** (app.js): las 50 claves del celular con lo que guarda cada una; revisar.js falla si se usa una sin anotar;
+   (c) **módulos ES: no por ahora** (razones y orden en ARQUITECTURA.md); la revisión de tipos da casi el mismo beneficio;
+   (d) `comida.js` → `comida.js` + `comida-buscar.js` + `comida-foto.js`; `progreso.js` → `progreso.js` + `maquina.js` +
+       `ruta.js`. `comparar-pantallas` contra la v10.6: idéntico (salvo ruido de tiempos conocido).
+   Herramienta nueva: `herramientas/mapa.js` (quién usa a quién; y `cortes` para partir un archivo sin romper la carga).
+   Lo que sigue para ordenar más está al final de ARQUITECTURA.md.
 
 ## v10.5 (publicada 08/11): porciones de varias piezas, tu licuado con tus productos y buscador fluido
 
