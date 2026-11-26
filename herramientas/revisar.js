@@ -7,7 +7,7 @@
 //  4. La versión de la app (VERSION_APP en app.js) y la del service worker (VERSION en sw.js) son la misma:
 //     si no, los celulares no bajan la versión nueva (o la bajan a medias).
 //  6. Todo lo que carga index.html está en la lista del service worker.
-//  7. Solo el bloque LS de app.js toca localStorage.
+//  7. Solo el bloque LS de app.js toca localStorage, y cada clave que se usa ('gym_…') está anotada en ALMACEN (app.js).
 //  8. Todo el HTML sale de la plantilla html`…` (v10.2): nada de innerHTML = '<…' a mano, esc() solo donde se permite y
 //     ningún texto con comillas o < dentro de ${…} (se escaparía y saldría &quot; o "<div" en pantalla).
 //  9. tsconfig.json revisa exactamente los archivos que carga index.html (la revisión de tipos corre aparte, en GitHub:
@@ -85,6 +85,25 @@ scripts.forEach(f => {
 });
 if (plantilla.length) { errores++; console.error('✗ plantilla html`…`:\n  ' + plantilla.slice(0, 10).join('\n  ')); }
 else console.log('✓ todo el HTML sale de la plantilla html`…`');
+
+// 7b. Cada clave del celular ('gym_…') está en ALMACEN (app.js) con lo que guarda; y nada del registro sobra
+{
+  const appTxt = fs.readFileSync(path.join(RAIZ, 'app.js'), 'utf8'), bloque = /const ALMACEN = \{([\s\S]*?)\n\};/.exec(appTxt);
+  if (!bloque) { errores++; console.error('✗ No encontré const ALMACEN = { … } en app.js'); }
+  else {
+    const registradas = new Set([...bloque[1].matchAll(/\b(gym_[A-Za-z0-9_]*):/g)].map(m => m[1]));
+    const usadas = new Map();
+    scripts.forEach(f => {
+      const txt = fs.readFileSync(path.join(RAIZ, f), 'utf8').replace(/const ALMACEN = \{[\s\S]*?\n\};/, '');
+      for (const m of txt.matchAll(/['"`](gym_[A-Za-z0-9_]*)['"`]/g)) if (!usadas.has(m[1])) usadas.set(m[1], f);
+    });
+    const sinRegistro = [...usadas].filter(([k]) => !registradas.has(k)).map(([k, f]) => k + ' (' + f + ')');
+    const sobran = [...registradas].filter(k => !usadas.has(k));
+    if (sinRegistro.length) { errores++; console.error('✗ Claves del celular sin anotar en ALMACEN (app.js): ' + sinRegistro.join(', ')); }
+    if (sobran.length) { errores++; console.error('✗ ALMACEN anota claves que ya nadie usa: ' + sobran.join(', ')); }
+    if (!sinRegistro.length && !sobran.length) console.log('✓ las ' + registradas.size + ' claves del celular están anotadas en ALMACEN');
+  }
+}
 
 // 9. La revisión de tipos ve los mismos archivos que el navegador: uno nuevo en index.html sin tsconfig quedaría sin revisar
 try {

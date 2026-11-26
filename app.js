@@ -18,6 +18,40 @@ const LS = {
   claves() { try { return Object.keys(localStorage); } catch (e) { return []; } }
 };
 // Este bloque es el ÚNICO que toca localStorage (lo revisa herramientas/revisar.js): todo lo demás usa LS
+
+/* ----- Todo lo que la app guarda en el celular, en un solo lugar -----
+   Si una clave no está aquí, herramientas/revisar.js falla: así nada se guarda "a escondidas" y se sabe qué borrar.
+   Las que terminan en _ son una por día o por cosa: gym_prot_2026-11-12, gym_super_2026-11-12, gym_cfg_salud.
+   Las que llevan la fecha (…_AAAA-MM-DD) se borran solas a los 21 días si falta espacio (limpiarDiasViejos). */
+const ALMACEN = {
+  // Cuenta y conexión (se quedan aunque cambies de cuenta: ver cambiarDeCuenta)
+  gym_api: 'URL /exec de tu script de Gym', gym_key: 'tu clave', gym_disp: 'identificador al azar de este celular (script 9.0)',
+  gym_queue: 'cambios por subir a tu hoja (funciona sin señal)',
+  // Lo que manda tu hoja y lo que se recuerda de ella
+  gym_data: 'lo último que mandó tu hoja (la app abre sin señal con esto)', gym_fotos: 'lista de tus fotos de progreso',
+  gym_nut: 'recetas, productos, tuppers y metas a mano (se respaldan en tu hoja)', gym_nut_sync77: 'ya se subieron hoy y ayer a la pestaña Comidas',
+  gym_metas_env: 'últimas metas de comida mandadas a Panel', gym_salud: 'pasos y sueño de Health Connect', gym_salud_firma: 'para no reenviar lo mismo de Health Connect',
+  gym_errores: 'datos que la hoja no aceptó (el aviso de Entrenar)', gym_jserr: 'errores de la app (Ajustes › Diagnóstico)',
+  // Ajustes de esta app (gym_cfg_animaciones, gym_cfg_salud…: ver ajuste())
+  gym_cfg_: 'cada ajuste de la app', gym_bienvenida: 'ya viste la bienvenida', gym_tour: 'ya viste el recorrido', gym_tipcount: 'cuántas veces viste el consejo',
+  gym_medallas: 'medallas que ya viste', gym_fondo_no: 'no volver a pedir el permiso de pasos en segundo plano',
+  // Entrenar: lo de hoy
+  gym_ses_: 'la sesión del día (por fecha)', gym_wip_: 'series a medio anotar (por fecha)', gym_rest: 'el descanso que va corriendo',
+  gym_super_: 'la superserie del día', gym_extra_: 'ejercicios extra del día', gym_cambio_: 'cambios de ejercicio del día',
+  gym_plan_: 'el plan del día por grupo (…_AAAA-MM-DD_Push)', gym_ruta_: 'la ruta sugerida del día por grupo (…_no: la ocultaste)',
+  gym_descarga: 'semana de descarga adelantada', gym_descarga_no_: 'no proponer descarga esta semana (por lunes)',
+  gym_debrief_: 'resumen de la IA al terminar (por fecha)', gym_ready_: 'cómo llegaste al gym (por fecha)', gym_fotomaq: 'fotos de máquinas de antes (pasaron a IndexedDB)',
+  // Entrenar en pareja
+  gym_pareja: 'con quién entrenas hoy', gym_par_: 'lo último de tu compañero', gym_parmap_: 'qué ejercicio de él va con cuál tuyo (por fecha)',
+  gym_parskip_: 'lo que él se salta hoy (por fecha)',
+  // Comida y cuerpo (por fecha: lo que ya está en tu hoja se puede borrar)
+  gym_prot_: 'lo que comiste ese día', gym_protmeal_: 'en qué comida va cada cosa de ese día', gym_peso_: 'tu peso de ese día', gym_cint_: 'tu cintura de ese domingo',
+  gym_hidrata_: 'agua antes de correr (por fecha)', gym_ayer_no_: 'no preguntar por lo de ayer (por fecha)', gym_repetido_: 'ya repetiste el día de ayer (por fecha)',
+  gym_food_counts: 'cuántas veces usas cada comida (para ordenar los botones)', gym_food_meal: 'en qué comida sueles poner cada cosa', gym_alim_usados: 'alimentos del catálogo que ya usaste',
+  gym_reg: 'tus registros de comida por id (para editar y deshacer)', gym_widget_ids: 'comidas del widget ya tomadas',
+  // Coach
+  gym_chat: 'la plática de hoy con el coach', gym_chat_ant: 'la plática de ayer'
+};
 // Lo de cada día (sesión, comida, peso, borradores…) lleva la fecha en la clave; lo de hace semanas ya está en tu hoja
 function limpiarDiasViejos(dias) {
   const corte = sumarDias(hoy(), -dias);
