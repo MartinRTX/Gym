@@ -4,7 +4,7 @@
    - Tempo de hipertrofia (sube rápido, aprieta, baja lento) o el que pongas en el Catálogo (columna W, ej. "3-1-1-0").
    - Se crea una vez y en cada cuadro solo cambian atributos; solo se mueven las que están en pantalla.
    En el navegador queda en window.ANIM; en Node (pruebas) se exportan las funciones puras. */
-(function (raiz) {
+(/** @param {any} raiz */ function (raiz) {
   'use strict';
   const PISO = 245;
   const L = { torso: 64, cuello: 9, cabeza: 10, brazo: 30, antebrazo: 28, muslo: 42, pierna: 40 };
@@ -665,6 +665,7 @@
 
   /* =============== ¿Qué animación le toca a cada ejercicio? =============== */
   const sinAcento = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  /** @type {[RegExp, string][]} */
   const REGLAS = [
     [/lateral/, 'laterales'], [/apertura|cruce|pec ?deck|peck|fly/, 'aperturas'], [/giro|rotacion|lenador|russian|pallof/, 'giros'], [/aductor|abductor/, 'aductores'],
     [/hip thrust|puente de gluteo|puente/, 'hipThrust'], [/curl femoral|nordico|femoral/, 'curlFemoral'], [/extension de cuadriceps|extension de pierna/, 'extensionPierna'],
@@ -695,7 +696,7 @@
   /* =============== Dibujo en pantalla =============== */
   const NS = 'http://www.w3.org/2000/svg';
   function grupo(padre, attrs) {
-    const g = document.createElementNS(NS, 'g'); for (const k in (attrs || {})) g.setAttribute(k, attrs[k]); padre.appendChild(g);
+    const g = /** @type {any} */ (document.createElementNS(NS, 'g')); for (const k in (attrs || {})) g.setAttribute(k, attrs[k]); padre.appendChild(g);
     g.v = {};
     g.add = (tag, a) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); g.appendChild(e); return e; };
     return g;
@@ -826,7 +827,7 @@
     cont.__anim = a; vivas.add(a);
     a.cuadro(quieto() ? a.tempo.concentrica + 50 : 0);   // primer cuadro ya dibujado (con movimiento reducido: quieta en contracción)
     if (typeof IntersectionObserver === 'function') {
-      io = io || new IntersectionObserver(ents => { ents.forEach(en => { if (en.target.__anim) en.target.__anim.visible = en.isIntersecting; }); arrancar(); }, { threshold: 0.1 });
+      io = io || new IntersectionObserver(ents => { ents.forEach(en => { const t = /** @type {any} */ (en.target); if (t.__anim) t.__anim.visible = en.isIntersecting; }); arrancar(); }, { threshold: 0.1 });
       io.observe(cont);
     } else { a.visible = true; arrancar(); }
     return a;

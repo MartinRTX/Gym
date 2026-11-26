@@ -18,7 +18,7 @@ function quitarFotoMaq(name) { guardarFotoMaq(name, null); cerrarModal(); pintar
 // Cierra la ventana y luego hace la acción (solo acciones que la app ya usa en sus botones)
 function cerrarY(accion) {
   cerrarModal();
-  const f = ACCIONES_OK.has(accion) || ['verTab', 'agregarCalentamiento', 'fotoParaEjercicio', 'editarAjuste', 'quitarSuper', 'fijarPaso'].includes(accion) ? window[accion] : null;
+  const f = ACCIONES_OK.has(accion) || ['verTab', 'agregarCalentamiento', 'fotoParaEjercicio', 'editarAjuste', 'quitarSuper', 'fijarPaso'].includes(accion) ? /** @type {any} */ (window)[accion] : null;
   if (typeof f === 'function') f.apply(null, Array.prototype.slice.call(arguments, 1));
 }
 function guardarNotaDeHoy(k) { setNotas(k, $('notaTxt').value.trim()); cerrarModal(); pintarEntrenar(); }
@@ -33,7 +33,7 @@ function cerrarTipico() { TIPICO_TMP = null; cerrarModal(); }
 function vaciarTipico() { TIPICO_TMP = []; editarTipico(); }
 function addProtHoy(k) { COMIDA_DIA = null; usarProt(hoy()); addProt(k); pintarTab(); }
 function noFondo() { LS.set('gym_fondo_no', true); pintarTab(); }
-function textoComidaIA(v) { (COMIDA_IA = COMIDA_IA || {}).texto = v; }
+function textoComidaIA(v) { (COMIDA_IA = COMIDA_IA || /** @type {any} */ ({})).texto = v; }
 function buscarTextoIA() { abrirBuscador({ q: COMIDA_IA ? COMIDA_IA.texto : '' }); }
 function alternarItemIA(i) { const x = COMIDA_IA && COMIDA_IA.items[i]; if (x) { x.on = !x.on; pintarComida(); } }
 function descartarComidaIA() { COMIDA_IA = null; pintarComida(); }

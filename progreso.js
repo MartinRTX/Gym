@@ -581,6 +581,7 @@ function calcularRuta(g) {
   const fams = new Set(delDia.filter(empezado).map(famDe));
   const D = Object.assign({}, falta), suma = {}, items = [];
   while (items.length < 4) {
+    /** @type {any} */
     let mejor = null;
     delDia.forEach(e => {
       if (empezado(e) || fams.has(famDe(e))) return;
@@ -746,7 +747,7 @@ function menuAsignado(k) {
 // "▶ Tu semana": el mapa empieza en gris y se pinta día por día con lo que entrenaste
 let SEM_T = [];
 function verSemana() {
-  const dias = ((DATA.resumen || {}).zonasDias || []), piezas = [...document.querySelectorAll('.cuerpo [data-m]')], lbl = $('semDia'), btn = $('semBtn');
+  const dias = ((DATA.resumen || {}).zonasDias || []), piezas = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.cuerpo [data-m]')]), lbl = $('semDia'), btn = $('semBtn');
   if (!dias.length || !piezas.length) return;
   SEM_T.forEach(clearTimeout); SEM_T = [];
   const pintar = acc => piezas.forEach(el => el.setAttribute('class', 'mz' + zonaZ(acc[el.dataset.m] || 0, el.dataset.m)));

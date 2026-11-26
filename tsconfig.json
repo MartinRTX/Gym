@@ -1,0 +1,37 @@
+{
+  "//": "Revisión de tipos de la app (TypeScript solo REVISA; la app sigue siendo JavaScript sin compilar). Corre en GitHub en cada push: npx -y -p typescript@6.0.2 tsc -p tsconfig.json. La lista de files es la de index.html (revisar.js falla si no coinciden).",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "target": "es2022",
+    "lib": [
+      "es2022",
+      "dom",
+      "dom.iterable"
+    ],
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "types": [],
+    "noErrorTruncation": true
+  },
+  "files": [
+    "tipos/globales.d.ts",
+    "seguridad.js",
+    "motor.js",
+    "nutricion.js",
+    "comida.js",
+    "animaciones.js",
+    "app.js",
+    "entrenar.js",
+    "series.js",
+    "sesion.js",
+    "trote.js",
+    "comida-dia.js",
+    "coach.js",
+    "progreso.js",
+    "ajustes.js",
+    "inicio.js"
+  ]
+}

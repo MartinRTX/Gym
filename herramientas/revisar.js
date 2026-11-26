@@ -10,6 +10,9 @@
 //  7. Solo el bloque LS de app.js toca localStorage.
 //  8. Todo el HTML sale de la plantilla html`…` (v10.2): nada de innerHTML = '<…' a mano, esc() solo donde se permite y
 //     ningún texto con comillas o < dentro de ${…} (se escaparía y saldría &quot; o "<div" en pantalla).
+//  9. tsconfig.json revisa exactamente los archivos que carga index.html (la revisión de tipos corre aparte, en GitHub:
+//     npx -y -p typescript@6.0.2 tsc -p tsconfig.json; atrapa nombres mal escritos entre archivos y llamadas con
+//     argumentos de más).
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -82,5 +85,12 @@ scripts.forEach(f => {
 });
 if (plantilla.length) { errores++; console.error('✗ plantilla html`…`:\n  ' + plantilla.slice(0, 10).join('\n  ')); }
 else console.log('✓ todo el HTML sale de la plantilla html`…`');
+
+// 9. La revisión de tipos ve los mismos archivos que el navegador: uno nuevo en index.html sin tsconfig quedaría sin revisar
+try {
+  const ts = JSON.parse(fs.readFileSync(path.join(RAIZ, 'tsconfig.json'), 'utf8')).files.filter(f => /\.js$/.test(f));
+  if (JSON.stringify(ts) !== JSON.stringify(scripts)) { errores++; console.error('✗ tsconfig.json "files" no es la lista de index.html (mismo orden):\n  tsconfig: ' + ts.join(', ') + '\n  index:    ' + scripts.join(', ')); }
+  else console.log('✓ tsconfig.json revisa los mismos ' + scripts.length + ' archivos que carga index.html');
+} catch (e) { errores++; console.error('✗ tsconfig.json: ' + e.message); }
 
 if (errores) process.exit(1);

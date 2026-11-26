@@ -169,15 +169,15 @@ const NUT = (() => {
   function tupper(sel) {
     const f = (TUPPER.tamanos.find(t => t[0] === sel.tam) || TUPPER.tamanos[1])[2], items = [];
     const pr = TUPPER.proteinas.find(x => x[0] === sel.prot);
-    if (pr && pr[3]) items.push({ ref: pr[3], q: Math.round(pr[4] * f) });
-    (sel.lados || []).forEach(l => { const x = TUPPER.lados.find(y => y[0] === l); if (x) items.push({ ref: x[3], q: Math.round(x[4] * f) }); });
-    if (items.length) items.push({ ref: 'b:aceite', q: Math.round(TUPPER.aceite * f) });
+    if (pr && pr[3]) items.push({ ref: pr[3], q: Math.round(Number(pr[4]) * Number(f)) });
+    (sel.lados || []).forEach(l => { const x = TUPPER.lados.find(y => y[0] === l); if (x) items.push({ ref: x[3], q: Math.round(Number(x[4]) * Number(f)) }); });
+    if (items.length) items.push({ ref: 'b:aceite', q: Math.round(TUPPER.aceite * Number(f)) });
     if (sel.tort > 0) items.push({ ref: 'b:tort-maiz', q: 30 * sel.tort });
     return items;
   }
   function nombreTupper(sel) {
     const pr = TUPPER.proteinas.find(x => x[0] === sel.prot), ls = (sel.lados || []).map(l => (TUPPER.lados.find(y => y[0] === l) || [l, l])[1].toLowerCase());
-    const partes = [pr && pr[0] !== 'sin' ? pr[1].toLowerCase() : 'sin carne'].concat(ls);
+    const partes = [pr && pr[0] !== 'sin' ? String(pr[1]).toLowerCase() : 'sin carne'].concat(ls);
     const t = partes.length > 1 ? partes.slice(0, -1).join(', ') + ' y ' + partes[partes.length - 1] : partes[0];
     return 'Tupper: ' + t + (sel.tort ? ' + ' + sel.tort + ' tortilla' + (sel.tort > 1 ? 's' : '') : '') + (sel.tam && sel.tam !== 'normal' ? ' (' + sel.tam + ')' : '');
   }
@@ -391,7 +391,7 @@ const NUT = (() => {
         for (const [w, v] of formas) {
           const t = ES_EN[w];
           const p = es.indexOf(' ' + w + ' ') > -1 ? 3 : es.indexOf(' ' + w) > -1 ? 2 : en && (en.indexOf(' ' + w) > -1 || (t && en.indexOf(' ' + t) > -1)) ? 1 : 0;
-          if (p * v > mejor) mejor = p * v;
+          if (p * Number(v) > mejor) mejor = p * Number(v);
         }
         if (mejor) { hay++; pts += mejor; }
       }

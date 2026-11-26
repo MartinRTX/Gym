@@ -9,6 +9,7 @@ function proximoGrupo() {
   const ult = sesion().log.map(l => l.name.split(':')[0]).filter(g => GRUPOS3.includes(g)).pop() || DATA.ultimoGrupo;
   return GRUPOS3[(GRUPOS3.indexOf(ult) + 1) % 3];
 }
+/** @type {any} */
 let TROTE = { km: '', min: '', fc: '', cad: '', tipo: null, ia: null, leyendo: false };
 const BORR = {};   // texto a medio escribir (notas del trote, chat, cintura, ajuste): sobrevive si la pantalla se vuelve a dibujar
 /* Calibración del dueño de la app (una prueba de 5K con pulso y ritmo): "Fácil" = FC promedio ≤ 150 (≈76 % de su máxima,

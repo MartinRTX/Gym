@@ -1,5 +1,6 @@
 # Pruebas automáticas en cada push y pull request (tarda menos de un minuto):
 #  - sintaxis de la app, todos los scripts juntos como los carga index.html (variables repetidas), lista del service worker y guardado solo por LS
+#  - revisión de tipos de toda la app (TypeScript solo revisa: nombres mal escritos entre archivos, argumentos de más)
 #  - script/Progresion.gs generado con el motor.js actual (un solo motor para la app y la hoja)
 #  - pruebas del motor: siguiente serie, progresión al empezar, calentamiento, y app = hoja con los mismos casos
 #  - pruebas de pantalla (tests/e2e): la app en Chromium con la hoja simulada y datos ficticios (~4 min)
@@ -24,6 +25,8 @@ jobs:
           node-version: 22
       - name: Sintaxis y variables repetidas
         run: node herramientas/revisar.js
+      - name: Revisión de tipos (nombres mal escritos entre archivos, argumentos de más)
+        run: npx -y -p typescript@6.0.2 tsc -p tsconfig.json
       - name: Pruebas del motor (app y hoja)
         run: node --test tests/*.test.js
 

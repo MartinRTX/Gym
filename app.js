@@ -23,20 +23,21 @@ function limpiarDiasViejos(dias) {
   const corte = sumarDias(hoy(), -dias);
   LS.claves().forEach(k => { const m = /^gym_.+_(\d{4}-\d{2}-\d{2})(_.*)?$/.exec(k); if (m && m[1] < corte) LS.del(k); });
 }
+/** Un elemento de la página por su id (para el revisor de tipos, "any": puede ser un input, un select, un svg…) @returns {any} */
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2, '0');
 function claveDia(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
 function hoy() { return claveDia(new Date()); }
 function sumarDias(k, n) { const d = new Date(k + 'T12:00:00'); d.setDate(d.getDate() + n); return claveDia(d); }
-function difDias(a, b) { return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000); }
+function difDias(a, b) { return Math.round((new Date(b + 'T12:00:00').getTime() - new Date(a + 'T12:00:00').getTime()) / 86400000); }
 function ddmm(k) { return k.slice(8, 10) + '/' + k.slice(5, 7); }
 // Días desde un dd/mm que manda el script (la fecha más cercana hacia atrás); null si no se entiende
 function diasDesdeDM(dm) {
   const m = /^(\d{1,2})\/(\d{1,2})/.exec(dm || '');
   if (!m) return null;
-  const h = new Date(hoy() + 'T12:00:00'), d = new Date(h.getFullYear(), m[2] - 1, Number(m[1]), 12);
+  const h = new Date(hoy() + 'T12:00:00'), d = new Date(h.getFullYear(), Number(m[2]) - 1, Number(m[1]), 12);
   if (d > h) d.setFullYear(d.getFullYear() - 1);
-  return Math.round((h - d) / 864e5);
+  return Math.round((h.getTime() - d.getTime()) / 864e5);
 }
 const DSEM = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 function diaCorto(k) { return DSEM[new Date(k + 'T12:00:00').getDay()] + ' ' + ddmm(k); }
@@ -63,8 +64,12 @@ function on(accion) { return ev.apply(null, ['click'].concat(Array.prototype.sli
    html`<b>${nombre}</b> ${on('abrir', x)}` → lo que viene de afuera (la hoja, la IA, Open Food Facts) se escapa siempre;
    solo pasa tal cual lo que la propia app armó: on()/ev(), otra plantilla html`` o crudo(h). Un arreglo se une sin comas. */
 class Crudo { constructor(s) { this.s = String(s); } toString() { return this.s; } }
+// Para el revisor de tipos, crudo() y html`…` dan "any": el resultado se usa como texto (tiene toString), se suma
+// con otros pedazos y se asigna a innerHTML.
+/** @returns {any} */
 const crudo = h => h instanceof Crudo ? h : new Crudo(h);
-function html(partes) {
+/** @param {TemplateStringsArray} partes  @param {...any} _valores  @returns {any} */
+function html(partes, ..._valores) {
   const pon = v => v instanceof Crudo ? v.s : Array.isArray(v) ? v.map(pon).join('') : v === null || v === undefined || v === false ? '' : esc(v);
   let s = partes[0];
   for (let i = 1; i < partes.length; i++) s += pon(arguments[i]) + partes[i];
@@ -73,7 +78,7 @@ function html(partes) {
 function despachar(tipo, e) {
   const el = e.target && e.target.closest ? e.target.closest('[data-' + tipo + ']') : null;
   if (!el) return;
-  const nombre = el.getAttribute('data-' + tipo), f = ACCIONES_OK.has(nombre) ? window[nombre] : null;
+  const nombre = el.getAttribute('data-' + tipo), f = ACCIONES_OK.has(nombre) ? /** @type {any} */ (window)[nombre] : null;
   if (typeof f !== 'function') return registrarError('Acción desconocida: ' + nombre, tipo);
   let args = [];
   try { args = JSON.parse(el.getAttribute('data-' + tipo + '-a') || '[]'); } catch (x) { return registrarError('Argumentos inválidos: ' + nombre, tipo); }

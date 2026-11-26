@@ -239,6 +239,7 @@ function completarProt(falta) {
     .sort((a, b) => ((cuenta[b.k] || 0) + (b.fav || b.rec ? 2 : 0)) - ((cuenta[a.k] || 0) + (a.fav || a.rec ? 2 : 0))).slice(0, 6);
   // Una sola que alcance (la más chica), o la pareja que alcanza con menos de sobra
   const una = lista.filter(f => f.g >= falta).sort((a, b) => a.g - b.g)[0];
+  /** @type {any} */
   let par = null;
   lista.forEach((a, i) => lista.slice(i + 1).forEach(b => { const t = a.g + b.g; if (t >= falta && (!par || t < par.t)) par = { t: t, l: [a, b] }; }));
   if (una && (!par || una.g <= par.t)) return [una];
@@ -332,7 +333,9 @@ const canalPeso = () => nativo('LocalNotifications', 'createChannel', { id: 'pes
 const canalProt = () => canalPeso().then(() => nativo('LocalNotifications', 'createChannel', { id: 'proteina', name: 'Proteína y cintura', description: 'A las 6 pm: cuánto llevas de proteína. Domingo: medir la cintura', importance: 3, visibility: 1 }));
 
 /* ----- Comida con IA: escribes lo que comiste y calcula la proteína ----- */
-let COMIDA_IA = null, QUITAR_FAV = false, RING_FALTA = false;
+/** @type {any} */
+let COMIDA_IA = null;
+let QUITAR_FAV = false, RING_FALTA = false;
 function tarjetaComidaIA() {
   if (!DATA.ia) return '';
   const c = COMIDA_IA || {};
@@ -367,7 +370,7 @@ function tarjetaComidaIA() {
   return crudo(h + '</div>');
 }
 async function calcularComida() {
-  const c = COMIDA_IA = COMIDA_IA || {};
+  const c = COMIDA_IA = COMIDA_IA || /** @type {any} */ ({});
   c.texto = ($('iaComida') || {}).value || c.texto || '';
   if (!c.texto.trim()) return toast('Escribe qué comiste');
   const id = ++COMIDA_SEQ, texto = c.texto, vigente = () => id === COMIDA_SEQ && COMIDA_IA === c;
@@ -426,7 +429,7 @@ let COMIDA_SEQ = 0, LIMITE_IA_COMIDA = 30000;
 // Repinta sin quitarte el teclado si sigues escribiendo
 function repintarComidaIA() {
   if (TAB !== 'Comida') return;
-  const a = document.activeElement, enTexto = a && a.id === 'iaComida', pos = enTexto ? a.selectionStart : null;
+  const a = /** @type {any} */ (document.activeElement), enTexto = a && a.id === 'iaComida', pos = enTexto ? a.selectionStart : null;
   pintarComida();
   const t = enTexto && $('iaComida');
   if (t) { t.focus(); t.setSelectionRange(pos, pos); }
@@ -435,7 +438,7 @@ function repintarComidaIA() {
 async function sugerenciasCatalogo(texto) {
   if (typeof listaBusqueda !== 'function') return [];
   try { await conLimite(cargarCatalogo(), 8000); } catch (e) { /* sin catálogo grande: busca en lo básico y lo tuyo */ }
-  const lista = listaBusqueda(), out = [];
+  const lista = listaBusqueda(), out = /** @type {any} */ ([]);
   out.seg = {};   // de qué parte del texto salió cada uno ("3 tacos de asada"): para calcular la cantidad al tocarlo
   texto.toLowerCase().split(/[,.;+\n]|\by\b/).map(x => x.trim()).filter(x => x.length > 2).slice(0, 4)
     .forEach(q => {
@@ -566,7 +569,7 @@ async function dictar(id, alTerminar) {
     const el = $(id); if (!el) return;
     el.value = (base ? base + ' ' : '') + texto; el.dispatchEvent(new Event('input'));
     hap('ok');
-    if (alTerminar && typeof window[alTerminar] === 'function') setTimeout(() => window[alTerminar](), 250);
+    if (alTerminar && typeof window[alTerminar] === 'function') setTimeout(() => /** @type {any} */ (window)[alTerminar](), 250);
   };
   if (NATIVO) {
     VOZ = { id: id }; marcarMic(id, true); hap('tecla');

@@ -132,7 +132,7 @@ function abrirAjustes() {
 function abrirFallas(borrar) {
   const js = LS.get('gym_jserr', []).slice().reverse().map(x => ({ cuando: x.ts || x.dia, msg: x.msg, donde: x.donde }));
   const hoja = LS.get('gym_errores', []).slice().reverse().map(x => ({ cuando: x.cuando, msg: (x.que ? x.que + ': ' : '') + x.msg, donde: 'La hoja no lo aceptó' }));
-  const l = hoja.concat(js).slice(0, 25), fecha = c => { const d = new Date(c); return isNaN(d) ? String(c || '') : ddmm(claveDia(d)) + (String(c).length > 10 ? ' ' + horaTexto(d) : ''); };
+  const l = hoja.concat(js).slice(0, 25), fecha = c => { const d = new Date(c); return isNaN(d.getTime()) ? String(c || '') : ddmm(claveDia(d)) + (String(c).length > 10 ? ' ' + horaTexto(d) : ''); };
   $('sheet').innerHTML = html`<div class="row between"><div class="t2">Lo que falló</div><button class="btn ghost sm" ${on('abrirAjustes')}>←</button></div>
     <div class="muted" style="margin:4px 0 10px">Lo más reciente arriba. Los errores de la app también llegan a tu hoja (pestaña Errores); si algo se repite, mándale captura a tu coach.</div>
     ${l.length ? l.map(x => html`<div class="falla"><b>${fecha(x.cuando)}</b> ${x.msg}${x.donde ? html`<small>${x.donde}</small>` : ''}</div>`) : html`<div class="muted">Nada por aquí.</div>`}
@@ -173,6 +173,7 @@ const APPS_SALUD = { 'com.google.android.apps.fitness': 'Google Fit', 'com.fitbi
 const nombreApp = p => APPS_SALUD[p] || String(p).split('.').pop();
 const cuandoTexto = d => diaCorto(claveDia(d)) + ', ' + horaTexto(d);
 const haceCuanto = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'hace un momento' : m < 60 ? 'hace ' + m + ' min' : m < 1440 ? 'hace ' + Math.round(m / 60) + ' h' : 'hace ' + Math.round(m / 1440) + ' días'; };
+/** @type {any} */
 let DIAG = null;
 const encabezadoDiag = () => html`<div class="row between ajhead"><div class="t2">Diagnóstico</div><button class="cerrar" ${on('abrirAjustes')} aria-label="Volver">✕</button></div>`;
 async function abrirDiagnostico() {
@@ -220,12 +221,12 @@ function lineasDiagnostico() {
     L.push([p.activo ? true : null, p.activo ? 'Prendido: ' + horaTexto(new Date(2000, 0, 1, p.hora, p.min)) + ' de lunes a viernes · meta ' + Number(p.meta).toLocaleString('es-MX') +
       (p.proximo ? ' · siguiente revisión: ' + cuandoTexto(new Date(p.proximo)) : '') : 'Apagado']);
     // "2026-10-21T17:00:04 Son las 5 pm y llevas…": la fecha (hora del celular) y lo que pasó
-    if (p.resultado) { const i = p.resultado.indexOf(' '), f = new Date(p.resultado.slice(0, i)); L.push([null, 'Última revisión' + (isNaN(f) ? '' : ' (' + cuandoTexto(f) + ')') + ': ' + p.resultado.slice(i + 1)]); }
+    if (p.resultado) { const i = p.resultado.indexOf(' '), f = new Date(p.resultado.slice(0, i)); L.push([null, 'Última revisión' + (isNaN(f.getTime()) ? '' : ' (' + cuandoTexto(f) + ')') + ': ' + p.resultado.slice(i + 1)]); }
   }
   return L;
 }
 function textoDiagnostico() {
-  return ['Diagnóstico Gym · ' + new Date().toLocaleString('es-MX')].concat(lineasDiagnostico().map(l => l[0] === 'h' ? '\n' + l[1].toUpperCase() : (l[0] === true ? '✓ ' : l[0] === false ? '✗ ' : '• ') + l[1])).join('\n');
+  return ['Diagnóstico Gym · ' + new Date().toLocaleString('es-MX')].concat(lineasDiagnostico().map(l => l[0] === 'h' ? '\n' + String(l[1]).toUpperCase() : (l[0] === true ? '✓ ' : l[0] === false ? '✗ ' : '• ') + l[1])).join('\n');
 }
 function pintarDiagnostico() {
   const ic = { true: ['✓', 'ok'], false: ['✗', 'red'], null: ['•', 'muted'] };

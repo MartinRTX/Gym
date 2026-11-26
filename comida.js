@@ -832,7 +832,7 @@ function pintarEtiqueta() {
       html`<button class="tch${!E.actualizar ? ' on' : ''}" ${on('etqActualizar', false)}>Guardar como otro</button></div>` : '') +
     html`<div class="tpaso">¿Cuánto comiste?</div><div class="seg etqmodos">${modos.map(m => html`<button class="${E.modo === m[0] ? 'on' : ''}" ${on('etqModo', m[0])}>${m[1]}</button>`)}</div>` +
     (E.modo === 'envase' ? html`<div class="tchips" style="margin-top:8px">${[['Todo', 1], ['La mitad', 0.5], ['Un tercio', 0.333], ['Un cuarto', 0.25]]
-      .map(x => html`<button class="tch${Math.abs(E.valor - x[1]) < 0.01 ? ' on' : ''}" ${on('etqFraccion', x[1])}>${x[0]}</button>`)}</div>` +
+      .map(x => html`<button class="tch${Math.abs(E.valor - Number(x[1])) < 0.01 ? ' on' : ''}" ${on('etqFraccion', x[1])}>${x[0]}</button>`)}</div>` +
       (!i.envase ? html`<div class="tip acc" style="margin:8px 0 4px">La tabla no dice cuánto trae el envase. Escríbelo (viene al frente: "Contenido neto"):</div>` +
         html`<div class="row etqenv"><input id="etqEnvG" class="cant num" inputmode="decimal" placeholder="—" ${ev('change', 'etqEnvase', 'g', VALOR)}><span class="muted">${u}</span>${
         i.porcionG ? html`<span class="muted">o</span><input id="etqEnvP" class="cant num" inputmode="decimal" placeholder="—" ${ev('change', 'etqEnvase', 'porciones', VALOR)}><span class="muted">porciones</span>` : ''}</div>` : '') : '') +
@@ -932,7 +932,7 @@ function pareceEtiqueta(t) {
 // 📷 en el Registro inteligente: la foto (etiqueta o comida) va junto con lo que escribiste
 function fotoConNota() {
   const t = ($('iaComida') || {}).value || (COMIDA_IA && COMIDA_IA.texto) || '';
-  (COMIDA_IA = COMIDA_IA || {}).texto = t;
+  (COMIDA_IA = COMIDA_IA || /** @type {any} */ ({})).texto = t;
   pedirFoto('nota'); FOTO.nota = t;
 }
 

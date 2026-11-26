@@ -380,7 +380,7 @@ function editarAjuste(name) {
   setTimeout(() => { const el = document.getElementById('aj-' + name); if (el) el.focus(); }, 50);
 }
 function guardarAjuste(name) {
-  const el = document.getElementById('aj-' + name), v = el ? el.value.trim() : '';
+  const el = $('aj-' + name), v = el ? el.value.trim() : '';
   exDe(name).ajuste = v; state[name].editAjuste = false; delete BORR['aj-' + name];
   LS.set('gym_data', DATA);
   encolar('saveAjuste', [baseDe(name), v], 'aj-' + name, claveDe(name));
