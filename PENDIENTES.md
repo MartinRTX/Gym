@@ -6,7 +6,7 @@ Actualizado: 26/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.6** publicada (11/11); **v10.7 en la rama** (orden del código, nada visible) |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.7** (26/11): animaciones mejoradas (goblet, femoral sentado, remo en máquina, granjero, aperturas, ritmo); **v10.8 publicada** (26/11): orden del código (tipos, ALMACEN, archivos partidos), nada visible |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
 | Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **9.0** (11/11): pruebas del servidor, acción `panel`, límite de intentos y `_nutricion` |
@@ -29,15 +29,28 @@ Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` 
 ```bash
 node herramientas/revisar.js            # versiones, sin onclick en texto, todo el HTML con la plantilla, claves en ALMACEN, etc.
 npx -y -p typescript@6.0.2 tsc -p tsconfig.json   # revisión de tipos de toda la app (0 avisos)
-node --test tests/*.test.js              # 85 pruebas de lógica
+node --test tests/*.test.js              # 91 pruebas de lógica
 NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 347 pruebas de pantalla (Playwright)
 NODE_PATH=/opt/node-tools/node_modules node herramientas/mapa.js   # quién usa a quién (y "cortes" para partir un archivo)
 NODE_PATH=/opt/node-tools/node_modules node herramientas/comparar-pantallas.js [ref] [filtro]   # antes y después: ¿se pinta igual?
+NODE_PATH=/opt/node-tools/node_modules node herramientas/galeria-animaciones.js [salida.png] [filtro]   # cada animación en 4 momentos
 ```
 
 En GitHub corren solas: "Pruebas" (revisar + unidad + pantalla), "APK Android" (desde `main`) y Pages.
 En Gym-script: "Publicar script" (revisa en todas las ramas; en `main` hace `clasp push`, versión nueva,
 actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
+
+## Animaciones (v10.7, 26/11)
+
+Revisadas las 52 variantes con `herramientas/galeria-animaciones.js` (abajo, subiendo, arriba, bajando). Arreglos:
+- Ritmo: la subida arranca suave (antes salía de golpe) y llega frenando; al apretar, el músculo se infla un poco y regresa.
+- Sentadilla goblet o con mancuerna: la pesa va al pecho y ya no sale el rack con la barra en la espalda.
+- Curl femoral sentado: ahora sentado, con el cojín sobre el muslo y el rodillo detrás del tobillo (antes salía acostado).
+- Remo en máquina de placas: pecho contra el cojín, torso quieto y manijas que cuelgan de una palanca (antes un cable raro al piso).
+- Paseo del granjero: camina de verdad (paso continuo, un pie siempre en el piso) y no cuenta repeticiones.
+- Aperturas en máquina: los codos se juntan frente al pecho (antes casi no se movía).
+- Pantorrilla: más recorrido del talón.
+Las demás se revisaron y se quedan igual. 6 pruebas nuevas en `tests/animaciones.test.js`.
 
 ## Cómo publicar (cuando Martin diga "publica")
 
@@ -47,7 +60,7 @@ ese commit y entonces se adelanta `main` (el 08/11 se publicó con pruebas rojas
 Martin cambie **Settings › Pages › Source a "GitHub Actions"** en cada repo (mientras, GitHub publica `main` por su cuenta y
 el trabajo solo avisa). En Gym-script, "Publicar script" corre las pruebas del servidor antes de `clasp push`.
 
-Publicado el 11/11 (Martin lo pidió): script 8.9 y 9.0, Panel 1.8 y Gym v10.6. **Pendiente: Gym v10.7** (rama `claude/affectionate-cannon-ymlofy`).
+Publicado: script 9.0 y Panel 1.8 (11/11); Gym v10.7 (animaciones, 26/11) y v10.8 (orden del código, 26/11). Nada pendiente.
 Orden cuando haya cambios:
 
 1. Gym-script: rama → `main`. Primero el script (si la app pide un `SCRIPT_ESPERADO` nuevo).
@@ -76,7 +89,7 @@ Se publica solo desde Panel/main (cada 3 horas o a mano, "Publicar Comidas (Pane
 5. ✅ Panel lee Gym en una llamada (`panel`, script 8.9) con lo de hoy ya decidido por Gym, y hay contrato entre los dos
    repos (`Gym-script/tests/contrato-panel.json` → copia en `Panel/tests/contrato-gym.json`). Falta lo mismo para Finanzas
    (su repo no estaba en la sesión).
-6. ✅ (26/11, v10.7 en la rama) Ordenar el código de la app Gym, sin cambiar lo que se ve (ver **ARQUITECTURA.md**):
+6. ✅ (26/11, publicado en la v10.8) Ordenar el código de la app Gym, sin cambiar lo que se ve (ver **ARQUITECTURA.md**):
    (a) **revisión de tipos de toda la app** (`tsconfig.json`, TypeScript solo revisa) en GitHub: de 560 avisos a 0 sin
        cambiar lo que hace la app; atrapa nombres mal escritos entre archivos y argumentos de más. No había errores reales;
    (b) **`ALMACEN`** (app.js): las 50 claves del celular con lo que guarda cada una; revisar.js falla si se usa una sin anotar;
@@ -132,17 +145,18 @@ Se publica solo desde Panel/main (cada 3 horas o a mano, "Publicar Comidas (Pane
   («Cannot read properties of null»): la repintada pendiente ya revisa que siga abierto.
 - `plantilla.prueba.js`: 18 hojas y teclados más (28 casos).
 
-## Auditoría (05/11, v10.3) — ✅ 3, 5, 6, 7, 8 y 9 arreglados en la v10.4; faltan 1, 2, 4, 10 y 11
+## Auditoría (05/11, v10.3) — ✅ todo resuelto salvo 2 (2FA, Martin) y 10 (detalles de la compilación del APK)
 
 Prioridad alta:
-1. Consejo entre series sin respuesta el 20 % de las veces (ver "Pestaña IA"): ligero primero en Gym-script (falta el sí).
+1. ✅ Consejo entre series sin respuesta el 20 % de las veces: script 8.7 publicado el 09/11 (ligero primero). Revisar la
+   pestaña IA en unos días.
 2. 2FA en GitHub: el APK carga la página de Pages y tiene acceso a Health Connect y avisos; quien entre a la cuenta de GitHub
    controla lo que corre en el celular. Pasa de "opcional" a recomendado.
 Prioridad media:
 3. ✅ v10.4: la subida de la cola no tenía tiempo máximo (se quedaba en "Subiendo…"). Ahora `apiPost` corta a los 120 s
    (`LIMITE_API`) y la subida a los 60 s (`LIMITE_SUBIDA`) con AbortController; se reintenta sola a los 20 s.
-4. Valores de Martin fijos para todos: FC fácil ≤ 150 y ritmo fácil 6:50/km (`trote.js`), clima de Hermosillo. Para la pareja
-   u otra persona no aplican. Mover a Ajustes o calcularlos de sus datos (decisión de Martin).
+4. ✅ Cerrado (09/11): FC fácil ≤ 150, ritmo fácil 6:50/km y el clima de Hermosillo son de Martin, y **solo Martin usa el
+   trote** (decisión suya): se quedan así. Si otra persona empieza a usar el trote, pasarlos a Ajustes.
 5. ✅ v10.4: datos personales en el repo público (el comentario de calibración de `trote.js` y detalles de comidas de días
    reales en este archivo) quitados. El historial de git los conserva.
 6. ✅ v10.4: la app pide guardado persistente al abrir (`pedirGuardadoPersistente`) y el service worker baja las miniaturas
@@ -155,11 +169,32 @@ Prioridad baja:
 9. ✅ v10.4: el comentario de `regGuardar` ya dice lo que hace (borra por antigüedad, 120 días).
 10. APK: sin `package-lock.json` (las dependencias de las dependencias pueden cambiar entre compilaciones) y las acciones de
     GitHub van por etiqueta (@v4), no por commit.
-11. Revisar en Gym-script que un lote repetido (si se pierde la respuesta y se reenvía) no duplique renglones (ignorar ids ya vistos).
+11. ✅ Revisado (09/11): un lote reenviado no duplica. Series, trotes y fotos buscan su `uid` ("ya estaba"); peso, proteína,
+    cintura, salud, comidas y configuración sobrescriben el día; `logError` ignora el mismo mensaje por 10 min.
 Lo que está bien: todo el HTML escapado por la plantilla (vigilado), CSP en Chrome, lista blanca de acciones, links filtrados,
 clave en el cuerpo (no en la URL), sin secretos en el repo, firma del APK verificada, service worker todo o nada, una sola capa de
 guardado con limpieza al llenarse, cola con reintentos. Carga ~0.2 s, cada pantalla se pinta en ~1 ms, ~1,200 nodos, 34 KB de
 localStorage; todos los botones con nombre y sin desborde horizontal.
+
+## Script 8.8 (publicado 11/11): reintentar el ligero antes del completo
+
+- Pestaña IA del 10/11 con la 8.7: el consejo entre series contestó **18 de 18** (antes 11 de 23 sin respuesta), casi todos en
+  < 2 s; 2 se salvaron con el reintento. Falló el plan cuando el ligero dio 503 y se fue al completo (125 s; la app espera 45 s);
+  lo mismo comida el 07/11 (193 s).
+- 8.8: `IA.modelos` y `IA.rapidos` = ligero, ligero (reintento a los 0.7 s), completo, flash-latest. `IA.plan` = solo el ligero
+  con su reintento: si falla, la app sigue con sus reglas. Simulado: el plan del 10/11 contesta en ~9 s; con todo saturado se
+  rinde a los ~4 s; comida del 07/11 en ~3 s.
+- Revisar la pestaña IA en unos días.
+
+## Script 8.7 (publicado 09/11): el ligero primero en todo
+
+- Segunda revisión de la pestaña IA (05–08/11): el 05/11, **11 de 23** consejos entre series sin respuesta (4 tardaron de 1.5 a
+  4 min en fallar); el plan falló 3 de 3 ese día y luego tardó 15 s–2 min; el resumen volvió a fallar. Comida bien (1–3 s).
+- `IA.modelos` ahora es ligero → completo → flash-latest (antes el completo primero). Consejo entre series (`IA.serie`): solo el
+  ligero con un reintento a los 0.7 s y sin empezar otro intento pasados 7 s (la app lo espera 12 s). Plan: tope de 30 s.
+- Probado con una simulación del script (modelos falsos con los tiempos de la pestaña IA): el consejo contesta en 1.5–3.4 s o
+  se rinde a los ≤ 8 s, ya no a los minutos. Publicado el 09/11 ("Publicar script" en verde: clasp, versión y prueba de respuesta).
+- Después de publicarlo: revisar la pestaña IA en unos días.
 
 ## Pestaña IA: primera revisión (05/11, datos del 02 al 04/11)
 

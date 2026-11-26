@@ -58,7 +58,7 @@ Para ver quién usa a quién: `NODE_PATH=/opt/node-tools/node_modules node herra
 |---|---|
 | `node herramientas/revisar.js` | sintaxis; nombres repetidos entre archivos; versión de app = service worker; el service worker guarda todo; solo `LS` toca localStorage y toda clave está en `ALMACEN`; todo el HTML con la plantilla; `tsconfig.json` con los mismos archivos que `index.html` |
 | `npx -y -p typescript@6.0.2 tsc -p tsconfig.json` | **revisión de tipos de toda la app**: nombres mal escritos entre archivos, llamadas con argumentos de más. TypeScript solo revisa; la app sigue siendo JavaScript |
-| `node --test tests/*.test.js` | motor, nutrición, service worker, animaciones (85) |
+| `node --test tests/*.test.js` | motor, nutrición, service worker, animaciones (91) |
 | `node tests/e2e/correr.js` | la app en Chromium con la hoja simulada (347 casos) |
 
 A mano, antes de mover código: `NODE_PATH=/opt/node-tools/node_modules node herramientas/comparar-pantallas.js [ref]`
