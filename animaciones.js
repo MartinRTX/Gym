@@ -111,7 +111,8 @@
     const ms = v => Math.round(Math.max(0, Math.min(6, v)) * 1000);
     return { concentrica: Math.max(400, ms(s(m[3]))), pico: Math.max(150, ms(s(m[4]))), excentrica: Math.max(500, ms(s(m[1]))), base: Math.max(150, ms(s(m[2]))) };
   }
-  const salida = u => 1 - Math.pow(1 - u, 3);
+  // Sube con arranque suave (sin tirón al empezar), rápido a media subida y llega frenando
+  const salida = u => 1 - Math.pow(1 - u, 4) * (1 + 4 * u);
   const suave = u => u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
   const ORDEN = ['concentrica', 'pico', 'excentrica', 'base'];
   function fase(ms, tempo) {
@@ -198,7 +199,7 @@
       },
       estatico(g, imp) {
         imp = real(imp);
-        if (imp === 'palancaDiscos') g.add('circle', { cx: cfg.pivote.x, cy: cfg.pivote.y, r: 5, fill: 'var(--maq2)' });
+        if (imp === 'palancaDiscos') { const pv = cfg.pivoteDiscos || cfg.pivote; g.add('circle', { cx: pv.x, cy: pv.y, r: 5, fill: 'var(--maq2)' }); }
         if (imp === 'polea' && cfg.polea) { EQ.poste(g, cfg.polea.x + (cfg.polea.x > 160 ? 6 : -6), Math.min(cfg.polea.y, 40)); g.add('circle', { cx: cfg.polea.x, cy: cfg.polea.y, r: 5, fill: 'var(--maq2)' }); }
         if ((imp === 'polea' || imp === 'placas') && cfg.pila) EQ.pila(g, cfg.pila);
         if (imp === 'placas' && cfg.pivote) g.add('circle', { cx: cfg.pivote.x, cy: cfg.pivote.y, r: 5, fill: 'var(--maq2)' });
@@ -208,7 +209,7 @@
         imp = real(imp);
         const mano = cfg.donde ? cfg.donde(j) : j.mano;
         if (imp === 'agarre') EQ.moverAgarre(g, mano);
-        if (imp === 'palancaDiscos') { EQ.moverPalanca(g, cfg.pivote, mano); EQ.moverAgarre(g, mano); const d = mezclaP(cfg.pivote, mano, 0.35); g.v.disco2.setAttribute('cx', d.x.toFixed(1)); g.v.disco2.setAttribute('cy', d.y.toFixed(1)); }
+        if (imp === 'palancaDiscos') { const pv = cfg.pivoteDiscos || cfg.pivote; EQ.moverPalanca(g, pv, mano); EQ.moverAgarre(g, mano); const d = mezclaP(pv, mano, 0.35); g.v.disco2.setAttribute('cx', d.x.toFixed(1)); g.v.disco2.setAttribute('cy', d.y.toFixed(1)); }
         if (imp === 'barra' || imp === 'discos') EQ.moverDisco(g, mano);
         else if (imp === 'mancuerna') EQ.moverMancuerna(g, mano, angulo(resta(j.mano, j.codo)));
         else if (imp === 'polea') { EQ.moverCable(g, [cfg.polea, mano]); EQ.moverAgarre(g, mano); }
@@ -221,8 +222,17 @@
   /* =============== Familias de movimiento (de lado) =============== */
   const TOB = P(152, PISO - 4);
   const F = {};
+  // Goblet (o con mancuerna): la pesa al pecho y el torso más derecho; si no, barra en la espalda
+  const goblet = ex => /goblet|copa/i.test(ex && ex.ejercicio || '') || implemento(ex && ex.modalidad) === 'mancuerna';
   F.sentadilla = { nombre: 'Sentadilla', textos: { concentrica: 'Empuja el piso y sube', excentrica: 'Baja lento, rodillas hacia afuera' },
-    pose(t) {
+    pose(t, ex) {
+      if (goblet(ex)) {
+        const j = dePie(TOB, { pierna: mezcla(-52, -90, t), muslo: mezcla(-176, -91, t), barraSobre: TOB.x + 16 });
+        completar(j, null);
+        j.barra = mas(j.hombro, 18, j.torso + 112);   // la mancuerna pegada al pecho, abajo de la barbilla
+        const r = ik(j.hombro, j.barra, L.brazo, L.antebrazo, 'abajo'); j.codo = r.medio; j.mano = r.fin;
+        return j;
+      }
       const j = dePie(TOB, { pierna: mezcla(-55, -90, t), muslo: mezcla(-172, -91, t), barraSobre: TOB.x + 8 });
       completar(j, null);
       j.barra = P(j.hombro.x - 3, j.hombro.y + 4);
@@ -230,8 +240,9 @@
       return j;
     },
     musculos: (j, t) => [Object.assign(M.cuadriceps(j, t), { principal: true }), M.gluteo(j)],
-    estatico(g, imp) { if (imp === 'discos') { EQ.rieles(g, 136); EQ.rieles(g, 176); } else EQ.rack(g, 262); },
-    vivo(g) { EQ.disco(g); }, mover(g, j) { EQ.moverDisco(g, j.barra); },
+    estatico(g, imp, ex) { if (goblet(ex)) return; if (imp === 'discos') { EQ.rieles(g, 136); EQ.rieles(g, 176); } else EQ.rack(g, 262); },
+    vivo(g, imp, ex) { if (goblet(ex)) { EQ.mancuerna(g); g.v.goblet = true; } else EQ.disco(g); },
+    mover(g, j) { if (g.v.goblet) EQ.moverMancuerna(g, j.barra, j.torso); else EQ.moverDisco(g, j.barra); },
     guia: (a, b) => 'M' + f1(P(a.barra.x, a.barra.y + 18)) + ' L' + f1(P(b.barra.x, b.barra.y - 18)) };
 
   F.rumano = { nombre: 'Peso muerto rumano', textos: { concentrica: 'Empuja la cadera al frente', excentrica: 'Cadera atrás, barra pegada a las piernas' },
@@ -264,16 +275,28 @@
     },
     guia: (a, b) => 'M' + f1(P(a.cadera.x, a.cadera.y)) + ' L' + f1(P(b.cadera.x, b.cadera.y - 4)) };
 
+  // Sentado: el muslo fijo bajo su cojín y el rodillo detrás del tobillo lleva el talón hacia abajo y atrás
+  const femoralSentado = ex => /sentad/i.test(ex && ex.ejercicio || '');
   F.curlFemoral = { nombre: 'Curl femoral', textos: { concentrica: 'Lleva los talones al glúteo', excentrica: 'Baja lento hasta estirar' },
-    pose(t) {
+    pose(t, ex) {
+      if (femoralSentado(ex)) {
+        const j = desdeCadera(P(128, 194), { muslo: -4, pierna: mezcla(6, 116, t), torso: -102 }); j.pie = mezcla(-70, 10, t);
+        return completar(j, { mano: P(j.rodilla.x - 8, j.rodilla.y - 14), doblar: 'abajo' });
+      }
       const j = desdeCadera(P(150, 186), { muslo: 2, pierna: mezcla(2, -118, t), torso: 180 });
       j.pie = mezcla(0, -110, t);
       return completar(j, { brazo: 150, antebrazo: 100 });
     },
     musculos: (j, t) => [Object.assign(M.isquios(j, t), { principal: true }), M.pantorrilla(j, t)],
-    estatico(g, imp) { g.add('path', { d: miembro(P(60, 200), P(205, 200), 12, 12, 12, 0.5), fill: 'var(--maq)' }); EQ.poste(g, 90, 206); EQ.poste(g, 180, 206); if (imp !== 'corporal') EQ.pila(g, 262); },
-    vivo(g, imp) { if (imp !== 'corporal') { EQ.palanca(g); EQ.rodillo(g); } },
-    mover(g, j, t, imp) { if (g.v.rodillo) { const r = mas(j.tobillo, 6, angulo(resta(j.tobillo, j.rodilla)) + 90); EQ.moverPalanca(g, P(j.rodilla.x, j.rodilla.y + 10), r); EQ.moverRodillo(g, r); EQ.moverPila(g, 38 * t); } },
+    estatico(g, imp, ex) {
+      if (femoralSentado(ex)) {   // asiento, respaldo y el cojín que sujeta el muslo
+        EQ.asiento(g, 130, 202, 76); EQ.respaldo(g, 96, 112, 206); if (imp !== 'corporal') EQ.pila(g, 262);
+        g.add('path', { d: miembro(P(150, 178), P(172, 178), 10, 10, 10, 0.5), fill: 'var(--maq)' }); return;
+      }
+      g.add('path', { d: miembro(P(60, 200), P(205, 200), 12, 12, 12, 0.5), fill: 'var(--maq)' }); EQ.poste(g, 90, 206); EQ.poste(g, 180, 206); if (imp !== 'corporal') EQ.pila(g, 262);
+    },
+    vivo(g, imp, ex) { if (imp !== 'corporal' || femoralSentado(ex)) { EQ.palanca(g); EQ.rodillo(g); } },
+    mover(g, j, t, imp) { if (g.v.rodillo) { const r = mas(j.tobillo, 7, angulo(resta(j.tobillo, j.rodilla)) + 90); EQ.moverPalanca(g, P(j.rodilla.x, j.rodilla.y + 10), r); EQ.moverRodillo(g, r); EQ.moverPila(g, 38 * t); } },
     guia(a, b, pose) { let d = ''; for (let i = 0; i <= 10; i++) { const p = pose(i / 10).tobillo; d += (i ? ' L' : 'M') + f1(p); } return d; } };
 
   F.extensionPierna = { nombre: 'Extensión de cuádriceps', textos: { concentrica: 'Estira la pierna completa', excentrica: 'Baja lento' },
@@ -312,7 +335,7 @@
 
   F.pantorrilla = { nombre: 'Pantorrilla', textos: { concentrica: 'Sube lo más alto que puedas', excentrica: 'Baja el talón hasta estirar' },
     pose(t) {
-      const bola = P(166, PISO - 14), pieAng = mezcla(30, -44, t), tob = mas(bola, 15, 180 + pieAng);   // del talón abajo del escalón a la punta de los pies
+      const bola = P(166, PISO - 14), pieAng = mezcla(34, -50, t), tob = mas(bola, 15, 180 + pieAng);   // del talón abajo del escalón a la punta de los pies
       const j = dePie(tob, { pierna: -90, muslo: -90, torso: -90 }); j.pie = pieAng;
       completar(j, { brazo: 92, antebrazo: 92 });
       j.punta = mas(j.tobillo, 17, pieAng); j.talon = mas(j.tobillo, 6, pieAng + 180);
@@ -329,14 +352,23 @@
     guia: (a, b) => 'M' + f1(a.tobillo) + ' L' + f1(b.tobillo) };
 
   F.remoSentado = { nombre: 'Remo sentado', textos: { concentrica: 'Jala con los codos, pecho arriba', excentrica: 'Estira los brazos sin encorvarte' },
-    pose(t) {
+    pose(t, ex) {
+      // En máquina de placas: pecho contra el cojín, torso quieto y las manijas cuelgan de una palanca de arriba
+      if (implemento(ex && ex.modalidad) === 'placas') {
+        const j = desdeCadera(P(112, 204), { muslo: -6, pierna: 62, torso: mezcla(-86, -92, t) }); j.hombro = mas(j.cadera, L.torso, j.torso);
+        return completar(j, { mano: P(mezcla(j.hombro.x + 54, j.hombro.x + 8, t), j.hombro.y + 26), doblar: 'atras' });
+      }
       const j = desdeCadera(P(112, 204), { muslo: -14, pierna: 38, torso: mezcla(-72, -98, t) });
       j.hombro = mas(j.cadera, L.torso, j.torso);
       return completar(j, { mano: P(mezcla(j.hombro.x + 56, j.hombro.x + 14, t), j.hombro.y + 22), doblar: 'atras' });
     },
     musculos: (j, t) => [Object.assign(M.dorsal(j, t), { principal: true }), M.biceps(j, t)],
-    estatico(g, imp) { g.add('path', { d: miembro(P(80, 210), P(140, 210), 10, 10, 10, 0.5), fill: 'var(--maq)' }); EQ.poste(g, 110, 214); g.add('rect', { x: 186, y: 196, width: 8, height: 46, rx: 3, fill: 'var(--maq2)' }); },
-    equipo: equipoEnMano({ polea: P(262, 160), pila: 268, pivote: P(250, 230), discosEnPalanca: true, sube: 40 }),
+    estatico(g, imp) {
+      g.add('path', { d: miembro(P(80, 210), P(140, 210), 10, 10, 10, 0.5), fill: 'var(--maq)' }); EQ.poste(g, 110, 214);
+      if (imp === 'placas') { g.add('rect', { x: 134, y: 140, width: 10, height: 40, rx: 5, fill: 'var(--maq2)' }); EQ.poste(g, 140, 180); EQ.poste(g, 238, 92); }
+      else g.add('rect', { x: 186, y: 196, width: 8, height: 46, rx: 3, fill: 'var(--maq2)' });
+    },
+    equipo: equipoEnMano({ polea: P(262, 160), pila: 268, pivote: P(238, 96), pivoteDiscos: P(250, 230), discosEnPalanca: true, sube: 40 }),
     guia: (a, b) => 'M' + f1(a.mano) + ' L' + f1(b.mano) };
   // Remo inclinado (barra o mancuerna, de pie) y con pecho apoyado
   F.remoInclinado = { nombre: 'Remo inclinado', textos: { concentrica: 'Jala hacia el ombligo, codos pegados', excentrica: 'Baja lento, espalda plana' },
@@ -531,12 +563,16 @@
     guia: (a, b) => 'M' + f1(a.puno) + ' L' + f1(b.puno) };
 
   F.granjero = { nombre: 'Paseo del granjero', textos: { concentrica: 'Camina firme, hombros atrás', excentrica: 'Pasos cortos, abdomen apretado' },
+    // t es la fase del paso (0–1, sin pausas): una pierna avanza mientras la otra empuja; la rodilla se dobla al pasar
+    // y la cadera baja lo justo para que el pie de apoyo siempre pise el piso
     pose(t) {
-      const s = Math.sin(t * Math.PI * 2), sube = 2.5 * Math.abs(Math.cos(t * Math.PI * 2));
-      const j = desdeCadera(P(150, 158 - sube), { muslo: 90 - 24 * s, pierna: 90 + 26 * Math.max(0, s) - 6 * s, torso: -88 });
-      j.muslo2 = 90 + 24 * s; j.pie = -6 * s;
-      const r2 = mas(j.cadera, L.muslo, j.muslo2); j.rodilla2 = r2; j.tobillo2 = mas(r2, L.pierna, 90 + 26 * Math.max(0, -s) + 6 * s);
-      return completar(j, { brazo: 90 + 4 * s, antebrazo: 90 + 4 * s });
+      const a = t * Math.PI * 2, s = Math.sin(a), c = Math.cos(a);
+      const pierna = (muslo, dobla) => { const r = mas(P(0, 0), L.muslo, muslo); return { r: r, t: mas(r, L.pierna, muslo + dobla) }; };
+      const A = pierna(90 - 22 * s, 34 * Math.max(0, c)), B = pierna(90 + 22 * s, 34 * Math.max(0, -c));
+      const cad = P(150, PISO - 4 - Math.max(A.t.y, B.t.y));
+      const j = { cadera: cad, rodilla: suma(cad, A.r), tobillo: suma(cad, A.t), rodilla2: suma(cad, B.r), tobillo2: suma(cad, B.t), torso: -87 + 1.5 * Math.abs(s) };
+      j.pie = -18 * Math.max(0, c) + 10 * Math.max(0, -s) * Math.max(0, -c);
+      return completar(j, { brazo: 91 + 3 * s, antebrazo: 91 + 3 * s });
     },
     caminando: true,
     musculos: j => [Object.assign(M.antebrazo(j, 1), { principal: true }), M.trapecio(j)],
@@ -618,8 +654,15 @@
       const cruce = /polea|cruce/i.test(ex && (ex.ejercicio + ' ' + ex.modalidad) || '') && !/m[aá]quina/i.test(ex && ex.ejercicio || '');
       if (cruce && /abajo hacia arriba|de abajo/i.test(ex.ejercicio)) return frentePose({ pelvis: 160, brazo: mezcla(40, -40, t), antebrazo: mezcla(44, -120, t), prof: mezcla(1, 0.75, t), muslo: 86, pierna: 90 });
       if (cruce) return frentePose({ pelvis: 160, brazo: mezcla(-10, 70, t), antebrazo: mezcla(-4, 120, t), prof: mezcla(1, 0.75, t), muslo: 86, pierna: 90 });
-      const p = Math.cos(rad(mezcla(0, 86, t)));   // el brazo gira hacia ti: se ve más corto y las manos llegan casi al centro
-      return frentePose({ pelvis: 172, brazo: 2, antebrazo: -88, prof: Math.max(0.08, p), profA: 1, muslo: 98, pierna: 92, profM: 0.45 });
+      // Máquina (pec deck): codos a la altura del hombro y antebrazos en los cojines; los brazos giran hacia ti
+      // y los codos se juntan frente al pecho (de frente, el brazo se ve cada vez más corto)
+      const j = frentePose({ pelvis: 172, brazo: 2, antebrazo: -88, muslo: 98, pierna: 92, profM: 0.45 }), u = Math.sin(rad(mezcla(0, 90, t)));
+      [0, 1].forEach(i => {
+        const s = i ? 1 : -1, h = j.hom[i];
+        j.codo[i] = P(mezcla(h.x + s * 30, CX + s * 7, u), h.y + 3 * u);
+        j.mano[i] = P(j.codo[i].x - s * 2 * u, j.codo[i].y - mezcla(28, 24, u));
+      });
+      return j;
     },
     musculos: (j, t) => [{ d: miembro(P(CX - 18, j.hom[0].y + 12), P(CX - 4, j.hom[0].y + 14), 10, 14 + 3 * t, 10, 0.5), c: P(CX - 11, j.hom[0].y + 13), principal: true },
                          { d: miembro(P(CX + 4, j.hom[1].y + 14), P(CX + 18, j.hom[1].y + 12), 10, 14 + 3 * t, 10, 0.5), c: P(CX + 11, j.hom[1].y + 13) }],
@@ -750,7 +793,10 @@
       this.textoFase = o.textoFase || null; this.ultimo = '';
     }
     cuadro(ms) {
-      const f = this.fam.estatico_ ? { t: 0.5 + 0.5 * Math.sin(ms / 900), nombre: ['concentrica', 'pico', 'excentrica', 'base'][Math.floor(ms / 1600) % 4], r: 0, rep: Math.floor(ms / 6400) } : fase(ms + this.desfase, this.tempo);
+      // Aguante (plancha): respira lento. Caminata (granjero): paso continuo, sin pausas. Lo demás: el tempo de la serie.
+      const f = this.fam.estatico_ ? { t: 0.5 + 0.5 * Math.sin(ms / 900), nombre: ['concentrica', 'pico', 'excentrica', 'base'][Math.floor(ms / 1600) % 4], r: 0, rep: Math.floor(ms / 6400) }
+        : this.fam.caminando ? { t: ((ms + this.desfase) / 1300) % 1, nombre: Math.floor(ms / 2600) % 2 ? 'excentrica' : 'concentrica', r: 0, rep: Math.floor(ms / 1300) }
+        : fase(ms + this.desfase, this.tempo);
       const j = this.pose(f.t, f.rep), c = this.c, fam = this.fam;
       if (j.frente) {
         [0, 1].forEach(i => {
@@ -785,8 +831,9 @@
       const eq = fam.equipo || fam;
       if (eq.mover) eq.mover(this.eq, j, f.t, this.imp);
       if (fam.equipo && fam.mover) fam.mover(this.eq, j, f.t, this.imp);
-      // Músculos: 100 % al subir y al apretar; más tenue al bajar
-      const lista = fam.musculos(j, f.t, this.ex), op = OPACIDAD[f.nombre];
+      // Músculos: 100 % al subir y al apretar; más tenue al bajar. Al apretar se inflan un poco más (y vuelven).
+      const tm = f.nombre === 'pico' && !fam.estatico_ ? 1 + 0.5 * Math.sin(Math.PI * f.r) : f.t;
+      const lista = fam.musculos(j, tm, this.ex), op = OPACIDAD[f.nombre];
       const capa = (g, ls) => {
         while (g.childNodes.length < ls.length) g.add('path', { fill: 'var(--musculo)' });
         for (let i = 0; i < g.childNodes.length; i++) { const n = g.childNodes[i], m = ls[i]; if (m) { n.setAttribute('d', m.d); n.setAttribute('opacity', op); } else n.setAttribute('opacity', 0); }
@@ -799,7 +846,7 @@
         this.pico.setAttribute('r', (9 + f.r * 12).toFixed(1)); this.pico.setAttribute('opacity', (0.85 * (1 - f.r)).toFixed(2));
       } else this.pico.setAttribute('opacity', 0);
       // Contador de repeticiones (la de la serie que sigue): 1 de 12, 2 de 12…
-      if (this.reps > 0 && !fam.estatico_) { const n = (f.rep % this.reps) + 1, txt = n + '/' + this.reps; if (this.cuenta.textContent !== txt) this.cuenta.textContent = txt; }
+      if (this.reps > 0 && !fam.estatico_ && !fam.caminando) { const n = (f.rep % this.reps) + 1, txt = n + '/' + this.reps; if (this.cuenta.textContent !== txt) this.cuenta.textContent = txt; }
       if (this.textoFase) { const txt = (fam.textos && fam.textos[f.nombre]) || TEXTO_FASE[f.nombre]; if (txt !== this.ultimo) { this.textoFase.textContent = txt; this.ultimo = txt; } }
       return f;
     }

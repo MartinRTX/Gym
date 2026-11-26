@@ -99,3 +99,56 @@ test('búlgara con el pie de atrás en el banco; crunch en máquina sentado', ()
   assert.deepStrictEqual(c0.cadera, c1.cadera, 'sentado: la cadera no se mueve');
   assert.ok(c1.hombro.x > c0.hombro.x + 25, 'el torso se enrolla hacia adelante');
 });
+
+// v10.7: animaciones mejoradas
+test('Subida con arranque suave: no salta al empezar, pero a media subida ya va arriba del 80 %', () => {
+  const T = A.TEMPO_BASE;
+  assert.ok(A.fase(T.concentrica * 0.04).t < 0.03, 'al arrancar casi no se ha movido: ' + A.fase(T.concentrica * 0.04).t);
+  assert.ok(A.fase(T.concentrica * 0.5).t > 0.8);
+  assert.ok(A.fase(T.concentrica * 0.97).t > 0.99, 'llega frenando, sin brincar al apretar');
+});
+
+test('Sentadilla goblet (o con mancuerna): la pesa al pecho, adelante del hombro y sin barra en la espalda', () => {
+  [{ ejercicio: 'Sentadilla goblet' }, { ejercicio: 'Sentadilla', modalidad: 'Mancuerna' }].forEach(ex => {
+    for (let t = 0; t <= 1; t += 0.25) {
+      const j = A.pose(ex, t);
+      assert.ok(j.barra.x > j.hombro.x + 4 && j.barra.y > j.hombro.y, ex.ejercicio + ' en t=' + t + ': ' + JSON.stringify([j.barra, j.hombro]));
+      assert.ok(Math.hypot(j.mano.x - j.barra.x, j.mano.y - j.barra.y) < 1, 'las manos sostienen la pesa');
+    }
+  });
+  const barra = A.pose({ ejercicio: 'Sentadilla con barra', modalidad: 'Barra' }, 1);
+  assert.ok(barra.barra.x < barra.hombro.x, 'con barra sigue en la espalda');
+});
+
+test('Curl femoral sentado: sentado (cadera fija, muslo horizontal) y el talón va de adelante a debajo del asiento', () => {
+  const ex = { ejercicio: 'Curl femoral sentado', modalidad: 'Placas' }, a = A.pose(ex, 0), b = A.pose(ex, 1);
+  assert.deepStrictEqual(a.cadera, b.cadera);
+  assert.ok(Math.abs(a.rodilla.y - a.cadera.y) < 6, 'muslo horizontal');
+  assert.ok(a.tobillo.x > a.rodilla.x + 30 && b.tobillo.x < b.rodilla.x && b.tobillo.y > b.rodilla.y + 20, JSON.stringify([a.tobillo, b.tobillo]));
+  assert.ok(A.pose({ ejercicio: 'Curl femoral acostado', modalidad: 'Placas' }, 0).torso === 180, 'acostado sigue igual');
+});
+
+test('Paseo del granjero: camina (las piernas se cruzan) y siempre hay un pie en el piso', () => {
+  const ex = { ejercicio: 'Paseo del granjero', modalidad: 'Mancuerna' };
+  let adelante = 0, atras = 0;
+  for (let i = 0; i < 20; i++) {
+    const j = A.pose(ex, i / 20), piso = Math.max(j.tobillo.y, j.tobillo2.y);
+    assert.ok(Math.abs(piso - 241) < 0.01, 'un pie pisa en t=' + i / 20 + ': ' + piso);
+    if (j.tobillo.x > j.tobillo2.x + 10) adelante++; if (j.tobillo.x < j.tobillo2.x - 10) atras++;
+  }
+  assert.ok(adelante > 3 && atras > 3, 'cada pierna pasa adelante: ' + [adelante, atras]);
+});
+
+test('Aperturas en máquina: los codos se juntan frente al pecho', () => {
+  const ex = { ejercicio: 'Aperturas en máquina', modalidad: 'Placas' }, a = A.pose(ex, 0), b = A.pose(ex, 1);
+  assert.ok(a.codo[1].x - a.codo[0].x > 100, 'abiertos: ' + (a.codo[1].x - a.codo[0].x));
+  assert.ok(b.codo[1].x - b.codo[0].x < 20, 'juntos: ' + (b.codo[1].x - b.codo[0].x));
+  assert.ok(b.mano.every(m => m.y < b.hom[0].y), 'las manos arriba, en los cojines');
+});
+
+test('Remo en máquina de placas: torso casi quieto contra el cojín; con polea se sigue inclinando', () => {
+  const m0 = A.pose({ ejercicio: 'Remo en máquina', modalidad: 'Placas' }, 0), m1 = A.pose({ ejercicio: 'Remo en máquina', modalidad: 'Placas' }, 1);
+  assert.ok(Math.abs(m0.torso - m1.torso) <= 8 && m1.mano.x < m0.mano.x - 30);
+  const p0 = A.pose({ ejercicio: 'Remo sentado en polea', modalidad: 'Polea' }, 0);
+  assert.ok(p0.torso > -80, 'con polea se estira hacia adelante');
+});

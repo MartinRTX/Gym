@@ -1,12 +1,12 @@
 # Pendientes y contexto (para seguir en un chat nuevo)
 
-Actualizado: 11/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
+Actualizado: 26/11/2026. Pega este archivo (o su link) al empezar un chat nuevo.
 
 ## Dónde está todo
 
 | Pieza | Dónde | Estado |
 |---|---|---|
-| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.6** (11/11): identificador del celular y productos sin tope de 40 |
+| App Gym (PWA) | repo público `MartinRTX/Gym`, Pages en https://martinrtx.github.io/Gym/ | **v10.7** (26/11): animaciones mejoradas (goblet, femoral sentado, remo en máquina, granjero, aperturas, ritmo) |
 | Rama de trabajo | `claude/fitness-app-visual-design-x9iz7n` | Publicar = adelantar `main` a esta rama, **solo cuando Martin diga "publica"** |
 | APK Gym | carpeta `apk/` (Capacitor, carga la URL de Pages) | Compilación 21, firma verificada por el workflow |
 | Apps Script de Gym | repo **privado** `MartinRTX/Gym-script` (`src/AppGym.js`, `src/Maquina.js`, `src/Código.js`) | **9.0** (11/11): pruebas del servidor, acción `panel`, límite de intentos y `_nutricion` |
@@ -28,14 +28,27 @@ Versiones que deben ir juntas: `VERSION_APP` en `app.js` = `VERSION` en `sw.js` 
 
 ```bash
 node herramientas/revisar.js            # versiones, sin onclick en texto, todo el HTML con la plantilla, etc.
-node --test tests/*.test.js              # 82 pruebas de lógica
-NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 316 pruebas de pantalla (Playwright)
+node --test tests/*.test.js              # 91 pruebas de lógica
+NODE_PATH=/opt/node-tools/node_modules node tests/e2e/correr.js [filtro]   # 347 pruebas de pantalla (Playwright)
 NODE_PATH=/opt/node-tools/node_modules node herramientas/comparar-pantallas.js [ref] [filtro]   # antes y después: ¿se pinta igual?
+NODE_PATH=/opt/node-tools/node_modules node herramientas/galeria-animaciones.js [salida.png] [filtro]   # cada animación en 4 momentos
 ```
 
 En GitHub corren solas: "Pruebas" (revisar + unidad + pantalla), "APK Android" (desde `main`) y Pages.
 En Gym-script: "Publicar script" (revisa en todas las ramas; en `main` hace `clasp push`, versión nueva,
 actualiza la MISMA implementación y prueba que conteste "Clave incorrecta").
+
+## Animaciones (v10.7, 26/11)
+
+Revisadas las 52 variantes con `herramientas/galeria-animaciones.js` (abajo, subiendo, arriba, bajando). Arreglos:
+- Ritmo: la subida arranca suave (antes salía de golpe) y llega frenando; al apretar, el músculo se infla un poco y regresa.
+- Sentadilla goblet o con mancuerna: la pesa va al pecho y ya no sale el rack con la barra en la espalda.
+- Curl femoral sentado: ahora sentado, con el cojín sobre el muslo y el rodillo detrás del tobillo (antes salía acostado).
+- Remo en máquina de placas: pecho contra el cojín, torso quieto y manijas que cuelgan de una palanca (antes un cable raro al piso).
+- Paseo del granjero: camina de verdad (paso continuo, un pie siempre en el piso) y no cuenta repeticiones.
+- Aperturas en máquina: los codos se juntan frente al pecho (antes casi no se movía).
+- Pantorrilla: más recorrido del talón.
+Las demás se revisaron y se quedan igual. 6 pruebas nuevas en `tests/animaciones.test.js`.
 
 ## Cómo publicar (cuando Martin diga "publica")
 
