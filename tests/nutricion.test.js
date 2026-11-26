@@ -92,6 +92,21 @@ test('Porción de varias piezas (2 mantecadas = 62 g): "1 mantecada" es media po
   assert.deepStrictEqual(por('1 porción'), [['1 porción', 30]]);
 });
 
+test('recortarProductos: hasta 300; si sobran se van los más viejos que no son ingrediente de ninguna receta', () => {
+  const prods = n => Array.from({ length: n }, (_, i) => ({ id: 'p:' + i, n: 'Producto ' + i }));
+  const cfg = { productos: prods(45), recetas: [{ id: 'r1', items: [{ ref: 'p:0', q: 100 }, { ref: 'b:avena', q: 40 }] }] };
+  assert.strictEqual(NUT.recortarProductos(cfg).length, 45, 'con 45 no se toca nada (antes el tope era 40 y se perdía p:0)');
+  assert.deepStrictEqual([NUT.MAX_PRODUCTOS, NUT.MAX_RECETAS], [300, 40]);
+  cfg.productos = prods(310);
+  const r = NUT.recortarProductos(cfg).map(p => p.id);
+  assert.strictEqual(r.length, 300);
+  assert.ok(r.includes('p:0') && !r.includes('p:1') && !r.includes('p:10') && r.includes('p:11') && r.includes('p:309'), 'se queda el de la receta; se van p:1 a p:10');
+  // Todo es ingrediente (caso límite): se recorta por lo más viejo en vez de crecer sin fin
+  const todo = { productos: prods(5), recetas: [{ id: 'r', items: prods(5).map(p => ({ ref: p.id, q: 1 })) }] };
+  assert.deepStrictEqual(NUT.recortarProductos(todo, 3).map(p => p.id), ['p:2', 'p:3', 'p:4']);
+  assert.deepStrictEqual(NUT.recortarProductos({}, 3), []);
+});
+
 test('diceCuantas: "1 mantecada" sí (hay que saber cuánto pesa una); "62 g" o solo el nombre, no', () => {
   assert.ok(NUT.diceCuantas('1 mantecada'));
   assert.ok(NUT.diceCuantas('una mantecada bimbo con nuez'));

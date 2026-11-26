@@ -429,9 +429,24 @@ async function apiGet(action, clave) { return apiPost(action, [], clave); }
 // Tope de cualquier llamada a tu hoja: si Google no contesta, se corta (antes la subida se quedaba en "Subiendo…" minutos
 // y no subía nada más hasta reabrir la app). La subida de la cola usa uno más corto (LIMITE_SUBIDA) y se reintenta sola.
 let LIMITE_API = 120000, LIMITE_SUBIDA = 60000;
+// Script 9.0: tras 10 claves equivocadas (de quien sea) un celular que aún no había entrado espera 15 minutos
+const MSJ_BLOQUEO = 'Alguien probó muchas claves equivocadas: por seguridad, este celular puede entrar otra vez en 15 minutos. Lo que anotes se guarda aquí y se sube solo.';
+// Identificador de este celular (al azar, se crea una vez y nunca cambia). Va en cada llamada junto con la clave: el script 9.0
+// recuerda los celulares que ya entraron con la clave buena y, si alguien se pone a probar claves, solo ellos siguen entrando.
+function dispositivo() {
+  let d = LS.get('gym_disp', '');
+  if (!/^[0-9a-f]{32}$/.test(d)) {
+    const b = new Uint8Array(16);
+    try { crypto.getRandomValues(b); } catch (e) { for (let i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256); }
+    d = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+    LS.set('gym_disp', d);
+  }
+  return d;
+}
 async function apiPost(action, args, clave, ms) {
   // Pareja (script 7.6+): la hoja ya no manda la clave del compañero; vas con la tuya y "para" con su nombre
   const c = clave || KEY, cuerpo = /^para:/.test(c) ? { k: KEY, para: c.slice(5) } : { k: c };
+  cuerpo.d = dispositivo();
   const corte = typeof AbortController === 'function' ? new AbortController() : null;
   const reloj = corte ? setTimeout(() => corte.abort(), ms || LIMITE_API) : null;
   let j;
@@ -487,7 +502,7 @@ async function enviar() {
       ENVIOS++;
       let res;
       try { res = await apiPost('batch', [deClave.map(op => ({ id: op.id, action: op.action, args: op.args }))], c, LIMITE_SUBIDA); }
-      catch (e) { fallo = true; if (/Clave/.test(e.message)) toast('La clave no coincide; revisa la configuración'); continue; }
+      catch (e) { fallo = true; if (/Clave/.test(e.message)) toast('La clave no coincide; revisa la configuración'); else if (/Demasiados intentos/.test(e.message)) toast(MSJ_BLOQUEO); continue; }
       const listos = new Set(), intentos = {};
       (res || []).forEach(r => {
         if (r.ok) return listos.add(r.id);
@@ -598,7 +613,7 @@ function arrancar() {
   if (LS.get('gym_rest', null)) arrancarRest();
   if (sesionActiva()) pedirPantalla();
 }
-const VERSION_APP = 'v10.5';
+const VERSION_APP = 'v10.6';
 // Versión del script de Apps Script que espera esta app (SCRIPT_VERSION en AppGym.js); si la hoja trae una anterior, Ajustes avisa
 const SCRIPT_ESPERADO = '8.5';
 const versionNum = v => String(v || '0').split('.').map(Number).reduce((a, x, i) => a + x / Math.pow(100, i), 0);
@@ -608,7 +623,7 @@ let ULT_LECTURA = 0;
 function refrescar() { if (Date.now() - ULT_LECTURA > 60000) actualizar(); }
 // Otra persona en este celular: se borra todo lo de la cuenta anterior menos la cola (sus pendientes se suben con su clave)
 function cambiarDeCuenta() {
-  LS.claves().filter(k => /^gym_/.test(k) && !['gym_queue', 'gym_api', 'gym_key'].includes(k)).forEach(k => LS.del(k));
+  LS.claves().filter(k => /^gym_/.test(k) && !['gym_queue', 'gym_api', 'gym_key', 'gym_disp'].includes(k)).forEach(k => LS.del(k));
   if (NATIVO) nativo('GymNativo', 'tomarCola').then(r => {   // las comidas del widget eran de la otra cuenta
     const ids = ((r && r.items) || []).map(x => x.id).filter(Boolean);
     if (ids.length) nativo('GymNativo', 'confirmarCola', { ids: ids });
@@ -654,6 +669,7 @@ async function actualizar(intento) {
     if (/incompletos/.test(e.message)) registrarError(e.message, 'actualizar');
     if (!DATA) $('loading').textContent = /Clave/.test(e.message)
       ? 'La clave no coincide. Vuelve a abrir el link de configuración.'
+      : /Demasiados intentos/.test(e.message) ? MSJ_BLOQUEO.split(' Lo que anotes')[0]
       : 'Necesitas internet la primera vez que abres la app.';
   }
 }
