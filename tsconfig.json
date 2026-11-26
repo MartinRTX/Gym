@@ -22,6 +22,8 @@
     "motor.js",
     "nutricion.js",
     "comida.js",
+    "comida-buscar.js",
+    "comida-foto.js",
     "animaciones.js",
     "app.js",
     "entrenar.js",
@@ -31,6 +33,8 @@
     "comida-dia.js",
     "coach.js",
     "progreso.js",
+    "maquina.js",
+    "ruta.js",
     "ajustes.js",
     "inicio.js"
   ]
